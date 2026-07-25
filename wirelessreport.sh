@@ -419,7 +419,7 @@ check_ssh() {
 		echo -e "${BL}=================================================="
         while true; do
             printf "\n Selection:${NC} "
-            read ssh_choice
+            read -r ssh_choice
             case "$ssh_choice" in
                 1)
                     ssh_keys
@@ -582,7 +582,7 @@ node_auth() {
             echo -e "  ${BL}[$KEY_LBL]${NC}     $ACTION_MSG"
             echo -e "  ${BL}[e]${NC}     Exit to main menu\n"
             printf "${BL}Selection: ${NC}"
-            read -n 1 input
+            read -rn 1 input
             case "$input" in
 				[rR]|[cC])
 					echo -e "\n\n${YL}[!] $ACTION_MSG...${NC}\n"
@@ -593,7 +593,7 @@ node_auth() {
 					echo -e "${GR}[✓] Environment configuration locked in.${NC}"
 					pause; return ;;
 				[eE])
-					read; return ;;
+					read -r discard; return ;;
 				*)
 					echo -e "\n\n${BL}[i] Retrying authentication...${NC}"
 					sleep 5
@@ -649,10 +649,10 @@ ssh_keys() {
 	echo -e "[*] STEP 1: Go to Asus WebGUI > AiMesh > Management    "
 	echo -e "[*] STEP 2: Click 'Reboot Node' for each node\n        "
 	echo -e "${YL}[!] Do not press [Enter] until Nodes are confirmed to be back online.\n"
-	echo -e "${BL}[*] TIP: If a node is missing after authentication,  "
-	echo -e "${BL}[*]      use option #6 to reauthenticate.            "
-	echo -ne "\n[*] Press [ENTER]${NC} to begin authentication check..."
-	read -r
+	echo -e "${BL}[*] TIP: If a node is missing after authentication,     "
+	echo -e "${BL}[*]      use option #7 to reauthenticate.          ${NC}"
+	printf "\n[*] Press ${BL}[ENTER]${NC} to begin authentication check..."
+	read -r discard
 	node_auth "pause"
 }
 
@@ -1219,15 +1219,20 @@ rssi_submenu() {
                     if [ "$CUR_RS_HIST" = "1" ]; then CUR_RS_HIST="0"; else CUR_RS_HIST="1"; fi
                     break ;;
                 2)
-                    echo -ne "\n Enter new depth (${BL}5-20${NC}) [Current: $CE]: "
-                    read new_days
-                    if [ "$new_days" -ge 5 ] && [ "$new_days" -le 20 ]; then
-                        CUR_ENTRIES="$new_days"
-                    else
-                        echo -e "\n${RD}[!] Invalid: Use 5-20${NC}"
-                        sleep 1
-                    fi
-                    break ;;
+                    while true; do
+                        printf "\n Enter new depth (${BL}5-20${NC}) [Current: $CE]: "
+                        read -r new_days
+                        case "$new_days" in
+                            *[!0-9]*|"") FREEZE; continue ;;
+                        esac
+                        if [ "$new_days" -ge 5 ] && [ "$new_days" -le 20 ]; then
+                            CUR_ENTRIES="$new_days"
+                            break 2
+                        else
+                            FREEZE; continue
+                        fi
+                    done
+                    ;;
                 3)
                     if [ "$CUR_DATE" = "1" ]; then CUR_DATE="0"; else CUR_DATE="1"; fi
                     break ;;
@@ -1313,7 +1318,7 @@ restart_httpd() {
 
 pause() {
     printf "\nPress ${BL}[Enter]${NC} to return..."
-    read discard
+    read -r discard
 
 }
 
