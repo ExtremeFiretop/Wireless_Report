@@ -186,7 +186,7 @@ $\color{blue}{\Large\text{ROUTER ONLY VIEW - DEFAULT MODE}}$
 \
 $\color{blue}{\Large\text{ADVANCED VIEWING + INTERACTIVE FEATURES}}$<br>
 Wireless Report is designed to be more than just a static table. Use these interactive elements to manage your network:
-  * $\color{green}{\text{Version, Hash + Update Alerts:}}$ Hover your mouse over the "Wireless Report" header to instantly check your current script version and view file hash updates. Additionally, the browser tab title displays the active Wireless Report version, dynamically appending an alert only if a version or hash update becomes available.
+  * $\color{green}{\text{Version, Hash + Update Alerts:}}$ Hover your mouse over the "Wireless Report" header to instantly check your current script version and view file hash updates—when an update or hash change is available, the header text softly pulses twice to catch your eye. Additionally, the browser tab title displays the active Wireless Report version, dynamically appending an alert whenever a new version or hash update is detected.
   * $\color{green}{\text{Dynamic UI Modes:}}$ Choose how you view your data using the built-in button toggles:<br>
     * $\color{blue}{\text{Main:}}$ A clean, vertical list of router and nodes.<br>
     * $\color{blue}{\text{All Devices:}}$ A consolidated view of every wireless client on the network.<br>
