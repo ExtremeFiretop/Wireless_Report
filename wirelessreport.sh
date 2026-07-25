@@ -100,10 +100,7 @@ install_menu() {
 			case "$choice" in
 				1) do_install; break ;;
 				2|3|4|5|6|7|8)
-					if [ ! -f "$REPORT_SCRIPT" ]; then
-						printf "\033[2A\033[J"
-						continue
-					fi
+                    FREEZE2 || continue
 					case "$choice" in
 						2) do_uninstall ;;
 						3) set_temp_date ;;
@@ -115,15 +112,15 @@ install_menu() {
 					esac
 					break ;;
 				e|E) clear; hasta; exit 0 ;;
-				*) printf "\033[2A\033[J"; continue ;;
+				*) FREEZE; continue ;;
 			esac
 		done
 	done
 }
 
 check_version() {
-    local mode="$1"
-    if [ ! -f "$REPORT_SCRIPT" ]; then STATE="NOT_INSTALLED"
+    local mode="$1"; FREEZE2() { return 0; }
+    if [ ! -f "$REPORT_SCRIPT" ]; then STATE="NOT_INSTALLED"; FREEZE2() { FREEZE; return 1; }
     elif [ -z "$REMOTE_VERSION" ]; then STATE="OFFLINE"
     elif [ "$(echo "$LOCAL_VERSION" | tr -d '.')" -gt "$(echo "$REMOTE_VERSION" | tr -d '.')" ]; then  STATE="UP_TO_DATE"
     elif [ "$LOCAL_VERSION" != "$REMOTE_VERSION" ]; then STATE="OUTDATED"
@@ -168,11 +165,12 @@ menu_vars() {
         sed -i "s/^THEME=.*/THEME=\"$THEME\"/" "$CONFIG"
         ;;
     esac
-	JB1366="${GR}${UL}https://github.com/JB1366/Wireless_Report${NC}"; echo -e "${BL}"
+	JB1366="${GR}${UL}https://github.com/JB1366/Wireless_Report${NC}"
 	N0="${BL}(0)${NC}"; N1="${BL}(1)${NC}"; N2="${BL}(2)${NC}"; N3="${BL}(3)${NC}"
 	N4="${BL}(4)${NC}"; N5="${BL}(5)${NC}"; N6="${BL}(6)${NC}"; N7="${BL}(7)${NC}"; N8="${BL}(8)${NC}"
 	NE="${BL}(e)${NC}"; NQ="${BL}(c)${NC}"; ON="${GR}ON${NC}"; OFF="${RD}OFF${NC}"
-	STATUS=" ${BL}STATUS:${NC}"; CURRENT="${GR}Current: v$LOCAL_VERSION${NC}"
+	STATUS=" ${BL}STATUS:${NC}"; CURRENT="${GR}Current: v$LOCAL_VERSION${NC}"; echo -e "${BL}"
+    FREEZE() { printf "\033[2A\033[J"; }
     SS_FILE="/jffs/scripts/services-start"
 	SE_FILE="/jffs/scripts/service-event"
 	if [ -z "$SSH_KEY" ]; then KEY="${RD}NO${NC}"; else KEY="${GR}YES${NC}"; fi
@@ -468,15 +466,14 @@ check_ssh() {
                 7)
                     if [ "$install" = "1" ]; then
                         echo -e "\n${YL}[i] You must run option #1 first.${NC}"
-                        pause
-                        break
+                        pause; break
                     fi
                     node_auth
                     pause; break ;;
                 e|E)
                     return 0 ;;
                 *)
-                    printf "\033[2A\033[J"; continue ;;
+                    FREEZE; continue ;;
             esac
         done
 	done
@@ -594,11 +591,9 @@ node_auth() {
 						echo 'SSH_NODES=" "' >> "$CONFIG"
 					fi
 					echo -e "${GR}[✓] Environment configuration locked in.${NC}"
-					pause
-					return ;;
+					pause; return ;;
 				[eE])
-					read
-					return ;;
+					read; return ;;
 				*)
 					echo -e "\n\n${BL}[i] Retrying authentication...${NC}"
 					sleep 5
@@ -803,7 +798,7 @@ set_temp_date() {
                 2) NEW_UNIT="C" ;;
                 3) NEW_UNIT="ISO" ;;
                 e|E) sort -u -o "$CONFIG" "$CONFIG"; return ;;
-                *) printf "\033[2A\033[J"; continue ;;
+                *) FREEZE; continue ;;
             esac
             sed -i '/REPORT_UNIT=/d' "$CONFIG"
             echo "REPORT_UNIT=\"$NEW_UNIT\"" >> "$CONFIG"
@@ -940,7 +935,7 @@ set_nicknames() {
                     sort -u -o "$CONFIG" "$CONFIG"
                     return ;;
                 *)
-                    printf "\033[2A\033[J"; continue ;;
+                    FREEZE; continue ;;
             esac
         done
     done
@@ -1017,7 +1012,7 @@ set_colors() {
                 e|E) break 2 ;;
             esac
             if ! [ "$node_choice" -ge 0 ] 2>/dev/null || ! [ "$node_choice" -le "$total_nodes" ] 2>/dev/null; then
-                printf "\033[2A\033[J"; continue
+                FREEZE; continue
             fi
             local target_name="" target_hex=""
             if [ "$node_choice" -eq 0 ]; then
@@ -1156,24 +1151,20 @@ set_options() {
                 6)
                     if grep -q "IPPAD=" "$CONFIG"; then
                         if [ "$IPPAD" = "1" ]; then
-                            NEW_PAD="0"
                             echo -e "\n${RD}[-] Disabled:${NC} 192.168.050.003 --> ${RD}192.168.50.3${NC}"
-                            pause
+                            NEW_PAD="0"; pause
                         elif [ "$IPPAD" = "0" ]; then
-                            NEW_PAD="2"
                             echo -e "\n${GR}[+] Mode 2:${NC} 192.168.50.3 --> ${GR}192.168.050.003${NC} (Last 2 Octets)"
-                            pause
+                            NEW_PAD="2"; pause
                         else
-                            NEW_PAD="1"
                             echo -e "\n${GR}[+] Mode 1:${NC} 192.168.50.3 --> ${GR}192.168.50.003${NC} (Last Octet Only)"
-                            pause
+                            NEW_PAD="1"; pause
                         fi
                         sed -i "s/IPPAD=.*/IPPAD=\"$NEW_PAD\"/" "$CONFIG"
                     else
-                        NEW_PAD="0"
                         echo -e "\n${RD}[-] Disabled:${NC} 192.168.050.003 --> ${RD}192.168.50.3${NC}"
-                        pause
                         echo 'IPPAD="0"' >> "$CONFIG"
+                        NEW_PAD="0"; pause
                     fi
                     break ;;
                 7)
@@ -1199,7 +1190,7 @@ set_options() {
                     sort -u -o "$CONFIG" "$CONFIG"
                     return 0 ;;
                 *)
-                    printf "\033[2A\033[J"; continue ;;
+                    FREEZE; continue ;;
             esac
         done
     done
@@ -1260,7 +1251,7 @@ rssi_submenu() {
                     unset CUR_RS_HIST CUR_ENTRIES CUR_DATE
                     pause; return 0 ;;
                 *)
-                    printf "\033[2A\033[J"; continue ;;
+                    FREEZE; continue ;;
             esac
         done
     done
@@ -1285,21 +1276,30 @@ theme_submenu() {
             read -r theme_choice
             case "$theme_choice" in
                 1)
-                    if grep -q "^THEME=" "$CONFIG"; then sed -i "s/^THEME=.*/THEME=\"ORIGINAL\"/" "$CONFIG"
-                    else echo 'THEME="ORIGINAL"' >> "$CONFIG"; fi
+                    if grep -q "^THEME=" "$CONFIG"; then
+                        sed -i "s/^THEME=.*/THEME=\"ORIGINAL\"/" "$CONFIG"
+                    else
+                        echo 'THEME="ORIGINAL"' >> "$CONFIG"
+                    fi
                     break ;;
                 2)
-                    if grep -q "^THEME=" "$CONFIG"; then sed -i "s/^THEME=.*/THEME=\"DARKMODE\"/" "$CONFIG"
-                    else echo 'THEME="DARKMODE"' >> "$CONFIG"; fi
+                    if grep -q "^THEME=" "$CONFIG"; then
+                        sed -i "s/^THEME=.*/THEME=\"DARKMODE\"/" "$CONFIG"
+                    else
+                        echo 'THEME="DARKMODE"' >> "$CONFIG"
+                    fi
                     break ;;
                 3)
-                    if grep -q "^THEME=" "$CONFIG"; then sed -i "s/^THEME=.*/THEME=\"ASUS_WEBUI\"/" "$CONFIG"
-                    else echo 'THEME="ASUS_WEBUI"' >> "$CONFIG"; fi
+                    if grep -q "^THEME=" "$CONFIG"; then
+                        sed -i "s/^THEME=.*/THEME=\"ASUS_WEBUI\"/" "$CONFIG"
+                    else
+                        echo 'THEME="ASUS_WEBUI"' >> "$CONFIG"
+                    fi
                     break ;;
                 e|E)
                     return 0 ;;
                 *)
-                    printf "\033[2A\033[J"; continue ;;
+                    FREEZE; continue ;;
             esac
         done
     done
