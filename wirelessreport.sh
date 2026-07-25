@@ -44,8 +44,7 @@ DHCPSTATIC_CACHE="/tmp/dhcp_static.cache"
 DEVICE_LIST_CACHE="/tmp/asus_device_list.cache"
 CUSTOM_CLIENTS_CACHE="/tmp/custom_clients.cache"
 if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
-doScriptUpdateFromAMTM=true
-unset LD_LIBRARY_PATH
+unset LD_LIBRARY_PATH; doScriptUpdateFromAMTM=true
 UL='\033[4m'; WH='\e[1;37m'; YL='\033[0;33m'; BG='\e[42;37m'
 BL='\033[38;5;39m'; GR='\033[0;32m'; NC='\033[0m'; RD='\033[0;31m'
 export PATH="/usr/sbin:/usr/bin:/sbin:/bin:$PATH"
@@ -55,7 +54,7 @@ export PATH="/usr/sbin:/usr/bin:/sbin:/bin:$PATH"
 #==================#
 show_header() {
 	clear; menu_vars
-	echo -e "${BL}" #=======================================================#
+	#=======================================================================#
 	echo -e "                                                               "
 	echo -e " ██╗    ██╗██╗██████╗ ███████╗██╗     ███████╗███████╗███████╗ "
 	echo -e " ██║    ██║██║██╔══██╗██╔════╝██║     ██╔════╝██╔════╝██╔════╝ "
@@ -114,8 +113,7 @@ install_menu() {
 						7) node_auth "pause" ;;
 						8) check_ssh ;;
 					esac
-					break
-					;;
+					break ;;
 				e|E) clear; hasta; exit 0 ;;
 				*) printf "\033[2A\033[J"; continue ;;
 			esac
@@ -134,9 +132,12 @@ check_version() {
     case "$mode" in
         header_box)
             case "$STATE" in
-                OUTDATED)     HOVER_TEXT="Current v$SCRIPT_VERSION <br> New Version v$REMOTE_VERSION available"; VERHASH="[$REMOTE_VERSION]"; HT="header-title2" ;;
-                HASH_DIFF)    HOVER_TEXT="Current v$SCRIPT_VERSION <br> Hash Update available."; VERHASH="[Hash]"; HT="header-title2" ;;
-                UP_TO_DATE|*) HOVER_TEXT="Current v$SCRIPT_VERSION"; VERHASH=""; HT="header-title" ;;
+                OUTDATED)      HOVER_TEXT="Current v$SCRIPT_VERSION <br> New Version v$REMOTE_VERSION available"
+                               VERHASH="[$REMOTE_VERSION]"; TITLE="header-title2" ;;
+                HASH_DIFF)     HOVER_TEXT="Current v$SCRIPT_VERSION <br> Hash Update available"
+                               VERHASH="[Hash]"; TITLE="header-title2" ;;
+                UP_TO_DATE|*)  HOVER_TEXT="Current v$SCRIPT_VERSION"
+                               VERHASH=""; TITLE="header-title" ;;
             esac ;;
         do_install)
             case "$STATE" in
@@ -167,7 +168,7 @@ menu_vars() {
         sed -i "s/^THEME=.*/THEME=\"$THEME\"/" "$CONFIG"
         ;;
     esac
-	JB1366="${GR}${UL}https://github.com/JB1366/Wireless_Report${NC}"
+	JB1366="${GR}${UL}https://github.com/JB1366/Wireless_Report${NC}"; echo -e "${BL}"
 	N0="${BL}(0)${NC}"; N1="${BL}(1)${NC}"; N2="${BL}(2)${NC}"; N3="${BL}(3)${NC}"
 	N4="${BL}(4)${NC}"; N5="${BL}(5)${NC}"; N6="${BL}(6)${NC}"; N7="${BL}(7)${NC}"; N8="${BL}(8)${NC}"
 	NE="${BL}(e)${NC}"; NQ="${BL}(c)${NC}"; ON="${GR}ON${NC}"; OFF="${RD}OFF${NC}"
@@ -227,8 +228,7 @@ do_install() {
 	fi
     if [ "$(nvram get jffs2_scripts)" != "1" ]; then
         echo -e "${RD}[!] ERROR: JFFS custom scripts not enabled.${NC}"
-        pause
-		return 1
+        pause; return 1
     fi
 	check_storage
 	if [ -f "$SSH_KEY" ]; then
@@ -362,7 +362,6 @@ get_usb() {
 
 check_storage() {
 	echo -e "\n${BL}[*] Checking for Storage...${NC}"
-    sleep 3
 	if echo "$USB_PATH" | grep -q "/tmp/mnt/"; then
         echo -e "\n${GR}[+] USB Found: Using $USB_PATH for reports and history.${NC}"
     else
@@ -393,8 +392,11 @@ ssh_init () {
 	NODE_USER=$(nvram get http_username)
 	SSH_PORT=$(nvram get sshd_port)
 	SSH_PORT=${SSH_PORT:-22}
-	if [ -f "/root/.ssh/id_dropbear" ]; then SSH_KEY="/root/.ssh/id_dropbear"
-	else SSH_KEY=""; fi
+	if [ -f "/root/.ssh/id_dropbear" ]; then
+        SSH_KEY="/root/.ssh/id_dropbear"
+	else
+        SSH_KEY=""
+    fi
 }
 
 check_ssh() {
@@ -481,7 +483,10 @@ check_ssh() {
 }
 
 node_auth() {
-	if [ ! -s "$SSH_KEY" ]; then echo -e "\n${YL}[!] Main Router SSH Key not found.${NC}"; sleep 3; return; fi
+	if [ ! -s "$SSH_KEY" ]; then
+        echo -e "\n${YL}[!] Main Router SSH Key not found.${NC}"
+        sleep 3; return
+    fi
 	sed -i '/^SSH_NODES=/d' "$CONFIG"
 	echo -e "\n${GR}[✓] Main Router SSH Key found at: ${WH}$SSH_KEY${NC}\n"
 	echo -e "${BL}=================================================="
@@ -609,8 +614,7 @@ node_auth() {
 ssh_keys() {
 	if [ -f "$SSH_KEY" ]; then
 		echo -e "\n${YL}[!] Main Router SSH Key already exists.${NC}"
-		pause
-		return 0
+		pause; return 0
 	fi
 	if [ -f "/jffs/.ssh/id_dropbear" ] && [ ! -f "/root/.ssh/id_dropbear" ]; then
 		echo -e "\n${GR}[!] Stored JFFS key detected. Linking and configuring...${NC}\n"
@@ -653,7 +657,7 @@ ssh_keys() {
 	echo -e "${BL}[*] TIP: If a node is missing after authentication,  "
 	echo -e "${BL}[*]      use option #6 to reauthenticate.            "
 	echo -ne "\n[*] Press [ENTER]${NC} to begin authentication check..."
-	read
+	read -r
 	node_auth "pause"
 }
 
@@ -665,8 +669,7 @@ del_ssh_keys() {
 		case "$delete" in [yY]*) ;; *) return ;; esac
 	else
 		echo -e "\n${YL}[!] No active RSA key found to delete.${NC}"
-		pause
-		return
+		pause; return
 	fi
 	echo -e "\n${YL}[i] Purging RSA key footprint from environment...${NC}"
 	if [ -f "/jffs/.ssh/id_dropbear.pub" ]; then
@@ -694,8 +697,11 @@ del_ssh_keys() {
 inject_menu() {
 	. /usr/sbin/helper.sh
 	TAB_LABEL="Wireless Report"
-	if [ -f "$CONFIG" ]; then sed -i '/^INSTALLED_PAGE=/d' "$CONFIG"
-	else touch "$CONFIG"; fi
+	if [ -f "$CONFIG" ]; then
+        sed -i '/^INSTALLED_PAGE=/d' "$CONFIG"
+	else
+        touch "$CONFIG"
+    fi
     if ! nvram get rc_support | grep -q am_addons; then
 		logger -p user.info -t "Wireless_Report" "This firmware does not support addons!"
 		exit 5
@@ -741,11 +747,6 @@ inject_menu() {
 }
 
 do_uninstall() {
-    if [ ! -d "$INSTALL_DIR" ]; then
-        echo -e "\n${YL}[!] Wireless Report is not installed.${NC}"
-        pause
-        return
-    fi
     echo -e "\n${RD}[!] WARNING: Removing Wireless Report...${NC}\n"
     printf "Are you sure? (y/n): "
     read -r confirm
@@ -1187,15 +1188,13 @@ set_options() {
                     echo -e "\n${BL}================= USB Check ======================${NC}"
                     check_storage
                     echo -e "\n${BL}==================================================${NC}"
-                    pause
-                    break ;;
+                    pause; break ;;
                 v|V)
                     echo -e "\n${BL}================== CONFIG ======================${NC}\n"
                     if [ -f "$CONFIG" ]; then cat "$CONFIG"
                     else echo -e "${GR}[!] No CONFIG file found.${NC}"; fi
                     echo -e "\n${BL}==================================================${NC}"
-                    pause
-                    break ;;
+                    pause; break ;;
                 e|E)
                     sort -u -o "$CONFIG" "$CONFIG"
                     return 0 ;;
@@ -1242,9 +1241,8 @@ rssi_submenu() {
                     if [ "$CUR_DATE" = "1" ]; then CUR_DATE="0"; else CUR_DATE="1"; fi
                     break ;;
                 c|C)
-                    echo -e "\n${RD}[!] Changes discarded.${NC}"
                     unset CUR_RS_HIST CUR_ENTRIES CUR_DATE
-                    pause; return 0 ;;
+                    return 0 ;;
                 e|E)
                     RS_HIST="$CUR_RS_HIST"
                     RS_HIST_ENTRIES="$CUR_ENTRIES"
@@ -2830,7 +2828,7 @@ document.addEventListener('mouseout', function(e) {
                     <div class="top-header">
                         <div class="header-wrap">
                             <div class="header-tooltip">
-                                <h1 class="$HT">WIRELESS REPORT</h1>
+                                <h1 class="$TITLE">WIRELESS REPORT</h1>
                                 <span class="header-box">$HOVER_TEXT</span>
                             </div>
                         </div>
