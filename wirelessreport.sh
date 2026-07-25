@@ -100,7 +100,7 @@ install_menu() {
 			case "$choice" in
 				1) do_install; break ;;
 				2|3|4|5|6|7|8)
-                    FREEZE2 || continue
+                    freeze2 || continue
 					case "$choice" in
 						2) do_uninstall ;;
 						3) set_temp_date ;;
@@ -112,15 +112,15 @@ install_menu() {
 					esac
 					break ;;
 				e|E) clear; hasta; exit 0 ;;
-				*) FREEZE; continue ;;
+				*) freeze; continue ;;
 			esac
 		done
 	done
 }
 
 check_version() {
-    local mode="$1"; FREEZE2() { return 0; }
-    if [ ! -f "$REPORT_SCRIPT" ]; then STATE="NOT_INSTALLED"; FREEZE2() { FREEZE; return 1; }
+    local mode="$1"; freeze2() { return 0; }
+    if [ ! -f "$REPORT_SCRIPT" ]; then STATE="NOT_INSTALLED"; freeze2() { freeze; return 1; }
     elif [ -z "$REMOTE_VERSION" ]; then STATE="OFFLINE"
     elif [ "$(echo "$LOCAL_VERSION" | tr -d '.')" -gt "$(echo "$REMOTE_VERSION" | tr -d '.')" ]; then  STATE="UP_TO_DATE"
     elif [ "$LOCAL_VERSION" != "$REMOTE_VERSION" ]; then STATE="OUTDATED"
@@ -170,7 +170,7 @@ menu_vars() {
 	N4="${BL}(4)${NC}"; N5="${BL}(5)${NC}"; N6="${BL}(6)${NC}"; N7="${BL}(7)${NC}"; N8="${BL}(8)${NC}"
 	NE="${BL}(e)${NC}"; NQ="${BL}(c)${NC}"; ON="${GR}ON${NC}"; OFF="${RD}OFF${NC}"
 	STATUS=" ${BL}STATUS:${NC}"; CURRENT="${GR}Current: v$LOCAL_VERSION${NC}"; echo -e "${BL}"
-    FREEZE() { printf "\033[2A\033[J"; }
+    freeze() { printf "\033[2A\033[J"; }
     SS_FILE="/jffs/scripts/services-start"
 	SE_FILE="/jffs/scripts/service-event"
 	if [ -z "$SSH_KEY" ]; then KEY="${RD}NO${NC}"; else KEY="${GR}YES${NC}"; fi
@@ -473,7 +473,7 @@ check_ssh() {
                 e|E)
                     return 0 ;;
                 *)
-                    FREEZE; continue ;;
+                    freeze; continue ;;
             esac
         done
 	done
@@ -798,7 +798,7 @@ set_temp_date() {
                 2) NEW_UNIT="C" ;;
                 3) NEW_UNIT="ISO" ;;
                 e|E) sort -u -o "$CONFIG" "$CONFIG"; return ;;
-                *) FREEZE; continue ;;
+                *) freeze; continue ;;
             esac
             sed -i '/REPORT_UNIT=/d' "$CONFIG"
             echo "REPORT_UNIT=\"$NEW_UNIT\"" >> "$CONFIG"
@@ -935,7 +935,7 @@ set_nicknames() {
                     sort -u -o "$CONFIG" "$CONFIG"
                     return ;;
                 *)
-                    FREEZE; continue ;;
+                    freeze; continue ;;
             esac
         done
     done
@@ -1012,7 +1012,7 @@ set_colors() {
                 e|E) break 2 ;;
             esac
             if ! [ "$node_choice" -ge 0 ] 2>/dev/null || ! [ "$node_choice" -le "$total_nodes" ] 2>/dev/null; then
-                FREEZE; continue
+                freeze; continue
             fi
             local target_name="" target_hex=""
             if [ "$node_choice" -eq 0 ]; then
@@ -1175,22 +1175,11 @@ set_options() {
                         echo 'HOST_COLOR="1"' >> "$CONFIG"
                     fi
                     break ;;
-                u|U)
-                    echo -e "\n${BL}================= USB Check ======================${NC}"
-                    check_storage
-                    echo -e "\n${BL}==================================================${NC}"
-                    pause; break ;;
-                v|V)
-                    echo -e "\n${BL}================== CONFIG ======================${NC}\n"
-                    if [ -f "$CONFIG" ]; then cat "$CONFIG"
-                    else echo -e "${GR}[!] No CONFIG file found.${NC}"; fi
-                    echo -e "\n${BL}==================================================${NC}"
-                    pause; break ;;
                 e|E)
                     sort -u -o "$CONFIG" "$CONFIG"
                     return 0 ;;
                 *)
-                    FREEZE; continue ;;
+                    freeze; continue ;;
             esac
         done
     done
@@ -1222,14 +1211,12 @@ rssi_submenu() {
                     while true; do
                         printf "\n Enter new depth (${BL}5-20${NC}) [Current: $CE]: "
                         read -r new_days
-                        case "$new_days" in
-                            *[!0-9]*|"") FREEZE; continue ;;
-                        esac
+                        case "$new_days" in *[!0-9]*|"") freeze; continue ;; esac
                         if [ "$new_days" -ge 5 ] && [ "$new_days" -le 20 ]; then
                             CUR_ENTRIES="$new_days"
                             break 2
                         else
-                            FREEZE; continue
+                            freeze; continue
                         fi
                     done
                     ;;
@@ -1256,7 +1243,7 @@ rssi_submenu() {
                     unset CUR_RS_HIST CUR_ENTRIES CUR_DATE
                     pause; return 0 ;;
                 *)
-                    FREEZE; continue ;;
+                    freeze; continue ;;
             esac
         done
     done
@@ -1304,7 +1291,7 @@ theme_submenu() {
                 e|E)
                     return 0 ;;
                 *)
-                    FREEZE; continue ;;
+                    freeze; continue ;;
             esac
         done
     done
@@ -1537,20 +1524,14 @@ get_mac_address() {
 	else
 		mac_check="$mac_address"
 	fi
-	case " $SEEN_MACS_VAR " in
-		*" $mac_check "*) return 1 ;;
-	esac
-
+	case " $SEEN_MACS_VAR " in *" $mac_check "*) return 1 ;; esac
 	get_name "$mac_address"
-
 	if [ "$bh" = "yes" ]; then
 		mac_final="${CLEAN_IP}_${iface}_${mac}"
 	else
 		mac_final="$mac"
 	fi
-	case " $SEEN_MACS_VAR " in
-		*" $mac_final "*) return 1 ;;
-	esac
+	case " $SEEN_MACS_VAR " in *" $mac_final "*) return 1 ;; esac
 	SEEN_MACS_VAR="$SEEN_MACS_VAR $mac_final"
 	return 0
 }
