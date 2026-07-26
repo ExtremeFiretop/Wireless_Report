@@ -162,7 +162,7 @@ $\color{blue}{\Large\text{MAIN VIEW - COLORED HOSTNAMES - DARK MODE}}$<br>
 ![Instructions6](https://raw.githubusercontent.com/JB1366/Wireless_Report/main/images/Instructions6.png)<br>
 \
 \
-$\color{blue}{\Large\text{MAIN VIEW - NUMBERED HOSTNAMES - DEFAULT MODE}}$<br>
+$\color{blue}{\Large\text{MAIN VIEW - NUMBERED HOSTNAMES - ORIGINAL MODE}}$<br>
 
 ![Instructions11](https://raw.githubusercontent.com/JB1366/Wireless_Report/main/images/Instructions11.png)<br>
 \
@@ -178,7 +178,7 @@ $\color{blue}{\Large\text{SIDE-BY-SIDE VIEW - COLORED HOSTNAMES - DARK MODE}}$<b
 
 \
 \
-$\color{blue}{\Large\text{ROUTER ONLY VIEW - DEFAULT MODE}}$
+$\color{blue}{\Large\text{ROUTER ONLY VIEW - ORIGINAL MODE}}$
 
 ![Instructions9](https://raw.githubusercontent.com/JB1366/Wireless_Report/main/images/Instructions9.png)
 
