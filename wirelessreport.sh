@@ -122,8 +122,8 @@ check_version() {
     local mode="$1"; freeze() { return 0; }
     if [ ! -f "$REPORT_SCRIPT" ]; then STATE="NOT_INSTALLED"; freeze() { freeze2; return 1; }
     elif [ -z "$REMOTE_VERSION" ]; then STATE="OFFLINE"
-    elif [ "$(echo "$LOCAL_VERSION" | tr -d '.')" -gt "$(echo "$REMOTE_VERSION" | tr -d '.')" ]; then  STATE="UP_TO_DATE"
-    elif [ "$LOCAL_VERSION" != "$REMOTE_VERSION" ]; then STATE="OUTDATED"
+    elif [ "$(echo "$SCRIPT_VERSION" | tr -d '.')" -gt "$(echo "$REMOTE_VERSION" | tr -d '.')" ]; then  STATE="UP_TO_DATE"
+    elif [ "$SCRIPT_VERSION" != "$REMOTE_VERSION" ]; then STATE="OUTDATED"
     elif [ -n "$REMOTE_HASH" ] && [ "$LOCAL_HASH" != "$REMOTE_HASH" ]; then STATE="HASH_DIFF"
     else STATE="UP_TO_DATE"; fi
     case "$mode" in
@@ -140,9 +140,9 @@ check_version() {
             case "$STATE" in
                 OUTDATED)      echo -e "\n${GR}[i] A new version (${NC}v$REMOTE_VERSION${GR}) is available!${NC}\n"
                                printf "Do you want to update version (y/n): " ;;
-                HASH_DIFF)     echo -e "\n${GR}[i] There is a Hash Update for (${NC}v$LOCAL_VERSION${GR}).${NC}\n"
+                HASH_DIFF)     echo -e "\n${GR}[i] There is a Hash Update for (${NC}v$SCRIPT_VERSION${GR}).${NC}\n"
                                printf "Do you want to update Hash? (y/n): " ;;
-                UP_TO_DATE|*)  echo -e "\n${GR}[i] You are already on the latest version (${NC}v$LOCAL_VERSION${GR}).${NC}\n"
+                UP_TO_DATE|*)  echo -e "\n${GR}[i] You are already on the latest version (${NC}v$SCRIPT_VERSION${GR}).${NC}\n"
                                printf "Do you want to reinstall/overwrite anyway? (y/n): " ;;
             esac ;;
         *)
@@ -169,7 +169,7 @@ menu_vars() {
 	N0="${BL}(0)${NC}"; N1="${BL}(1)${NC}"; N2="${BL}(2)${NC}"; N3="${BL}(3)${NC}"
 	N4="${BL}(4)${NC}"; N5="${BL}(5)${NC}"; N6="${BL}(6)${NC}"; N7="${BL}(7)${NC}"; N8="${BL}(8)${NC}"
 	NE="${BL}(e)${NC}"; NQ="${BL}(c)${NC}"; ON="${GR}ON${NC}"; OFF="${RD}OFF${NC}"
-	STATUS=" ${BL}STATUS:${NC}"; CURRENT="${GR}Current: v$LOCAL_VERSION${NC}"; echo -e "${BL}"
+	STATUS=" ${BL}STATUS:${NC}"; CURRENT="${GR}Current: v$SCRIPT_VERSION${NC}"; echo -e "${BL}"
     freeze2() { printf "\033[2A\033[J"; }; freeze3() { printf "\033[3A\033[J"; }
     SS_FILE="/jffs/scripts/services-start"
 	SE_FILE="/jffs/scripts/service-event"
@@ -242,14 +242,6 @@ do_install() {
 		check_ssh || return 1
 	fi
     echo -e "\n${GR}[+] Processing Wireless Report Files...${NC}\n"
-    if [ -f "$TEMP_MENU" ]; then sed -i '/Wireless Report/d' "$TEMP_MENU" 2>/dev/null; fi
-    if [ -f "$CONFIG" ]; then
-        OLD_PAGE=$(grep "INSTALLED_PAGE=" "$CONFIG" | cut -d'=' -f2)
-        if [ -n "$OLD_PAGE" ]; then
-            umount -l "/www/user/$OLD_PAGE" 2>/dev/null
-            rm -f "/www/user/$OLD_PAGE"
-        fi
-    fi
     inject_menu
     echo -e "${GR}[+] Mounting Menu [Wireless] Tab [Wireless Report]${NC}\n"
     if [ ! -f "$SS_FILE" ]; then echo "#!/bin/sh" > "$SS_FILE"; fi
@@ -260,7 +252,7 @@ do_install() {
     sed -i "/wireless_report/d" "$SE_FILE"
     echo 'if [ "$1" = "restart" ] && [ "$2" = "wireless_report" ]; then sh '$REPORT_SCRIPT'; fi # Wireless Report' >> "$SE_FILE"
     chmod +x "$SE_FILE"
-    install=""; LOCAL_VERSION="$REMOTE_VERSION"
+    install=""; SCRIPT_VERSION="$REMOTE_VERSION"
     logger -p user.info -t "Wireless_Report" "(v$REMOTE_VERSION) successfully installed."
     echo -e "${GR}[✓] SUCCESS: Installation complete!${NC}\n"
     echo -e "${YL}[i] To access Report, navigate to Advanced Settings > Wireless ${NC}"
@@ -278,7 +270,6 @@ do_update() {
     if curl -sfL --retry 3 "$GITHUB" -o "$TEMP_SCRIPT" && [ -s "$TEMP_SCRIPT" ]; then
         mv "$TEMP_SCRIPT" "$REPORT_SCRIPT"
         chmod +x "$REPORT_SCRIPT" 2>/dev/null
-        sleep 2
         return 0
     else
         rm -f "$TEMP_SCRIPT"
@@ -363,8 +354,7 @@ get_usb() {
 
 check_github() {
 	GITHUB="https://raw.githubusercontent.com/JB1366/Wireless_Report/main/wirelessreport.sh"
-	LOCAL_VERSION=$(grep "SCRIPT_VERSION=" "$REPORT_SCRIPT" | head -n 1 | cut -d'"' -f2 2>/dev/null)
-	LOCAL_HASH=$(sha256sum "$0" | awk '{print $1}')
+	LOCAL_HASH=$(sha256sum "$REPORT_SCRIPT" | awk '{print $1}')
 	REMOTE_TMP="/tmp/wr_remote.tmp"
 	if curl -sfL --retry 3 "$GITHUB" -o "$REMOTE_TMP" 2>/dev/null && [ -s "$REMOTE_TMP" ]; then
 		REMOTE_VERSION=$(grep "SCRIPT_VERSION=" "$REMOTE_TMP" | head -n 1 | cut -d'"' -f2 | tr -cd '0-9.')
@@ -751,7 +741,7 @@ do_uninstall() {
 	rm -rf "$INSTALL_DIR" 2>/dev/null
 	rm -rf "$WEB_PAGE" 2>/dev/null
 	case "$USB_PATH" in *wirelessreport*) rm -rf "$USB_PATH" 2>/dev/null ;; esac
-	logger -p user.info -t "Wireless_Report" "(v$LOCAL_VERSION) successfully uninstalled."
+	logger -p user.info -t "Wireless_Report" "(v$SCRIPT_VERSION) successfully uninstalled."
 	ssh_init
     unset RTIME BACKHAUL CUR_DATE RS_HIST_DATE RS_HIST CUR_RS_HIST CUR_ENTRIES
     unset THEME IPPAD PULSE_MINS DISPLAY_UNIT HOST_COLOR MAIN_COLOR NODE_COLORS
@@ -1202,8 +1192,7 @@ rssi_submenu() {
                         else
                             freeze2; continue
                         fi
-                    done
-                    ;;
+                    done ;;
                 3)
                     if [ "$CUR_DATE" = "1" ]; then CUR_DATE="0"; else CUR_DATE="1"; fi
                     break ;;
@@ -2358,7 +2347,7 @@ cat <<HTML >> "$WEB_PAGE"
 <html>
 <head>
 <meta charset="UTF-8" />
-<title>Wireless Report $LOCAL_VERSION $VERHASH</title>
+<title>Wireless Report $SCRIPT_VERSION $VERHASH</title>
 <link rel="shortcut icon" href="images/favicon.png">
 <link rel="icon" href="images/favicon.png">
 <link rel="stylesheet" href="index_style.css" />
