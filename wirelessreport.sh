@@ -100,7 +100,7 @@ install_menu() {
 			case "$choice" in
 				1) do_install; break ;;
 				2|3|4|5|6|7|8)
-                    freeze2 || continue
+                    freeze || continue
 					case "$choice" in
 						2) do_uninstall ;;
 						3) set_temp_date ;;
@@ -112,15 +112,15 @@ install_menu() {
 					esac
 					break ;;
 				e|E) clear; hasta; exit 0 ;;
-				*) freeze; continue ;;
+				*) freeze2; continue ;;
 			esac
 		done
 	done
 }
 
 check_version() {
-    local mode="$1"; freeze2() { return 0; }
-    if [ ! -f "$REPORT_SCRIPT" ]; then STATE="NOT_INSTALLED"; freeze2() { freeze; return 1; }
+    local mode="$1"; freeze() { return 0; }
+    if [ ! -f "$REPORT_SCRIPT" ]; then STATE="NOT_INSTALLED"; freeze() { freeze2; return 1; }
     elif [ -z "$REMOTE_VERSION" ]; then STATE="OFFLINE"
     elif [ "$(echo "$LOCAL_VERSION" | tr -d '.')" -gt "$(echo "$REMOTE_VERSION" | tr -d '.')" ]; then  STATE="UP_TO_DATE"
     elif [ "$LOCAL_VERSION" != "$REMOTE_VERSION" ]; then STATE="OUTDATED"
@@ -170,7 +170,7 @@ menu_vars() {
 	N4="${BL}(4)${NC}"; N5="${BL}(5)${NC}"; N6="${BL}(6)${NC}"; N7="${BL}(7)${NC}"; N8="${BL}(8)${NC}"
 	NE="${BL}(e)${NC}"; NQ="${BL}(c)${NC}"; ON="${GR}ON${NC}"; OFF="${RD}OFF${NC}"
 	STATUS=" ${BL}STATUS:${NC}"; CURRENT="${GR}Current: v$LOCAL_VERSION${NC}"; echo -e "${BL}"
-    freeze() { printf "\033[2A\033[J"; }
+    freeze2() { printf "\033[2A\033[J"; }; freeze3() { printf "\033[3A\033[J"; }
     SS_FILE="/jffs/scripts/services-start"
 	SE_FILE="/jffs/scripts/service-event"
 	if [ -z "$SSH_KEY" ]; then KEY="${RD}NO${NC}"; else KEY="${GR}YES${NC}"; fi
@@ -228,7 +228,10 @@ do_install() {
         echo -e "${RD}[!] ERROR: JFFS custom scripts not enabled.${NC}"
         pause; return 1
     fi
-	check_storage
+	case "$USB_PATH" in
+        */tmp/mnt/*) echo -e "\n${GR}[+] USB Found: Using $USB_PATH for reports and history.${NC}" ;;
+        *)           echo -e "\n${YL}[!] No USB detected: Using JFFS at $USB_PATH.${NC}" ;;
+    esac
 	if [ -f "$SSH_KEY" ]; then
 		node_auth
 	else
@@ -358,20 +361,6 @@ get_usb() {
     ERROR_LOG="$USB_PATH/ssh_error.log"
 }
 
-check_storage() {
-	echo -e "\n${BL}[*] Checking for Storage...${NC}"
-	if echo "$USB_PATH" | grep -q "/tmp/mnt/"; then
-        echo -e "\n${GR}[+] USB Found: Using $USB_PATH for reports and history.${NC}"
-    else
-        echo -e "\n${YL}[!] No USB detected: Using JFFS at $USB_PATH.${NC}"
-    fi
-    mkdir -p "$USB_PATH" 2>/dev/null
-	if [ -n "$USB_PATH" ]; then
-        touch "$USB_PATH/rssi_history.db"
-        touch "$USB_PATH/known_macs.db"
-    fi
-}
-
 check_github() {
 	GITHUB="https://raw.githubusercontent.com/JB1366/Wireless_Report/main/wirelessreport.sh"
 	LOCAL_VERSION=$(grep "SCRIPT_VERSION=" "$REPORT_SCRIPT" | head -n 1 | cut -d'"' -f2 2>/dev/null)
@@ -390,11 +379,8 @@ ssh_init () {
 	NODE_USER=$(nvram get http_username)
 	SSH_PORT=$(nvram get sshd_port)
 	SSH_PORT=${SSH_PORT:-22}
-	if [ -f "/root/.ssh/id_dropbear" ]; then
-        SSH_KEY="/root/.ssh/id_dropbear"
-	else
-        SSH_KEY=""
-    fi
+	if [ -f "/root/.ssh/id_dropbear" ]; then SSH_KEY="/root/.ssh/id_dropbear"
+	else  SSH_KEY=""; fi
 }
 
 check_ssh() {
@@ -418,7 +404,7 @@ check_ssh() {
 		echo -e "                                                       "
 		echo -e "${BL}=================================================="
         while true; do
-            printf "\n Selection:${NC} "
+            printf "\n ${BL}Selection:${NC} "
             read -r ssh_choice
             case "$ssh_choice" in
                 1)
@@ -473,7 +459,7 @@ check_ssh() {
                 e|E)
                     return 0 ;;
                 *)
-                    freeze; continue ;;
+                    freeze2; continue ;;
             esac
         done
 	done
@@ -798,7 +784,7 @@ set_temp_date() {
                 2) NEW_UNIT="C" ;;
                 3) NEW_UNIT="ISO" ;;
                 e|E) sort -u -o "$CONFIG" "$CONFIG"; return ;;
-                *) freeze; continue ;;
+                *) freeze2; continue ;;
             esac
             sed -i '/REPORT_UNIT=/d' "$CONFIG"
             echo "REPORT_UNIT=\"$NEW_UNIT\"" >> "$CONFIG"
@@ -935,7 +921,7 @@ set_nicknames() {
                     sort -u -o "$CONFIG" "$CONFIG"
                     return ;;
                 *)
-                    freeze; continue ;;
+                    freeze2; continue ;;
             esac
         done
     done
@@ -1012,7 +998,7 @@ set_colors() {
                 e|E) break 2 ;;
             esac
             if ! [ "$node_choice" -ge 0 ] 2>/dev/null || ! [ "$node_choice" -le "$total_nodes" ] 2>/dev/null; then
-                freeze; continue
+                freeze2; continue
             fi
             local target_name="" target_hex=""
             if [ "$node_choice" -eq 0 ]; then
@@ -1122,11 +1108,11 @@ set_options() {
                     fi
                     break ;;
                 3)
-                    echo -e "\n (${GR}0${NC}) disable (${GR}15${NC}) def (${GR}1440${NC}) max "
-                    printf " ${BL}Enter alert interval in mins:${NC} "
-                    read -r user_mins
-                    if [ -z "$user_mins" ]; then user_mins="15"; fi
-                    if echo "$user_mins" | grep -q '^[0-9]\+$'; then
+                    while true; do
+                        echo -e "\n (${GR}0${NC}) disable (${GR}15${NC}) def (${GR}1440${NC}) max "
+                        printf " ${BL}Enter alert interval in mins:${NC} "
+                        read -r user_mins
+                        case "$user_mins" in ""|*[!0-9]*) freeze3; continue ;; esac
                         if [ "$user_mins" -le 1440 ]; then
                             NEW_MINS="$user_mins"
                             if grep -q "PULSE_MINS=" "$CONFIG"; then
@@ -1134,13 +1120,11 @@ set_options() {
                             else
                                 echo "PULSE_MINS=\"$NEW_MINS\"" >> "$CONFIG"
                             fi
-                            echo -e "\n ${GR}[+] Uptime Alert Pulse set to ${NEW_MINS} minutes.${NC}"
+                            break 2
                         else
-                            echo -e "\n ${RD}[!] Invalid entry. Maximum permitted interval is 1440 minutes (24 hours).${NC}"
+                            freeze3; continue
                         fi
-                    else
-                        echo -e "\n ${RD}[!] Invalid entry. Please enter numbers only.${NC}"
-                    fi
+                    done
                     pause; break ;;
                 4)
                     rssi_submenu
@@ -1179,7 +1163,7 @@ set_options() {
                     sort -u -o "$CONFIG" "$CONFIG"
                     return 0 ;;
                 *)
-                    freeze; continue ;;
+                    freeze2; continue ;;
             esac
         done
     done
@@ -1211,12 +1195,12 @@ rssi_submenu() {
                     while true; do
                         printf "\n Enter new depth (${BL}5-20${NC}) [Current: $CE]: "
                         read -r new_days
-                        case "$new_days" in *[!0-9]*|"") freeze; continue ;; esac
+                        case "$new_days" in *[!0-9]*|"") freeze2; continue ;; esac
                         if [ "$new_days" -ge 5 ] && [ "$new_days" -le 20 ]; then
                             CUR_ENTRIES="$new_days"
                             break 2
                         else
-                            freeze; continue
+                            freeze2; continue
                         fi
                     done
                     ;;
@@ -1243,7 +1227,7 @@ rssi_submenu() {
                     unset CUR_RS_HIST CUR_ENTRIES CUR_DATE
                     pause; return 0 ;;
                 *)
-                    freeze; continue ;;
+                    freeze2; continue ;;
             esac
         done
     done
@@ -1291,7 +1275,7 @@ theme_submenu() {
                 e|E)
                     return 0 ;;
                 *)
-                    freeze; continue ;;
+                    freeze2; continue ;;
             esac
         done
     done
