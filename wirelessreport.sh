@@ -440,10 +440,6 @@ check_ssh() {
                     fi
                     break ;;
                 7)
-                    if [ "$install" = "1" ]; then
-                        echo -e "\n${YL}[i] You must run option #1 first.${NC}"
-                        pause; break
-                    fi
                     node_auth
                     pause; break ;;
                 e|E)
@@ -1592,12 +1588,8 @@ ip_to_num() {
 final_chk() {
     if [ -z "$ssid" ]; then ssid="Wireless"; fi
     case "$rssi" in
-        *[!0-9-]*|""|"-")
-            rssi="N/A"
-            ;;
-        *)
-            if [ "$rssi" -ge 0 ] && [ "$rssi" -le 1 ]; then rssi=-54; fi
-            ;;
+        *[!0-9-]*|""|"-") rssi="N/A" ;;
+        0|1) rssi=-54 ;;
     esac
 }
 
