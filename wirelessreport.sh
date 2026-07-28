@@ -710,7 +710,8 @@ inject_menu() {
 	umount "/www/user/$am_webui_page" 2>/dev/null
 	mount -o bind "$WEB_PAGE" "/www/user/$am_webui_page"
 	restart_httpd
-	"$REPORT_SCRIPT" &
+    if [ "$NOLOADSCRIPT" = "1" ]; then exit 0
+    else "$REPORT_SCRIPT" & fi
 }
 
 do_uninstall() {
@@ -2942,12 +2943,22 @@ case "$1" in
         # Called by services-start to mount tab
         inject_menu
         ;;
+    inject1)
+        # Called by services-start to mount tab
+        NOLOADSCRIPT="1"
+        inject_menu
+        ;;
     inject2)
         # Called by services-start to mount menu
         INJECT="2"
 		inject_menu
         ;;
-	amtmupdate)
+	inject3)
+        # Called by services-start to mount menu
+        INJECT="2"; NOLOADSCRIPT="1"
+		inject_menu
+        ;;
+    amtmupdate)
         # Called by AMTM for autoupdates
 		shift
         ScriptUpdateFromAMTM "$@"
