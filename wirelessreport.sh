@@ -710,7 +710,7 @@ inject_menu() {
 	umount "/www/user/$am_webui_page" 2>/dev/null
 	mount -o bind "$WEB_PAGE" "/www/user/$am_webui_page"
 	restart_httpd
-	if [ -z "$INJECT" ]; then "$REPORT_SCRIPT" >/dev/null 2>&1 & fi
+	"$REPORT_SCRIPT" &
 }
 
 do_uninstall() {
@@ -2940,7 +2940,6 @@ case "$1" in
         ;;
     inject)
         # Called by services-start to mount tab
-		if [ -s "$WEB_PAGE" ]; then INJECT="1"; fi
         inject_menu
         ;;
     inject2)
