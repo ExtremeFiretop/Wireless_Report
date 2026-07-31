@@ -228,10 +228,11 @@ do_install() {
         echo -e "${RD}[!] ERROR: JFFS custom scripts not enabled.${NC}"
         pause; return 1
     fi
-	case "$USB_PATH" in
-        */tmp/mnt/*) echo -e "\n${GR}[+] USB Found: Using $USB_PATH for reports and history.${NC}" ;;
-        *)           echo -e "\n${YL}[!] No USB detected: Using JFFS at $USB_PATH.${NC}" ;;
-    esac
+	if [ "${USB_PATH#*/tmp/mnt/}" != "$USB_PATH" ]; then
+        echo -e "\n${GR}[+] USB Found: Using $USB_PATH for reports and history.${NC}"
+    else
+        echo -e "\n${YL}[!] No USB detected: Using JFFS at $USB_PATH.${NC}"
+    fi
 	if [ -f "$SSH_KEY" ]; then
 		node_auth
 	else
@@ -327,11 +328,8 @@ get_usb() {
             fi
         done
         attempt=$((attempt + 1))
-        if [ "$FOUND" -eq 0 ] && [ "$BUP" -lt 300 ] && [ "$attempt" -eq 1 ]; then
-            sleep 2
-        else
-            break
-        fi
+        if [ "$FOUND" -eq 0 ] && [ "$BUP" -lt 300 ] && [ "$attempt" -eq 1 ]; then sleep 2
+        else break; fi
     done
     if [ "$FOUND" -eq 1 ] && [ -d "$INSTALL_DIR/data" ] && [ ! -L "$INSTALL_DIR/data" ]; then
         [ -n "$(ls -A "$INSTALL_DIR/data")" ] && cp -a "$INSTALL_DIR/data/." "$USB_PATH/"
@@ -454,7 +452,7 @@ check_ssh() {
 node_auth() {
 	if [ ! -s "$SSH_KEY" ]; then
         echo -e "\n${YL}[!] Main Router SSH Key not found.${NC}"
-        sleep 3; return
+        pause; return
     fi
 	sed -i '/^SSH_NODES=/d' "$CONFIG"
 	echo -e "\n${GR}[✓] Main Router SSH Key found at: ${WH}$SSH_KEY${NC}\n"
@@ -471,15 +469,11 @@ node_auth() {
 	fi
     if [ -z "$AIMESH_NODES" ]; then
         echo -e "\n${RD}[!] No AiMesh Nodes detected in NVRAM.${NC}"
-        TOTAL_NODES=0
-        any_success=0
-        ACTION_MSG="Force ROUTER-ONLY configuration"
-        KEY_LBL="r"
+        TOTAL_NODES=0; any_success=0
+        ACTION_MSG="Force ROUTER-ONLY configuration"; KEY_LBL="r"
     else
         TOTAL_NODES=$(echo "$AIMESH_NODES" | grep -o "|" | wc -l)
-		any_success=0
-        VALID_NODES=""
-		new_nodes=0
+		any_success=0; VALID_NODES=""; new_nodes=0
         for line in $AIMESH_NODES; do
 			ROUTER=$(echo "$line" | cut -d'|' -f1)
 			IP=$(echo "$line" | cut -d'|' -f2)
@@ -584,20 +578,18 @@ ssh_keys() {
 		pause; return 0
 	fi
 	if [ -f "/jffs/.ssh/id_dropbear" ] && [ ! -f "/root/.ssh/id_dropbear" ]; then
-		echo -e "\n${GR}[!] Stored JFFS key detected. Linking and configuring...${NC}\n"
-		sleep 3
+		echo -e "\n${GR}[!] Stored key detected in /jffs/.ssh/, Linking and configuring...${NC}\n"
+        sleep 3
 	fi
-	echo -e "${BL}=================================================="
-    echo -e "${NC}                Generating SSH Key                "
-    echo -e "${BL}=================================================="
     if [ ! -f "/jffs/.ssh/id_dropbear" ]; then
-        echo -e "\n${YL}[i] Creating RSA Key in JFFS...${NC}\n"
+        echo -e "\n${YL}[i] Creating RSA Key in /jffs/.ssh/${NC}\n"
         mkdir -p /jffs/.ssh
         dropbearkey -t rsa -f /jffs/.ssh/id_dropbear
     fi
 	rm -f /jffs/.ssh/known_hosts /root/.ssh/known_hosts >/dev/null 2>&1
     mkdir -p /root/.ssh
     cp /jffs/.ssh/id_dropbear /root/.ssh/id_dropbear
+    echo -e "\n${BL}[i] Copying /jffs/.ssh/id_dropbear to /root/.ssh/id_dropbear${NC}\n"
 	SSH_KEY="/root/.ssh/id_dropbear"
     local pub_key=$(dropbearkey -y -f "/root/.ssh/id_dropbear" | grep "^ssh-rsa")
     local current_keys=$(nvram get sshd_authkeys)
@@ -905,8 +897,7 @@ set_nicknames() {
                     echo -e "\n${GR}[+] Manual nicknames saved.${NC}"
                     pause; break ;;
                 e|E)
-                    sort -u -o "$CONFIG" "$CONFIG"
-                    return ;;
+                    sort -u -o "$CONFIG" "$CONFIG"; return ;;
                 *)
                     freeze2; continue ;;
             esac
@@ -1147,8 +1138,7 @@ set_options() {
                     fi
                     break ;;
                 e|E)
-                    sort -u -o "$CONFIG" "$CONFIG"
-                    return 0 ;;
+                    sort -u -o "$CONFIG" "$CONFIG"; return 0 ;;
                 *)
                     freeze2; continue ;;
             esac
@@ -1332,22 +1322,6 @@ set_theme() {
     esac
     THEME="${THEME:-ORIGINAL}"
     case "$THEME" in
-        "DARKMODE")
-            RT_TOOLTIP="#000000"
-            THEME_CSS=".top-header { background: transparent !important; }
-            .header-box { background: rgba(0,0,0,0.9); }
-            .section-header { background: transparent !important; }
-            .report-column { background: transparent !important; }
-            table.report_table td { background: transparent !important; }
-            table.report_table tfoot td { background: #171b1f; }
-            table.report_table thead th { background: linear-gradient(to bottom, #0096ff, #0056b3); }
-            table.report_table th:hover { background: #00e5ff; }
-            .separator-line { border: 0; border-top: 1px solid #475a68; }
-            #refresh-option:focus { background: #000; }
-            .rssi-tooltip { background: #000; }
-            .button-auto-refresh { background: transparent !important; }
-            .button-tables { background: transparent !important; }" ;;
-
         "ASUS_WEBUI")
             RT_TOOLTIP="#3A4042"
             THEME_CSS=".top-header { background-color: #4D595D; }
@@ -1364,6 +1338,22 @@ set_theme() {
             .button-auto-refresh { background: #3A4042; }
             .button-tables { background: #3A4042; }
             .button-tables.active, .button-tables.active:hover { color: white !important; } /* EXTRA */" ;;
+
+        "DARKMODE")
+            RT_TOOLTIP="#000000"
+            THEME_CSS=".top-header { background: transparent !important; }
+            .header-box { background: rgba(0,0,0,0.9); }
+            .section-header { background: transparent !important; }
+            .report-column { background: transparent !important; }
+            table.report_table td { background: transparent !important; }
+            table.report_table tfoot td { background: #171b1f; }
+            table.report_table thead th { background: linear-gradient(to bottom, #0096ff, #0056b3); }
+            table.report_table th:hover { background: #00e5ff; }
+            .separator-line { border: 0; border-top: 1px solid #475a68; }
+            #refresh-option:focus { background: #000; }
+            .rssi-tooltip { background: #000; }
+            .button-auto-refresh { background: transparent !important; }
+            .button-tables { background: transparent !important; }" ;;
 
         "ORIGINAL"|*)
             RT_TOOLTIP="#000000"
@@ -2256,7 +2246,6 @@ wait
 #========================#
 #  Node Device Assembly  #
 #========================#
-# N_COLORS="lime-green medium-purple yellow skyblue orange red"
 if [ -z "$NODE_COLORS" ]; then NODE_COLORS="#30d158 #bf40bf #ffd60a #64d2ff #ff9500 #ff453a"; fi
 N_COLORS=$NODE_COLORS
 BULLET=" <span style='color:white;'>•</span> "
