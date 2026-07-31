@@ -95,7 +95,7 @@ install_menu() {
 		echo -e "                                                       "
 		echo -e "${BL}=================================================="
 		while true; do
-			printf "\n ${BL}Selection:${NC} "
+			printf "\n Selection: "
 			read -r choice
 			case "$choice" in
 				1) do_install; break ;;
@@ -392,7 +392,7 @@ check_ssh() {
 		echo -e "                                                       "
 		echo -e "${BL}=================================================="
         while true; do
-            printf "\n ${BL}Selection:${NC} "
+            printf "\n Selection: "
             read -r ssh_choice
             case "$ssh_choice" in
                 1)
@@ -756,7 +756,7 @@ set_temp_date() {
         echo -e "                                                       "
 		echo -e "${BL}=================================================="
         while true; do
-            printf "\n ${BL}Selection:${NC} "
+            printf "\n Selection: "
             read -r t_choice
             case "$t_choice" in
                 1) NEW_UNIT="F" ;;
@@ -811,7 +811,7 @@ set_nicknames() {
         fi
         echo -e "\n${BL}=================================================="
         while true; do
-            printf "\n ${BL}Selection:${NC} "
+            printf "\n Selection: "
             read -r input_main
             case "$input_main" in
                 1)
@@ -1062,7 +1062,7 @@ set_options() {
         echo -e "                                                       "
         echo -e "${BL}=================================================="
         while true; do
-            printf "\n ${BL}Selection:${NC} "
+            printf "\n Selection: "
             read -r t_choice
             case "$t_choice" in
                 1)
@@ -1088,7 +1088,7 @@ set_options() {
                 3)
                     while true; do
                         echo -e "\n (${GR}0${NC}) disable (${GR}15${NC}) def (${GR}1440${NC}) max "
-                        printf " ${BL}Enter alert interval in mins:${NC} "
+                        printf " ${BL}Enter alert interval in mins:${GR} "
                         read -r user_mins
                         case "$user_mins" in ""|*[!0-9]*) freeze3; continue ;; esac
                         if [ "$user_mins" -le 1440 ]; then
@@ -1162,7 +1162,7 @@ rssi_submenu() {
 		echo -e "                                                       "
 		echo -e "${BL}=================================================="
         while true; do
-            printf "\n ${BL}Selection:${NC} "
+            printf "\n Selection: "
             read -r sub_choice
             case "$sub_choice" in
                 1)
@@ -1170,7 +1170,7 @@ rssi_submenu() {
                     break ;;
                 2)
                     while true; do
-                        printf "\n Enter new depth (${BL}5-20${NC}) [Current: $CE]: "
+                        printf "\n ${NC}Enter new depth (${BL}5-20${NC}) [Current: $CE]: "
                         read -r new_days
                         case "$new_days" in *[!0-9]*|"") freeze2; continue ;; esac
                         if [ "$new_days" -ge 5 ] && [ "$new_days" -le 20 ]; then
@@ -1224,7 +1224,7 @@ theme_submenu() {
         echo -e "                                                       "
         echo -e "${BL}=================================================="
         while true; do
-            printf "\n ${BL}Selection:${NC} "
+            printf "\n Selection: "
             read -r theme_choice
             case "$theme_choice" in
                 1)
