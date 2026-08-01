@@ -95,7 +95,7 @@ install_menu() {
 		echo -e "                                                       "
 		echo -e "${BL}=================================================="
 		while true; do
-			printf "\n Selection: "
+			printf "\n ${NC}Selection: "
 			read -r choice
 			case "$choice" in
 				1) do_install; break ;;
@@ -392,7 +392,7 @@ check_ssh() {
 		echo -e "                                                       "
 		echo -e "${BL}=================================================="
         while true; do
-            printf "\n Selection: "
+            printf "\n ${NC}Selection: "
             read -r ssh_choice
             case "$ssh_choice" in
                 1)
@@ -756,7 +756,7 @@ set_temp_date() {
         echo -e "                                                       "
 		echo -e "${BL}=================================================="
         while true; do
-            printf "\n Selection: "
+            printf "\n ${NC}Selection: "
             read -r t_choice
             case "$t_choice" in
                 1) NEW_UNIT="F" ;;
@@ -781,11 +781,11 @@ set_nicknames() {
         echo -e "${NC}               Set Device Nicknames               "
         echo -e "${BL}=================================================="
         echo -e "                                                       "
-		echo -e " $N1 Defaults Nicknames                                "
-		echo -e " $N2 Location Nicknames                                "
-		echo -e " $N3 Manual Nicknames                                  "
+		echo -e "  $N1 Defaults Nicknames                               "
+		echo -e "  $N2 Location Nicknames                               "
+		echo -e "  $N3 Manual Nicknames                                 "
 		echo -e "                                                       "
-		echo -e " $NE Back to main menu                                 "
+		echo -e "  $NE Back to main menu                                "
 		echo -e "                                                       "
         echo -e "${BL}=================================================="
         MAIN_HW_MODEL=$(nvram get productid); MAIN_IP=$(nvram get lan_ipaddr)
@@ -811,7 +811,7 @@ set_nicknames() {
         fi
         echo -e "\n${BL}=================================================="
         while true; do
-            printf "\n Selection: "
+            printf "\n ${NC}Selection: "
             read -r input_main
             case "$input_main" in
                 1)
@@ -944,11 +944,11 @@ set_colors() {
         echo -e "${BL}=================================================="
         echo -e "${NC}                Set Device Colors                 "
         echo -e "${BL}=================================================="
-        echo -e "${NC}\n${BL}Current Device Configuration:\n"
+        echo -e "${NC}\n${BL} Current Device Configuration:\n"
         local main_display_name="${MAIN_NICK:-$main_name}"
         local main_display_color=$(hex_to_ansi "$m_color_hex")
         local formatted_main_ip=$(printf "(%s)" "$main_ip")
-        printf "  ${BL}(0)${NC} %b%-14s${NC} %-17s [%b%s${NC}] (Main)\n" \
+        printf "  ${BL}(0)${NC} %b%-14s${NC} %-16s [%b%s${NC}] (Main)\n" \
             "$main_display_color" "$main_display_name" "$formatted_main_ip" "$main_display_color" "$m_color_hex"
         local idx=1
         for node in $SSH_NODES; do
@@ -961,7 +961,7 @@ set_colors() {
             node_display_name="${node_display_name:-$default_nick}"
             local display_color=$(hex_to_ansi "$active_color")
             local formatted_ip=$(printf "(%s)" "$node_ip")
-            printf "  ${BL}(%s)${NC} %b%-14s${NC} %-17s [%b%s${NC}] (Node)\n" \
+            printf "  ${BL}(%s)${NC} %b%-14s${NC} %-16s [%b%s${NC}] (Node)\n" \
                 "$idx" "$display_color" "$node_display_name" "$formatted_ip" "$display_color" "$active_color"
             idx=$((idx + 1))
         done
@@ -969,7 +969,7 @@ set_colors() {
         echo -e "  $NE Exit and Save Changes"
         echo -e "\n${BL}==============================================${NC}"
         while true; do
-            printf "\nSelect a Device number to change color ${BL}(0-$total_nodes)${NC}: "
+            printf "\n Select a Device number to change color ${BL}(0-$total_nodes)${NC}: "
             read -r node_choice
             case "$node_choice" in
                 c|C) return 0 ;;
@@ -1062,7 +1062,7 @@ set_options() {
         echo -e "                                                       "
         echo -e "${BL}=================================================="
         while true; do
-            printf "\n Selection: "
+            printf "\n ${NC}Selection: "
             read -r t_choice
             case "$t_choice" in
                 1)
@@ -1153,16 +1153,16 @@ rssi_submenu() {
         echo -e "${NC}           RSSI History Configuration             "
 		echo -e "${BL}=================================================="
 		echo -e "                                                       "
-		echo -e " $N1 Toggle RSSI History: [$CH]                        "
-		echo -e " $N2 Set History Depth:   [$CE] entries                "
-		echo -e " $N3 Toggle Timestamps:   [$TS]                        "
+		echo -e "  $N1 Toggle RSSI History: [$CH]                       "
+		echo -e "  $N2 Set History Depth:   [$CE] entries               "
+		echo -e "  $N3 Toggle Timestamps:   [$TS]                       "
 		echo -e "                                                       "
-		echo -e " $NQ Cancel and Discard Changes                        "
-		echo -e " $NE Exit and Save Changes                             "
+		echo -e "  $NQ Cancel and Discard Changes                       "
+		echo -e "  $NE Exit and Save Changes                            "
 		echo -e "                                                       "
 		echo -e "${BL}=================================================="
         while true; do
-            printf "\n Selection: "
+            printf "\n ${NC}Selection: "
             read -r sub_choice
             case "$sub_choice" in
                 1)
@@ -1213,18 +1213,18 @@ theme_submenu() {
     while true; do
         show_header
         echo -e "${BL}=================================================="
-        echo -e "${NC}  Set Theme                  Current: $TM_STAT    "
+        echo -e "${NC} Set Theme                    Current: $TM_STAT   "
         echo -e "${BL}=================================================="
         echo -e "                                                       "
-        echo -e " $N1 Original Theme                                    "
-        echo -e " $N2 Darkmode Theme                                    "
-        echo -e " $N3 Asus WebUI Theme                                  "
+        echo -e "  $N1 Original Theme                                   "
+        echo -e "  $N2 Darkmode Theme                                   "
+        echo -e "  $N3 Asus WebUI Theme                                 "
         echo -e "                                                       "
-        echo -e " $NE Exit                                              "
+        echo -e "  $NE Exit                                             "
         echo -e "                                                       "
         echo -e "${BL}=================================================="
         while true; do
-            printf "\n Selection: "
+            printf "\n ${NC}Selection: "
             read -r theme_choice
             case "$theme_choice" in
                 1)
