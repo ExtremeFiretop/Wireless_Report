@@ -95,7 +95,7 @@ install_menu() {
 		echo -e "                                                       "
 		echo -e "${BL}=================================================="
 		while true; do
-			printf "\n ${NC}Selection: "
+			printf "\n ${NC}Selection: ${BL}"
 			read -r choice
 			case "$choice" in
 				1) do_install; break ;;
@@ -392,7 +392,7 @@ check_ssh() {
 		echo -e "                                                       "
 		echo -e "${BL}=================================================="
         while true; do
-            printf "\n ${NC}Selection: "
+            printf "\n ${NC}Selection: ${BL}"
             read -r ssh_choice
             case "$ssh_choice" in
                 1)
@@ -756,7 +756,7 @@ set_temp_date() {
         echo -e "                                                       "
 		echo -e "${BL}=================================================="
         while true; do
-            printf "\n ${NC}Selection: "
+            printf "\n ${NC}Selection: ${BL}"
             read -r t_choice
             case "$t_choice" in
                 1) NEW_UNIT="F" ;;
@@ -811,7 +811,7 @@ set_nicknames() {
         fi
         echo -e "\n${BL}=================================================="
         while true; do
-            printf "\n ${NC}Selection: "
+            printf "\n ${NC}Selection: ${BL}"
             read -r input_main
             case "$input_main" in
                 1)
@@ -969,7 +969,7 @@ set_colors() {
         echo -e "  $NE Exit and Save Changes"
         echo -e "\n${BL}==============================================${NC}"
         while true; do
-            printf "\n Select a Device number to change color ${BL}(0-$total_nodes)${NC}: "
+            printf "\n ${NC}Select a Device number to change color ${BL}(0-$total_nodes): "
             read -r node_choice
             case "$node_choice" in
                 c|C) return 0 ;;
@@ -1002,7 +1002,7 @@ set_colors() {
             echo -e "${RD}  (7) Red (#ff453a)"; echo -e "${NC}"
             local selected_hex=""
             while true; do
-                printf "Choose option ${BL}(1-7)${NC}: "
+                printf "${NC}Choose option ${BL}(1-7): "
                 read -r color_choice
                 case "$color_choice" in
                     1) selected_hex="#0096ff"; break ;;
@@ -1062,7 +1062,7 @@ set_options() {
         echo -e "                                                       "
         echo -e "${BL}=================================================="
         while true; do
-            printf "\n ${NC}Selection: "
+            printf "\n ${NC}Selection: ${BL}"
             read -r t_choice
             case "$t_choice" in
                 1)
@@ -1162,7 +1162,7 @@ rssi_submenu() {
 		echo -e "                                                       "
 		echo -e "${BL}=================================================="
         while true; do
-            printf "\n ${NC}Selection: "
+            printf "\n ${NC}Selection: ${BL}"
             read -r sub_choice
             case "$sub_choice" in
                 1)
@@ -1224,7 +1224,7 @@ theme_submenu() {
         echo -e "                                                       "
         echo -e "${BL}=================================================="
         while true; do
-            printf "\n ${NC}Selection: "
+            printf "\n ${NC}Selection: ${BL}"
             read -r theme_choice
             case "$theme_choice" in
                 1)
