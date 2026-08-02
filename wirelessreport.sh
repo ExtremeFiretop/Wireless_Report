@@ -26,7 +26,7 @@
 #        shellcheck shell=sh disable=SC2086,SC2155,SC3043         #
 #=================================================================#
 
-SCRIPT_VERSION="2.0.7"
+SCRIPT_VERSION="2.0.8"
 INSTALL_DIR="/jffs/addons/wireless_report"
 REPORT_SCRIPT="$INSTALL_DIR/wirelessreport.sh"
 SYSTEM_MENU="/www/require/modules/menuTree.js"
@@ -247,11 +247,11 @@ do_install() {
     echo -e "${GR}[+] Mounting Menu [Wireless] Tab [Wireless Report]${NC}\n"
     if [ ! -f "$SS_FILE" ]; then echo "#!/bin/sh" > "$SS_FILE"; fi
     sed -i "\|$REPORT_SCRIPT|d" "$SS_FILE"
-    echo "sh $REPORT_SCRIPT inject # Inject Wireless Report" >> "$SS_FILE"
+    echo "$REPORT_SCRIPT inject & # Inject Wireless Report" >> "$SS_FILE"
     chmod +x "$SS_FILE"
     if [ ! -f "$SE_FILE" ]; then echo "#!/bin/sh" > "$SE_FILE"; fi
     sed -i "/wireless_report/d" "$SE_FILE"
-    echo 'if [ "$1" = "restart" ] && [ "$2" = "wireless_report" ]; then sh '$REPORT_SCRIPT'; fi # Wireless Report' >> "$SE_FILE"
+    echo 'if [ "$1" = "restart" ] && [ "$2" = "wireless_report" ]; then '$REPORT_SCRIPT' & fi # Wireless Report' >> "$SE_FILE"
     chmod +x "$SE_FILE"
     install=""; SCRIPT_VERSION="$REMOTE_VERSION"
     logger -p user.info -t "Wireless_Report" "(v$REMOTE_VERSION) successfully installed."
@@ -271,6 +271,22 @@ do_update() {
     if curl -sfL --retry 3 "$GITHUB" -o "$TEMP_SCRIPT" && [ -s "$TEMP_SCRIPT" ]; then
         mv "$TEMP_SCRIPT" "$REPORT_SCRIPT"
         chmod +x "$REPORT_SCRIPT" 2>/dev/null
+        SS_FILE="/jffs/scripts/services-start"
+	    SE_FILE="/jffs/scripts/service-event"
+        [ ! -f "$SS_FILE" ] && touch "$SS_FILE" && chmod +x "$SS_FILE"
+        [ ! -f "$SE_FILE" ] && touch "$SE_FILE" && chmod +x "$SE_FILE"
+        if grep -qF "$REPORT_SCRIPT inject &" "$SS_FILE" 2>/dev/null; then
+            :
+        else
+            [ -f "$SS_FILE" ] && sed -i "\|$REPORT_SCRIPT|d" "$SS_FILE"
+            echo "$REPORT_SCRIPT inject & # Inject Wireless Report" >> "$SS_FILE"
+        fi
+        if grep -qF "then $REPORT_SCRIPT & fi" "$SE_FILE" 2>/dev/null; then
+            :
+        else
+            [ -f "$SE_FILE" ] && sed -i "/wireless_report/d" "$SE_FILE"
+            echo 'if [ "$1" = "restart" ] && [ "$2" = "wireless_report" ]; then '$REPORT_SCRIPT' & fi # Wireless Report' >> "$SE_FILE"
+        fi
         return 0
     else
         rm -f "$TEMP_SCRIPT"
@@ -668,10 +684,15 @@ inject_menu() {
     if [ ! -f "$WEB_PAGE" ]; then
 		echo "<html><body>$TAB_LABEL Loading...</body></html>" > "$WEB_PAGE"
 	fi
-	am_get_webui_page "$WEB_PAGE"
+	LOCKFILE=/tmp/addonwebui.lock
+	FD=386
+	eval exec "$FD>$LOCKFILE"
+	flock -x "$FD"
+    am_get_webui_page "$WEB_PAGE"
 	if [ "$am_webui_page" = "none" ]; then
 		logger -p user.info -t "Wireless_Report" "Unable to install $TAB_LABEL"
-		exit 5
+		flock -u "$FD"
+        exit 5
 	fi
 	cp "$WEB_PAGE" "/www/user/$am_webui_page" 2>/dev/null
 	echo "INSTALLED_PAGE=$am_webui_page" >> "$CONFIG"
@@ -701,7 +722,8 @@ inject_menu() {
 	umount "$SYSTEM_MENU" && mount -o bind "$TEMP_MENU" "$SYSTEM_MENU"
 	umount "/www/user/$am_webui_page" 2>/dev/null
 	mount -o bind "$WEB_PAGE" "/www/user/$am_webui_page"
-	restart_httpd
+	flock -u "$FD"
+    restart_httpd
     if [ "$NOLOADSCRIPT" = "1" ]; then exit 0
     else "$REPORT_SCRIPT" & fi
 }
