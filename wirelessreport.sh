@@ -246,11 +246,9 @@ do_install() {
     inject_menu
     echo -e "${GR}[+] Mounting Menu [Wireless] Tab [Wireless Report]${NC}\n"
     if [ ! -f "$SS_FILE" ]; then echo "#!/bin/sh" > "$SS_FILE"; fi
-    sed -i "\|$REPORT_SCRIPT|d" "$SS_FILE"
     echo "$REPORT_SCRIPT inject & # Inject Wireless Report" >> "$SS_FILE"
     chmod +x "$SS_FILE"
     if [ ! -f "$SE_FILE" ]; then echo "#!/bin/sh" > "$SE_FILE"; fi
-    sed -i "/wireless_report/d" "$SE_FILE"
     echo 'if [ "$1" = "restart" ] && [ "$2" = "wireless_report" ]; then '$REPORT_SCRIPT' & fi # Wireless Report' >> "$SE_FILE"
     chmod +x "$SE_FILE"
     install=""; SCRIPT_VERSION="$REMOTE_VERSION"
