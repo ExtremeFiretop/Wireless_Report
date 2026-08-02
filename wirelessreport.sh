@@ -670,35 +670,18 @@ del_ssh_keys() {
 inject_menu() {
 	. /usr/sbin/helper.sh
 	TAB_LABEL="Wireless Report"
-	if [ -f "$CONFIG" ]; then
-        sed -i '/^INSTALLED_PAGE=/d' "$CONFIG"
-	else
-        touch "$CONFIG"
-    fi
-    if ! nvram get rc_support | grep -q am_addons; then
-		logger -p user.info -t "Wireless_Report" "This firmware does not support addons!"
-		exit 5
-	fi
-    if [ ! -f "$WEB_PAGE" ]; then
-		echo "<html><body>$TAB_LABEL Loading...</body></html>" > "$WEB_PAGE"
-	fi
-	LOCKFILE=/tmp/addonwebui.lock
-	FD=386
-	eval exec "$FD>$LOCKFILE"
-	flock -x "$FD"
+	if [ -f "$CONFIG" ]; then sed -i '/^INSTALLED_PAGE=/d' "$CONFIG"
+	else touch "$CONFIG"; fi
+    if ! nvram get rc_support | grep -q am_addons; then echo -e "\n${RD}[!] ERROR: This firmware does not support addons!${NC}"; exit 5; fi
+    if [ ! -f "$WEB_PAGE" ]; then echo "<html><body>$TAB_LABEL Loading...</body></html>" > "$WEB_PAGE"; fi
+	LOCKFILE=/tmp/addonwebui.lock; FD=386
+	eval exec "$FD>$LOCKFILE"; flock -x "$FD"
     am_get_webui_page "$WEB_PAGE"
-	if [ "$am_webui_page" = "none" ]; then
-		logger -p user.info -t "Wireless_Report" "Unable to install $TAB_LABEL"
-		flock -u "$FD"
-        exit 5
-	fi
+	if [ "$am_webui_page" = "none" ]; then echo -e "\n${RD}[!] ERROR: Unable to install $TAB_LABEL.${NC}"; flock -u "$FD"; exit 5; fi
 	cp "$WEB_PAGE" "/www/user/$am_webui_page" 2>/dev/null
 	echo "INSTALLED_PAGE=$am_webui_page" >> "$CONFIG"
     echo "$TAB_LABEL" > "/www/user/${INSTALLED_PAGE%%.*}.title"
-	if [ ! -f "$TEMP_MENU" ]; then
-		cp "$SYSTEM_MENU" /tmp/
-		mount -o bind "$TEMP_MENU" "$SYSTEM_MENU"
-	fi
+	if [ ! -f "$TEMP_MENU" ]; then cp "$SYSTEM_MENU" /tmp/; mount -o bind "$TEMP_MENU" "$SYSTEM_MENU"; fi
 	sed -i 'N; /menuName: "Wireless Report"/ { N; N; N; N; N; N; d; }; P; D' "$TEMP_MENU" 2>/dev/null
 	sed -i '/tabName:[[:space:]]*"Wireless Report"/d' "$TEMP_MENU" 2>/dev/null
 	if [ "$INJECT" = "2" ]; then
@@ -720,8 +703,7 @@ inject_menu() {
 	umount "$SYSTEM_MENU" && mount -o bind "$TEMP_MENU" "$SYSTEM_MENU"
 	umount "/www/user/$am_webui_page" 2>/dev/null
 	mount -o bind "$WEB_PAGE" "/www/user/$am_webui_page"
-	flock -u "$FD"
-    restart_httpd
+	flock -u "$FD"; restart_httpd
     if [ "$NOLOADSCRIPT" = "1" ]; then exit 0
     else "$REPORT_SCRIPT" & fi
 }
