@@ -44,10 +44,7 @@ DHCPSTATIC_CACHE="/tmp/dhcp_static.cache"
 DEVICE_LIST_CACHE="/tmp/asus_device_list.cache"
 CUSTOM_CLIENTS_CACHE="/tmp/custom_clients.cache"
 if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
-unset LD_LIBRARY_PATH; doScriptUpdateFromAMTM=true
-UL='\033[4m'; WH='\e[1;37m'; YL='\033[0;33m'; BG='\e[42;37m'
-BL='\033[38;5;39m'; GR='\033[0;32m'; NC='\033[0m'; RD='\033[0;31m'
-export PATH="/usr/sbin:/usr/bin:/sbin:/bin:$PATH"
+export PATH="/usr/sbin:/usr/bin:/sbin:/bin:$PATH"; unset LD_LIBRARY_PATH
 
 #==================#
 #  Script Install  #
@@ -165,7 +162,9 @@ menu_vars() {
         sed -i "s/^THEME=.*/THEME=\"$THEME\"/" "$CONFIG"
         ;;
     esac
-	JB1366="${GR}${UL}https://github.com/JB1366/Wireless_Report${NC}"
+	UL='\033[4m'; WH='\e[1;37m'; YL='\033[0;33m'; BG='\e[42;37m'
+    BL='\033[38;5;39m'; GR='\033[0;32m'; NC='\033[0m'; RD='\033[0;31m'
+    JB1366="${GR}${UL}https://github.com/JB1366/Wireless_Report${NC}"
 	N0="${BL}(0)${NC}"; N1="${BL}(1)${NC}"; N2="${BL}(2)${NC}"; N3="${BL}(3)${NC}"
 	N4="${BL}(4)${NC}"; N5="${BL}(5)${NC}"; N6="${BL}(6)${NC}"; N7="${BL}(7)${NC}"; N8="${BL}(8)${NC}"
 	NE="${BL}(e)${NC}"; NQ="${BL}(c)${NC}"; ON="${GR}ON${NC}"; OFF="${RD}OFF${NC}"
@@ -214,11 +213,12 @@ do_install() {
         read -r update
 		case "$update" in [yY]) ;; *) return ;; esac
     fi
-	do_update || return 1
+	echo -e "\n${GR}[+] Downloading latest version (${NC}v$REMOTE_VERSION${GR})${NC}"
+    do_update || return 1
 	if [ "$is_update" = "1" ]; then
-		echo -e "\n${GR}[✓] Wireless Report successfully installed.${NC}"
-		echo -e "\n${GR}[!] Restarting script to apply changes...${NC}\n"
-		sleep 2
+		echo -e "\n${BL}[✓] Wireless Report successfully installed.${NC}"
+		printf "\nPress ${BL}[Enter]${NC} to apply changes & restart script..."
+        read -r discard
 		logger -p user.info -t "Wireless_Report" "(v$REMOTE_VERSION) successfully installed."
 		exec "$REPORT_SCRIPT" install "$@"
 		echo -e "${RD}Error: Failed to restart script!${NC}" >&2
@@ -257,15 +257,12 @@ do_install() {
     echo -e "${YL}[i] To access Report, navigate to Advanced Settings > Wireless ${NC}"
     echo -e "${YL}    in the ASUS WebGUI and select the Wireless Report tab on the far right.${NC}\n"
     echo -e "${BL}[i] Tip: On router only install, you can add node(s) later.${NC}"
-    echo -e "${BL}         Use option #7 in main menu to authenticate new node(s).${NC}\n"
-    echo -e "${YL}[i] Use Option 4 if you wish to set custom nicknames.${NC}"
+    echo -e "${BL}         Use option #7 in main menu to authenticate new node(s).${NC}"
 	pause
 }
 
 do_update() {
-    local prefix="\n"; TEMP_SCRIPT="/tmp/wirelessreport.sh"
-    if [ "$amtm" = "1" ]; then prefix="\n${BG} wr${NC} "; fi
-    echo -e "${prefix}${GR}[+] Downloading latest version (${NC}v$REMOTE_VERSION${GR})${NC}"
+    TEMP_SCRIPT="/tmp/wirelessreport.sh"
     if curl -sfL --retry 3 "$GITHUB" -o "$TEMP_SCRIPT" && [ -s "$TEMP_SCRIPT" ]; then
         mv "$TEMP_SCRIPT" "$REPORT_SCRIPT"
         chmod +x "$REPORT_SCRIPT" 2>/dev/null
@@ -310,14 +307,16 @@ do_update() {
 }
 
 ScriptUpdateFromAMTM() {
+    doScriptUpdateFromAMTM=true
     if [ "$doScriptUpdateFromAMTM" != "true" ]; then
-        printf "Automatic updates via AMTM are currently disabled.\n\n"
+        printf "Automatic updates via AMTM are currently disabled."
         return 1
     fi
     if [ "$1" = "check" ]; then return 0; fi
-	amtm=1; check_github
+	check_github
     if do_update; then
-        echo -e "\n\n${BG} wr${NC}${GR} [✓] Wireless Report successfully updated${NC}\n"
+        echo -e "\n  [+] Downloading latest version (v$REMOTE_VERSION)\n"
+        echo -e "\n  [✓] Wireless Report successfully updated.\n"
 		logger -p user.info -t "Wireless_Report" "AMTM Update: (v$REMOTE_VERSION) successfully installed."
 		return 0
     else
