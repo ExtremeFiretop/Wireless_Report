@@ -908,9 +908,10 @@ set_nicknames() {
 
 hex_to_ansi() {
     : "${MAIN_COLOR:=#0096ff}"
-    : "${NODE_COLORS:=#30d158 #bf40bf #ffd60a #64d2ff #ff9500 #ff453a}"
-    NB='\033[38;5;39m'; LG='\033[38;5;82m'; MP='\033[38;5;133m'; RD='\033[38;5;196m'
-    YL='\033[38;5;220m'; SB='\033[38;5;75m'; OR='\033[38;5;208m'
+    : "${NODE_COLORS:=#30d158 #bf40bf #ffd60a #64d2ff #ff9500 #ff453a #ffffff #ff70a6 #64ffda}"
+    NB='\033[38;5;39m';  LG='\033[38;5;82m';  MP='\033[38;5;133m'; RD='\033[38;5;196m'
+    YL='\033[38;5;220m'; SB='\033[38;5;75m';  OR='\033[38;5;208m'; WT='\033[38;5;231m'
+    PK='\033[38;5;211m'; MT='\033[38;5;86m'
     case "$1" in
         "#0096ff") echo -e "$NB" ;;
         "#30d158") echo -e "$LG" ;;
@@ -919,6 +920,9 @@ hex_to_ansi() {
         "#64d2ff") echo -e "$SB" ;;
         "#ff9500") echo -e "$OR" ;;
         "#ff453a") echo -e "$RD" ;;
+        "#ffffff") echo -e "$WT" ;;
+        "#ff70a6") echo -e "$PK" ;;
+        "#64ffda") echo -e "$MT" ;;
         *)         echo -e "$NC" ;;
     esac
 }
@@ -994,16 +998,20 @@ set_colors() {
             fi
             local target_prompt_color=$(hex_to_ansi "$target_hex")
             echo -e "\nSelect a new color for ${target_prompt_color}[${target_name}]${NC}:\n"
-            echo -e "${NB}  (1) Neon-Blue (#0096ff)"
-            echo -e "${LG}  (2) Lime-Green (#30d158)"
-            echo -e "${MP}  (3) Medium-Purple (#bf40bf)"
-            echo -e "${YL}  (4) Yellow (#ffd60a)"
-            echo -e "${SB}  (5) SkyBlue (#64d2ff)"
-            echo -e "${OR}  (6) Orange (#ff9500)"
-            echo -e "${RD}  (7) Red (#ff453a)"; echo -e "${NC}"
+            echo -e "${NB}   (1) Neon-Blue (#0096ff)"
+            echo -e "${LG}   (2) Lime-Green (#30d158)"
+            echo -e "${MP}   (3) Medium-Purple (#bf40bf)"
+            echo -e "${YL}   (4) Yellow (#ffd60a)"
+            echo -e "${SB}   (5) SkyBlue (#64d2ff)"
+            echo -e "${OR}   (6) Orange (#ff9500)"
+            echo -e "${RD}   (7) Red (#ff453a)"
+            echo -e "${WT}   (8) White (#ffffff)"
+            echo -e "${PK}   (9) Light-Pink (#ff70a6)"
+            echo -e "${MT}  (10) Mint-Green (#64ffda)"
+            echo -e "${NC}"
             local selected_hex=""
             while true; do
-                printf "${NC}Choose option ${BL}(1-7): "
+                printf "${NC}Choose option ${BL}(1-10): "
                 read -r color_choice
                 case "$color_choice" in
                     1) selected_hex="#0096ff"; break ;;
@@ -1013,6 +1021,9 @@ set_colors() {
                     5) selected_hex="#64d2ff"; break ;;
                     6) selected_hex="#ff9500"; break ;;
                     7) selected_hex="#ff453a"; break ;;
+                    8) selected_hex="#ffffff"; break ;;
+                    9) selected_hex="#ff70a6"; break ;;
+                    10) selected_hex="#64ffda"; break ;;
                     *) printf "\033[1A\033[2K\r"; continue ;;
                 esac
             done
