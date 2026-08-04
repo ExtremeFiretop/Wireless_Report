@@ -2277,13 +2277,6 @@ for line in $SSH_NODES; do
 		NC_TEMP=$(get_temp_class "$N_TEMP")
         NC_LOAD=$(get_load_class "$N_LOAD")
 		N_BOOT=$(date -d @$(( $(date +%s) - ${N_UPTIME_RAW:-0} )) "$D_FMT")
-        NODE_DEVICES=$(echo "$NODE_OUT" | grep -c "DATA|")
-        NODE_DEVICE_TOTAL=$((NODE_DEVICE_TOTAL + NODE_DEVICES))
-        NODE_TEMPS="${NODE_TEMPS}${NODE_TEMPS:+$BULLET}<span class='${NC_TEMP}'>$N_TEMP</span>"
-		NODE_LOADS="${NODE_LOADS}${NODE_LOADS:+$BULLET}<span class='${NC_LOAD}'>$N_LOAD</span>"
-        NODE_UPTIMES="${NODE_UPTIMES}${NODE_UPTIMES:+$BULLET}<span style='color:$NODE_COLOR;'>$N_UPTIME</span>"
-		NODE_BOOTTIMES="${NODE_BOOTTIMES}${NODE_BOOTTIMES:+$BULLET}<span style='color:$NODE_COLOR;'>$N_BOOT</span>"
-        NODE_TOTALS="${NODE_TOTALS}${NODE_TOTALS:+$BULLET}<span style='color:$NODE_COLOR;'>$NODE_DEVICES</span>"
         NODE_DEVICES=0
 		while read -r ssh_node_data; do
 			if [ -z "$ssh_node_data" ]; then continue; fi
@@ -2301,9 +2294,16 @@ for line in $SSH_NODES; do
 			hostcolor_node_name
             get_row
             NODE_ROWS="${NODE_ROWS}${ROW}${NL}"
+            NODE_DEVICES=$((NODE_DEVICES + 1))
+			NODE_DEVICE_TOTAL=$((NODE_DEVICE_TOTAL + 1))
         done <<EOF
 $(echo "$NODE_OUT" | grep "DATA|")
 EOF
+        NODE_TEMPS="${NODE_TEMPS}${NODE_TEMPS:+$BULLET}<span class='${NC_TEMP}'>$N_TEMP</span>"
+		NODE_LOADS="${NODE_LOADS}${NODE_LOADS:+$BULLET}<span class='${NC_LOAD}'>$N_LOAD</span>"
+        NODE_UPTIMES="${NODE_UPTIMES}${NODE_UPTIMES:+$BULLET}<span style='color:$NODE_COLOR;'>$N_UPTIME</span>"
+		NODE_BOOTTIMES="${NODE_BOOTTIMES}${NODE_BOOTTIMES:+$BULLET}<span style='color:$NODE_COLOR;'>$N_BOOT</span>"
+        NODE_TOTALS="${NODE_TOTALS}${NODE_TOTALS:+$BULLET}<span style='color:$NODE_COLOR;'>$NODE_DEVICES</span>"
     fi
 done
 ALL_TEMP="$MAIN_TEMP$BULLET$NODE_TEMPS"
