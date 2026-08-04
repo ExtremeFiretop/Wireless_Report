@@ -2,6 +2,8 @@
 # Wireless Report - Changelog #
 #=============================#
 
+
+v2.0.9-reverted node device counting mechanism.
 v2.0.8-added filelock to webpage injection, adjusted services-start/event.
 v2.0.7-fix reboot bug.
 v2.0.6-minor updates.
