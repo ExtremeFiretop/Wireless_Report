@@ -155,7 +155,7 @@ check_version() {
 
 menu_vars() {
     if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
-    startup
+    startup; hex_to_ansi
     case "$THEME" in
     1|2|3)
         case "$THEME" in 1) THEME="ORIGINAL" ;; 2) THEME="DARKMODE" ;; 3) THEME="ASUS_WEBUI" ;; esac
@@ -909,9 +909,8 @@ set_nicknames() {
 hex_to_ansi() {
     : "${MAIN_COLOR:=#0096ff}"
     : "${NODE_COLORS:=#30d158 #bf40bf #ffd60a #64d2ff #ff9500 #ff453a #ffffff #ff70a6 #64ffda}"
-    NB='\033[38;5;39m';  LG='\033[38;5;82m';  MP='\033[38;5;133m'; RD='\033[38;5;196m'
-    YL='\033[38;5;220m'; SB='\033[38;5;75m';  OR='\033[38;5;208m'; WT='\033[38;5;231m'
-    PK='\033[38;5;211m'; MT='\033[38;5;86m'
+    NB='\033[38;5;39m'; LG='\033[38;5;82m'; MP='\033[38;5;133m'; RD='\033[38;5;196m'; PK='\033[38;5;211m'
+    YL='\033[38;5;220m'; SB='\033[38;5;75m'; OR='\033[38;5;208m'; WT='\033[38;5;231m'; MT='\033[38;5;86m'
     case "$1" in
         "#0096ff") echo -e "$NB" ;;
         "#30d158") echo -e "$LG" ;;
@@ -1350,7 +1349,6 @@ set_theme() {
             .button-auto-refresh { background: #3A4042; }
             .button-tables { background: #3A4042; }
             .button-tables.active, .button-tables.active:hover { color: white !important; } /* EXTRA */" ;;
-
         "DARKMODE")
             RT_TOOLTIP="#000000"
             THEME_CSS=".top-header { background: transparent !important; }
@@ -1366,7 +1364,6 @@ set_theme() {
             .rssi-tooltip { background: #000; }
             .button-auto-refresh { background: transparent !important; }
             .button-tables { background: transparent !important; }" ;;
-
         "ORIGINAL"|*)
             RT_TOOLTIP="#000000"
             THEME_CSS=".top-header { background: transparent !important; }
@@ -1511,13 +1508,11 @@ get_mac_address() {
 get_name() {
 	mac="$mac_address"
 	name=""
-
 	# YazDHCP
 	if [ -f "$YAZ_CACHE" ]; then
 		local entry=$(grep -i "^$mac|" "$YAZ_CACHE")
 		name="${entry##*|}"
 	fi
-
 	# Custom Client List
 	if [ -z "$name" ] || [ "$name" = "*" ]; then
 		if [ -f "$CUSTOM_CLIENTS_CACHE" ]; then
@@ -1525,7 +1520,6 @@ get_name() {
 			name="${entry#*|}"
 		fi
 	fi
-
 	# Networkmap Client / MLO
 	if [ -z "$name" ] || [ "$name" = "*" ]; then
 		local entry=$(sed 's/},"/ \n"/g' /jffs/nmp_cl_json.js | grep -i "$mac" | head -n 1)
@@ -1534,7 +1528,6 @@ get_name() {
 		if [ -n "$parent_mac" ] && [ "$parent_mac" != "$mac" ]; then mac="$parent_mac"; fi
 		name=$(echo "$entry" | sed -n 's/.*"name":"\([^"]*\)".*/\1/p')
     fi
-
 	# Wireless Backhaul
 	if [ -z "$name" ] || [ "$name" = "*" ] || [ "$name" = "$mac" ]; then
 		local temp="${mac#*:}"
@@ -1548,7 +1541,6 @@ get_name() {
 			fi
 		fi
 	fi
-
 	# Fallback
 	if [ -z "$name" ] || [ "$name" = "*" ]; then name="$mac"; fi
 }
@@ -1687,7 +1679,6 @@ get_band() {
 	if [ -n "$width" ]; then w_text=" ($width)"; fi
     local m=$(echo "$model" | tr '[:lower:]' '[:upper:]')
 	case "$m" in
-
 		# Quad-Band Mapping (5G,6G-1,6G-2,2.4G)
 		# Models: GT-BE98(Pro), BQ16
         *BE98*|*BQ16*)
@@ -1698,7 +1689,6 @@ get_band() {
                 wl3*|eth10*) Label="2.4G" ;;
             esac
             ;;
-
 		# Quad-Band Mapping (5G,5G-2,6G,2.4G)
 		# Models: GT-AXE16000, GT-BE25000
         *AXE16000*|*BE25000*)
@@ -1709,7 +1699,6 @@ get_band() {
                 wl3*|eth10*) Label="2.4G" ;;
             esac
             ;;
-
 		# Tri-Band ZenWiFi-BT10 Specific
         *BT10*)
             case "$iface" in
@@ -1718,7 +1707,6 @@ get_band() {
                 wl2*) Label="2.4G" ;;
             esac
             ;;
-
 		# Tri-Band Mapping (2.4G,5G,6G)
         # Models: RT-BE96U, RT-BE92U, GT-BE19000, GS-BE18000, GS-BE12000, BT6, ZENWIFI-BT8(MTK),
         #         RT-AXE7800, GT-AXE11000, ET8, ET9, ET12
@@ -1729,7 +1717,6 @@ get_band() {
                 wl2*|eth6*|eth9*|rax[0-9]*)              Label="6G" ;;
             esac
             ;;
-
 		# Tri-Band Mapping (2.4G,5G-1,5G-2)
         # Models:  RT-AX92U, GT6, XT8, XT9, ZENWIFI-XT12
         *AX92U*|*GT6*|*XT8*|*XT9*|*XT12*)
@@ -1739,7 +1726,6 @@ get_band() {
                 wl2*|eth6*|eth9*)              Label="5G-2" ;;
             esac
             ;;
-
 		# Dual-Band DSL-AX82U Specific
         *DSL-AX82U*)
             case "$iface" in
@@ -1748,7 +1734,6 @@ get_band() {
                 *)          Label="Unknown" ;;
             esac
             ;;
-
 		# Dual-Band Mapping
 		# Models:  RT-AX86U, ZENWIFI-BD4(QCA)
         *)
@@ -1759,9 +1744,7 @@ get_band() {
             esac
             ;;
     esac
-
 	# Unsupported: TUF-AX4200(MTK), RT-AX1800S(MTK), ZENWIFI_XD4_PLUS(MTK)
-
 	# Wireless Backhaul
     if [ -n "$width" ]; then
         if [ "$width" -eq 320 ] && [ "$Label" = "Unknown" ]; then
@@ -1774,7 +1757,6 @@ get_band() {
             case "$iface" in *0*) Label="2.4G" ;; *) Label="5G" ;; esac
         fi
     fi
-
     # Band UI Renderer
 	local class="" sort="0"
 	case "$Label" in
@@ -1947,7 +1929,7 @@ ROW
 }
 
 startup() {
-    ssh_init; hex_to_ansi; get_usb
+    ssh_init; get_usb
     check_github; update_time
 }
 
@@ -2425,7 +2407,9 @@ cat <<HTML >> "$WEB_PAGE"
     .ip-val, .iface-val { display: none; }
     tfoot td { text-align: center; }
     tfoot td > span:not(:last-child) { margin-right: 6px; }
-	.router-style { color: $MAIN_COLOR; font-size: 20px; font-weight: bold; text-transform: uppercase; display: inline-block; margin-bottom: 4px; }
+	#splitView { display: flex; flex-direction: column; gap: 15px; width: 100%; }
+    #allCol { display: none; width: 100% ; align-self: flex-start; }
+    .router-style { color: $MAIN_COLOR; font-size: 20px; font-weight: bold; text-transform: uppercase; display: inline-block; margin-bottom: 4px; }
     .temp_load_row { display: block; font-size: 14px; color: #f2f2f7; margin-top: 11px; font-weight: bold; white-space: nowrap; width: 100%; overflow: visible !important; }
     .temp_load_row > span:not(:last-child) { margin-right: 1px; }
 	.stat-cool { color: #0096ff !important; font-weight: bold; }
@@ -2437,6 +2421,8 @@ cat <<HTML >> "$WEB_PAGE"
 	.band-6g { color: #bf40bf !important; font-weight: bold; }
     .hidden-node-number { position:absolute; width:0; height:0; overflow:hidden; opacity:0; pointer-events:none; }
     .separator-line { margin: 8px -12px; width: calc(100% + 24px); display: block; }
+    sup { font-size: 0.6em; margin-left: 2px; }
+    .sup-header { font-size:14px; font-weight:bold; margin-left:2px; }
     .popout-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:9999; align-items: center; justify-content: center; backdrop-filter: blur(8px); }
     .popout-content { background: rgba(0, 0, 0, 0.2); width: 95%; max-width: 1450px; margin: auto; padding:15px; border-radius:15px; border:1px solid rgba(0, 150, 255, 0.4); position: relative; max-height: 95vh; overflow-y: auto; box-shadow: 0 0 40px rgba(0,0,0,0.6); backdrop-filter: blur(20px); overflow-x: hidden !important; }
     .popout-close-x { position: absolute; top: 10px; right: 20px; color: #fff; font-size: 30px; font-weight: bold; }
@@ -2456,10 +2442,6 @@ cat <<HTML >> "$WEB_PAGE"
     #popoutModal, #popoutModal * { cursor: pointer !important; -webkit-tap-highlight-color: transparent !important; }
     @media (min-width: 992px) { #popoutModal .separator-line { min-width: 600px; } #popoutModal table.report_table { min-width: 600px !important; } @media (orientation: landscape) { .popout-grid .report-column::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; } .popout-grid .report-column { -ms-overflow-style: none; scrollbar-width: none; } } @media (orientation: portrait) { #popoutModal table.report_table { width: max-content !important; } .popout-grid .report-column { scrollbar-width: auto !important; -ms-overflow-style: auto !important; } } }
     @media (max-width: 991px) { .popout-grid .report-column { display: block !important; } #popoutModal table.report_table { min-width: 100% !important; width: max-content !important; display: block !important; } #popoutModal .separator-line { min-width: max-content !important; width: calc(100% + 24px) !important; display: inline-block !important; } }
-	#splitView { display: flex; flex-direction: column; gap: 15px; width: 100%; }
-    #allCol { display: none; width: 100% ; align-self: flex-start; }
-	sup { font-size: 0.6em; margin-left: 2px; }
-    .sup-header { font-size:14px; font-weight:bold; margin-left:2px; }
 </style>
 <script>
 function initial() {
@@ -2512,6 +2494,7 @@ function initial() {
         }
     });
 }
+
 var timeLeft = 0; var refreshTimer = null; var isRefreshing = false;
 function triggerRefresh() {
     if (isRefreshing) return; isRefreshing = true;
@@ -2530,6 +2513,7 @@ function triggerRefresh() {
     var delay = Math.max(2500, Math.ceil((scanTime * 1000) + 1500));
     setTimeout(function() { window.location.reload(); }, delay);
 }
+
 window.addEventListener('load', function() {
     if (document.cookie.indexOf("report_done=true") === -1) {
         setTimeout(function() {
@@ -2539,6 +2523,7 @@ window.addEventListener('load', function() {
         console.log("Cookie found: Skipping auto-refresh to prevent loop.");
     }
 });
+
 function initAutoRefresh(seconds) {
     clearInterval(refreshTimer);
     if (seconds > 0) {
@@ -2546,6 +2531,7 @@ function initAutoRefresh(seconds) {
         refreshTimer = setInterval(function() { timeLeft--; if (timeLeft <= 0) { triggerRefresh(); clearInterval(refreshTimer); } document.getElementById('refresh-countdown').innerHTML = "&nbsp;" + timeLeft + "s"; }, 1000);
     } else { document.getElementById('refresh-countdown').innerHTML = ""; }
 }
+
 window.addEventListener('DOMContentLoaded', function() {
     const selectEl = document.getElementById('refresh-option');
     if (selectEl) {
@@ -2555,6 +2541,7 @@ window.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
 function switchTab(view) {
     localStorage.setItem('wifiReportView', view);
     var split = document.getElementById('splitView');
@@ -2576,6 +2563,7 @@ function switchTab(view) {
         if (btnAll) btnAll.classList.remove('active');
     }
 }
+
 function toggleCols(tId, cls, header, labelA, labelB) {
     var table = document.getElementById(tId);
     if(!table) return;
@@ -2585,6 +2573,7 @@ function toggleCols(tId, cls, header, labelA, labelB) {
     var colIdx = (cls === 'show-ip') ? 1 : 4;
     sortTable(colIdx, tId, true);
 }
+
 function sortTable(n, tId, keepDir, forceDesc) {
     var table = document.getElementById(tId);
     if (!table) return;
@@ -2679,6 +2668,7 @@ function sortTable(n, tId, keepDir, forceDesc) {
         tbody.appendChild(r);
     });
 }
+
 function openPopout() {
     localStorage.setItem('wifiReportPopoutOpen', 'true');
     var body = document.getElementById('popoutBody'); body.innerHTML = "";
@@ -2720,10 +2710,12 @@ function openPopout() {
     body.appendChild(nCol);
     document.getElementById('popoutModal').style.display = 'flex';
 }
+
 function closePopout() {
     document.getElementById('popoutModal').style.display = 'none';
     localStorage.setItem('wifiReportPopoutOpen', 'false');
 }
+
 document.addEventListener('contextmenu', function(e) {
     var h = e.target.closest('th');
     if (h && Array.prototype.indexOf.call(h.parentNode.children, h) === 0) {
@@ -2736,6 +2728,7 @@ document.addEventListener('contextmenu', function(e) {
         sortTable(0, table.id, false, false);
     }
 });
+
 document.addEventListener('mouseover', function(e) {
     const container = e.target.closest('.rssi-container');
     if (container) {
@@ -2746,6 +2739,7 @@ document.addEventListener('mouseover', function(e) {
         }
     }
 });
+
 document.addEventListener('mousemove', function(e) {
     const container = e.target.closest('.rssi-container');
     if (container) {
@@ -2756,6 +2750,7 @@ document.addEventListener('mousemove', function(e) {
         }
     }
 });
+
 document.addEventListener('mouseout', function(e) {
     const container = e.target.closest('.rssi-container');
     if (container) {
@@ -2945,7 +2940,7 @@ case "$1" in
         inject_menu
         ;;
     inject1)
-        # Called by services-start to mount tab
+        # Manual Tab Injection
         NOLOADSCRIPT="1"
         inject_menu
         ;;
@@ -2955,8 +2950,9 @@ case "$1" in
 		inject_menu
         ;;
 	inject3)
-        # Called by services-start to mount menu
-        INJECT="2"; NOLOADSCRIPT="1"
+        # Manual Menu Injection
+        INJECT="2"
+        NOLOADSCRIPT="1"
 		inject_menu
         ;;
     amtmupdate)
