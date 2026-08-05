@@ -1546,11 +1546,14 @@ get_ip() {
 	case "$name" in *-BH*) ip="" ;; esac
 	case "$ip" in ""|*[!0-9.]*) ip=$(printf "900.000.000.00%d" "${NUMBERED_NODE:-0}") ;; esac
 	if [ "$IPPAD" = "1" ]; then
-		ip=$(printf "%s.%03d" "${ip%.*}" "${ip##*.}")
+		last_octet="${ip##*.}"
+		ip=$(printf "%s.%03d" "${ip%.*}" "${last_octet:-0}")
 	elif [ "$IPPAD" = "2" ]; then
 		ip_base="${ip%.*.*}"
 		ip_last_two="${ip#*.*.}"
-		ip=$(printf "%s.%03d.%03d" "$ip_base" "${ip_last_two%.*}" "${ip_last_two#*.}")
+		seg1="${ip_last_two%.*}"
+		seg2="${ip_last_two#*.}"
+		ip=$(printf "%s.%03d.%03d" "$ip_base" "${seg1:-0}" "${seg2:-0}")
 	fi
 	ip_to_num "$ip"
     ip_sort="$IP_NUM"
