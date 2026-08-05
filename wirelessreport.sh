@@ -791,7 +791,7 @@ set_nicknames() {
         echo -e "${BL}=================================================="
         MAIN_HW_MODEL=$(nvram get productid); MAIN_IP=$(nvram get lan_ipaddr)
         MAIN_CLR=$(hex_to_ansi "$MAIN_COLOR")
-        echo -e "\n  ${BL}Main${NC} $MAIN_IP -> ${MAIN_CLR}${MAIN_NICK:-$MAIN_HW_MODEL}${NC}"
+        echo -e "\n  ${MAIN_CLR}Main $MAIN_IP -> ${MAIN_NICK:-$MAIN_HW_MODEL}${NC}"
         if [ -n "$SSH_NODES" ] && [ "$SSH_NODES" != " " ]; then
             VALID_NODES=$(echo "$SSH_NODES" | tr ' ' '\n' | grep '|')
             get_node_color() {
@@ -806,7 +806,7 @@ set_nicknames() {
                 eval SAVED_NICK=\$NODE_NICK_$CLEAN_IP
                 HEX_CLR=$(get_node_color "$node_idx")
                 NODE_CLR=$(hex_to_ansi "$HEX_CLR")
-                echo -e "  ${BL}Node${NC} $IP -> ${NODE_CLR}${SAVED_NICK:-$MODEL}${NC}"
+                echo -e "  ${NODE_CLR}Node $IP -> ${SAVED_NICK:-$MODEL}${NC}"
                 node_idx=$((node_idx + 1))
             done
         fi
@@ -952,8 +952,8 @@ set_colors() {
         local main_display_name="${MAIN_NICK:-$main_name}"
         local main_display_color=$(hex_to_ansi "$m_color_hex")
         local formatted_main_ip=$(printf "(%s)" "$main_ip")
-        printf "  ${BL}(0)${NC} %b%-14s${NC} %-16s [%b%s${NC}] (Main)\n" \
-            "$main_display_color" "$main_display_name" "$formatted_main_ip" "$main_display_color" "$m_color_hex"
+        printf "  ${BL}(0) %b%-14s %-16s (Main)${NC}\n" \
+            "$main_display_color" "$main_display_name" "$formatted_main_ip"
         local idx=1
         for node in $SSH_NODES; do
             local node_ip=$(echo "$node" | cut -d'|' -f2)
@@ -965,8 +965,8 @@ set_colors() {
             node_display_name="${node_display_name:-$default_nick}"
             local display_color=$(hex_to_ansi "$active_color")
             local formatted_ip=$(printf "(%s)" "$node_ip")
-            printf "  ${BL}(%s)${NC} %b%-14s${NC} %-16s [%b%s${NC}] (Node)\n" \
-                "$idx" "$display_color" "$node_display_name" "$formatted_ip" "$display_color" "$active_color"
+            printf "  ${BL}(%s) %b%-14s %-16s (Node)${NC}\n" \
+                "$idx" "$display_color" "$node_display_name" "$formatted_ip"
             idx=$((idx + 1))
         done
         echo -e "\n  $NQ Cancel and Discard Changes"
