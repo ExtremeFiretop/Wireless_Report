@@ -156,44 +156,36 @@ check_version() {
 menu_vars() {
     if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
     startup; hex_to_ansi
+    freeze2() { printf "\033[2A\033[J"; }; freeze3() { printf "\033[3A\033[J"; }
     case "$THEME" in
     1|2|3)
         case "$THEME" in 1) THEME="ORIGINAL" ;; 2) THEME="DARKMODE" ;; 3) THEME="ASUS_WEBUI" ;; esac
         sed -i "s/^THEME=.*/THEME=\"$THEME\"/" "$CONFIG"
         ;;
     esac
-	UL='\033[4m'; WH='\e[1;37m'; YL='\033[0;33m'; BG='\e[42;37m'
-    BL='\033[38;5;39m'; GR='\033[0;32m'; NC='\033[0m'; RD='\033[0;31m'
+	UL='\033[4m'; WH='\e[1;37m'; YL='\033[0;33m'; NC='\033[0m'
+    BL='\033[38;5;39m'; GR='\033[0;32m'; RD='\033[0;31m'
     JB1366="${GR}${UL}https://github.com/JB1366/Wireless_Report${NC}"
-	N0="${BL}(0)${NC}"; N1="${BL}(1)${NC}"; N2="${BL}(2)${NC}"; N3="${BL}(3)${NC}"
-	N4="${BL}(4)${NC}"; N5="${BL}(5)${NC}"; N6="${BL}(6)${NC}"; N7="${BL}(7)${NC}"; N8="${BL}(8)${NC}"
+	N0="${BL}(0)${NC}"; N1="${BL}(1)${NC}"; N2="${BL}(2)${NC}"; N3="${BL}(3)${NC}"; N4="${BL}(4)${NC}"
+	N5="${BL}(5)${NC}"; N6="${BL}(6)${NC}"; N7="${BL}(7)${NC}"; N8="${BL}(8)${NC}"; echo -e "${BL}"
 	NE="${BL}(e)${NC}"; NQ="${BL}(c)${NC}"; ON="${GR}ON${NC}"; OFF="${RD}OFF${NC}"
-	STATUS=" ${BL}STATUS:${NC}"; CURRENT="${GR}Current: v$SCRIPT_VERSION${NC}"; echo -e "${BL}"
-    freeze2() { printf "\033[2A\033[J"; }; freeze3() { printf "\033[3A\033[J"; }
-    SS_FILE="/jffs/scripts/services-start"
-	SE_FILE="/jffs/scripts/service-event"
+	STATUS=" ${BL}STATUS:${NC}"; CURRENT="${GR}Current: v$SCRIPT_VERSION${NC}"
+    SS_FILE="/jffs/scripts/services-start"; SE_FILE="/jffs/scripts/service-event"
 	if [ -z "$SSH_KEY" ]; then KEY="${RD}NO${NC}"; else KEY="${GR}YES${NC}"; fi
-	PORT="${GR}$SSH_PORT${NC}"
-    DISPLAY_UNIT="${REPORT_UNIT:-F}"
+	PORT="${GR}$SSH_PORT${NC}"; DISPLAY_UNIT="${REPORT_UNIT:-F}"
     if [ "$REPORT_UNIT" = "ISO" ]; then DISPLAY_UNIT="C"; fi
 	DU="${GR}°$DISPLAY_UNIT${NC}"; CT="${GR}$CUR_TIME${NC}"
 	DATE_USA=$(date +"%b-%d"); DATE_INTL=$(date +"%d-%b"); DATE_ISO=$(date +"%Y-%m-%d")
-	RTIME=${RTIME:-1}
-    if [ "$RTIME" = "0" ]; then RT_STAT="$OFF"; else RT_STAT="$ON"; fi
-    BACKHAUL=${BACKHAUL:-no}
-    if [ "$BACKHAUL" = "no" ]; then WB_STAT="$OFF"; else WB_STAT="$ON"; fi
-    PULSE_MINS=${PULSE_MINS:-15}
-    if [ "$PULSE_MINS" = "0" ]; then UP_STAT="$OFF"; else UP_STAT="${GR}${PULSE_MINS} Mins${NC}"; fi
-    RS_HIST=${RS_HIST:-0}
-    CUR_RS_HIST=${CUR_RS_HIST:-$RS_HIST}
+	RTIME=${RTIME:-1}; if [ "$RTIME" = "0" ]; then RT_STAT="$OFF"; else RT_STAT="$ON"; fi
+    BACKHAUL=${BACKHAUL:-no}; if [ "$BACKHAUL" = "no" ]; then WB_STAT="$OFF"; else WB_STAT="$ON"; fi
+    PULSE_MINS=${PULSE_MINS:-15}; if [ "$PULSE_MINS" = "0" ]; then UP_STAT="$OFF"; else UP_STAT="${GR}${PULSE_MINS} Mins${NC}"; fi
+    RS_HIST=${RS_HIST:-0}; CUR_RS_HIST=${CUR_RS_HIST:-$RS_HIST}
 	CUR_ENTRIES=${CUR_ENTRIES:-${RS_HIST_ENTRIES:-5}}
-	CUR_DATE=${CUR_DATE:-${RS_HIST_DATE:-0}}
+	CUR_DATE=${CUR_DATE:-${RS_HIST_DATE:-0}}; CE="${GR}$CUR_ENTRIES${NC}"
     if [ "$RS_HIST" = "1" ]; then RH_STAT="$ON"; else RH_STAT="$OFF"; fi
 	if [ "$CUR_RS_HIST" = "1" ]; then CH="$ON"; else CH="$OFF"; fi
 	if [ "$CUR_DATE" = "1" ]; then TS="$ON"; else TS="$OFF"; fi
-	CE="${GR}$CUR_ENTRIES${NC}"
-    THEME=${THEME:-ORIGINAL}
-    TM_STAT="${GR}$THEME${NC}"
+    THEME=${THEME:-ORIGINAL}; TM_STAT="${GR}$THEME${NC}"
 	IPPAD=${IPPAD:-1}
 	if [ "$IPPAD" = "2" ]; then PD_STAT="${GR}Last 2 Octets${NC}"
 	elif [ "$IPPAD" = "1" ]; then PD_STAT="${BL}Last Octet${NC}"
@@ -1552,7 +1544,7 @@ get_ip() {
     if [ -z "$ip" ]; then line=$(grep -ihm 1 "^$mac|" "$YAZ_CACHE"); if [ -n "$line" ]; then ip="${line#*|}"; ip="${ip%%|*}"; fi; fi
     if [ -z "$ip" ]; then line=$(grep -ihm 1 "^$mac|" "$DHCPSTATIC_CACHE"); if [ -n "$line" ]; then ip="${line#*|}"; ip="${ip%%|*}"; fi; fi
 	case "$name" in *-BH*) ip="" ;; esac
-	case "$ip" in ""|*[!0-9.]*) ip=$(printf "900.000.000.00%d" "$NUMBERED_NODE") ;; esac
+	case "$ip" in ""|*[!0-9.]*) ip=$(printf "900.000.000.00%d" "${NUMBERED_NODE:-0}") ;; esac
 	if [ "$IPPAD" = "1" ]; then
 		ip=$(printf "%s.%03d" "${ip%.*}" "${ip##*.}")
 	elif [ "$IPPAD" = "2" ]; then
