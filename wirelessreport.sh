@@ -820,7 +820,7 @@ set_nicknames() {
                     OLD_NAME="${MAIN_NICK:-$MAIN_HW_MODEL}"
                     sed -i '/^MAIN_NICK=/d' "$CONFIG"
                     unset MAIN_NICK
-                    echo -e "    ${MAIN_CLR}$OLD_NAME${NC} -> ${MAIN_CLR}$MAIN_HW_MODEL${NC}"; sleep 1
+                    echo -e "    ${MAIN_CLR}$OLD_NAME -> $MAIN_HW_MODEL${NC}"; sleep 1
                     if [ -n "$SSH_NODES" ] && [ "$SSH_NODES" != " " ]; then
                         node_idx=1
                         for node in $VALID_NODES; do
@@ -832,7 +832,7 @@ set_nicknames() {
                             eval "unset NODE_NICK_$CLEAN_IP"
                             HEX_CLR=$(echo "$NODE_COLORS" | awk -v i="$node_idx" '{print $i}')
                             NODE_CLR=$(hex_to_ansi "$HEX_CLR")
-                            echo -e "    ${NODE_CLR}${OLD_NICK:-$MODEL}${NC} -> ${NODE_CLR}$MODEL${NC}"; sleep 1
+                            echo -e "    ${NODE_CLR}${OLD_NICK:-$MODEL} -> $MODEL${NC}"; sleep 1
                             node_idx=$((node_idx + 1))
                         done
                     fi
@@ -845,10 +845,10 @@ set_nicknames() {
                     sed -i '/^MAIN_NICK=/d' "$CONFIG"
                     if [ -n "$NEW_LOC" ]; then
                         echo "MAIN_NICK=\"$NEW_LOC\"" >> "$CONFIG"
-                        echo -e "    ${MAIN_CLR}$OLD_NAME${NC} -> ${MAIN_CLR}$NEW_LOC${NC}"; sleep 1
+                        echo -e "    ${MAIN_CLR}$OLD_NAME -> $NEW_LOC${NC}"; sleep 1
                     else
                         unset MAIN_NICK
-                        echo -e "    ${MAIN_CLR}$OLD_NAME${NC} -> ${MAIN_CLR}$MAIN_HW_MODEL (Default)${NC}"; sleep 1
+                        echo -e "    ${MAIN_CLR}$OLD_NAME -> $MAIN_HW_MODEL (Default)${NC}"; sleep 1
                     fi
                     node_idx=1
                     for node in $VALID_NODES; do
@@ -861,10 +861,10 @@ set_nicknames() {
                         NODE_CLR=$(hex_to_ansi "$HEX_CLR")
                         if [ -n "$NODE_LOC" ]; then
                             echo "NODE_NICK_$CLEAN_IP=\"$NODE_LOC\"" >> "$CONFIG"
-                            echo -e "    ${NODE_CLR}${OLD_NICK:-$MODEL}${NC} -> ${NODE_CLR}$NODE_LOC${NC}"; sleep 1
+                            echo -e "    ${NODE_CLR}${OLD_NICK:-$MODEL} -> $NODE_LOC${NC}"; sleep 1
                         else
                             eval "unset NODE_NICK_$CLEAN_IP"
-                            echo -e "    ${NODE_CLR}${OLD_NICK:-$MODEL}${NC} -> ${NODE_CLR}$MODEL (Default)${NC}"; sleep 1
+                            echo -e "    ${NODE_CLR}${OLD_NICK:-$MODEL} -> $MODEL (Default)${NC}"; sleep 1
                         fi
                         node_idx=$((node_idx + 1))
                     done
@@ -873,7 +873,7 @@ set_nicknames() {
                 3)
                     echo -e "\n${BL}[*] Manual Entry Mode${NC}\n"
                     OLD_MAIN="${MAIN_NICK:-$MAIN_HW_MODEL}"
-                    printf "  Main $MAIN_IP ${MAIN_CLR}[$OLD_MAIN]:${NC} "
+                    printf "  ${MAIN_CLR}Main $MAIN_IP [$OLD_MAIN]:${NC} "
                     read -r manual_main
                     if [ -n "$manual_main" ]; then
                         sed -i '/^MAIN_NICK=/d' "$CONFIG"
@@ -887,7 +887,7 @@ set_nicknames() {
                         eval OLD_NICK=\$NODE_NICK_$CLEAN_IP
                         HEX_CLR=$(echo "$NODE_COLORS" | awk -v i="$node_idx" '{print $i}')
                         NODE_CLR=$(hex_to_ansi "$HEX_CLR")
-                        printf "  Node $IP ${NODE_CLR}[${OLD_NICK:-$MODEL}]:${NC} "
+                        printf "  ${NODE_CLR}Node $IP [${OLD_NICK:-$MODEL}]:${NC} "
                         read -r input_node
                         if [ -n "$input_node" ]; then
                             sed -i "/^NODE_NICK_$CLEAN_IP=/d" "$CONFIG"
