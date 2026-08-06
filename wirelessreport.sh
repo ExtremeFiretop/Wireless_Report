@@ -92,8 +92,7 @@ install_menu() {
 		echo -e "                                                       "
 		echo -e "${BL}=================================================="
 		while true; do
-			printf "\n ${NC}Selection: ${BL}"
-			read -r choice
+			printf "\n ${NC}Selection: ${BL}"; read -r choice
 			case "$choice" in
 				1) do_install; break ;;
 				2|3|4|5|6|7|8)
@@ -202,15 +201,21 @@ do_install() {
 	if [ -f "$REPORT_SCRIPT" ]; then is_update=1; fi
 	if [ "$is_update" = "1" ]; then
 		check_version do_install
-        read -r update
-		case "$update" in [yY]) ;; *) return ;; esac
+        printf "\033[s"
+        while true; do
+            read -r update
+            case "$update" in
+                [yY]) break ;;
+                [nN]) return ;;
+                *) printf "\033[u\033[K" ;;
+            esac
+        done
     fi
-	echo -e "\n${GR}[+] Downloading latest version (${NC}v$REMOTE_VERSION${GR})${NC}"
     do_update || return 1
+    echo -e "\n${GR}[+] Downloading latest version (${NC}v$REMOTE_VERSION${GR})${NC}"
 	if [ "$is_update" = "1" ]; then
 		echo -e "\n${BL}[✓] Wireless Report successfully installed.${NC}"
-		printf "\nPress ${BL}[Enter]${NC} to apply changes & restart script..."
-        read -r discard
+		printf "\nPress ${BL}[Enter]${NC} to apply changes & restart script..."; read -r discard
 		logger -p user.info -t "Wireless_Report" "(v$REMOTE_VERSION) successfully installed."
 		exec "$REPORT_SCRIPT" install "$@"
 		echo -e "${RD}Error: Failed to restart script!${NC}" >&2
@@ -225,8 +230,7 @@ do_install() {
     else
         echo -e "\n${YL}[!] No USB detected: Using JFFS at $USB_PATH.${NC}"
     fi
-	if [ -f "$SSH_KEY" ]; then
-		node_auth
+	if [ -f "$SSH_KEY" ]; then node_auth
 	else
 		install="1"
 		echo -e "\n${BL}[+] Press ${WH}[Enter]${BL} to proceed to SSH Environment Setup${NC}"
@@ -238,17 +242,19 @@ do_install() {
     inject_menu
     echo -e "${GR}[+] Mounting Menu [Wireless] Tab [Wireless Report]${NC}\n"
     if [ ! -f "$SS_FILE" ]; then echo "#!/bin/sh" > "$SS_FILE"; fi
+    sed -i "\|$REPORT_SCRIPT|d" "$SS_FILE" 2>/dev/null
     echo "$REPORT_SCRIPT inject & # Inject Wireless Report" >> "$SS_FILE"
     chmod +x "$SS_FILE"
     if [ ! -f "$SE_FILE" ]; then echo "#!/bin/sh" > "$SE_FILE"; fi
+    sed -i "/wireless_report/d" "$SE_FILE" 2>/dev/null
     echo 'if [ "$1" = "restart" ] && [ "$2" = "wireless_report" ]; then '$REPORT_SCRIPT' & fi # Wireless Report' >> "$SE_FILE"
     chmod +x "$SE_FILE"
     install=""; SCRIPT_VERSION="$REMOTE_VERSION"
     logger -p user.info -t "Wireless_Report" "(v$REMOTE_VERSION) successfully installed."
     echo -e "${GR}[✓] SUCCESS: Installation complete!${NC}\n"
-    echo -e "${YL}[i] To access Report, navigate to Advanced Settings > Wireless ${NC}"
+    echo -e "${YL}[i] To access Report, navigate to Advanced Settings > Wireless "
     echo -e "${YL}    in the ASUS WebGUI and select the Wireless Report tab on the far right.${NC}\n"
-    echo -e "${BL}[i] Tip: On router only install, you can add node(s) later.${NC}"
+    echo -e "${BL}[i] Tip: On router only install, you can add node(s) later."
     echo -e "${BL}         Use option #7 in main menu to authenticate new node(s).${NC}"
 	pause
 }
@@ -260,19 +266,17 @@ do_update() {
         chmod +x "$REPORT_SCRIPT" 2>/dev/null
         SS_FILE="/jffs/scripts/services-start"
 	    SE_FILE="/jffs/scripts/service-event"
-        [ ! -f "$SS_FILE" ] && touch "$SS_FILE" && chmod +x "$SS_FILE"
-        [ ! -f "$SE_FILE" ] && touch "$SE_FILE" && chmod +x "$SE_FILE"
-        if grep -qF "$REPORT_SCRIPT inject &" "$SS_FILE" 2>/dev/null; then
-            :
-        else
-            [ -f "$SS_FILE" ] && sed -i "\|$REPORT_SCRIPT|d" "$SS_FILE"
-            echo "$REPORT_SCRIPT inject & # Inject Wireless Report" >> "$SS_FILE"
+        if [ -f "$SS_FILE" ] && grep -qF "$REPORT_SCRIPT" "$SS_FILE" 2>/dev/null; then
+            if ! grep -qF "$REPORT_SCRIPT inject &" "$SS_FILE" 2>/dev/null; then
+                sed -i "\|$REPORT_SCRIPT|d" "$SS_FILE"
+                echo "$REPORT_SCRIPT inject & # Inject Wireless Report" >> "$SS_FILE"
+            fi
         fi
-        if grep -qF "then $REPORT_SCRIPT & fi" "$SE_FILE" 2>/dev/null; then
-            :
-        else
-            [ -f "$SE_FILE" ] && sed -i "/wireless_report/d" "$SE_FILE"
-            echo 'if [ "$1" = "restart" ] && [ "$2" = "wireless_report" ]; then '$REPORT_SCRIPT' & fi # Wireless Report' >> "$SE_FILE"
+        if [ -f "$SE_FILE" ] && grep -qF "wireless_report" "$SE_FILE" 2>/dev/null; then
+            if ! grep -qF "then $REPORT_SCRIPT & fi" "$SE_FILE" 2>/dev/null; then
+                sed -i "/wireless_report/d" "$SE_FILE"
+                echo 'if [ "$1" = "restart" ] && [ "$2" = "wireless_report" ]; then '$REPORT_SCRIPT' & fi # Wireless Report' >> "$SE_FILE"
+            fi
         fi
         return 0
     else
@@ -350,6 +354,10 @@ get_usb() {
         fi
     fi
     if [ -n "$USB_PATH" ] && [ ! -d "$USB_PATH" ]; then mkdir -p "$USB_PATH"; fi
+    if [ -n "$USB_PATH" ]; then
+        touch "$USB_PATH/rssi_history.db"
+        touch "$USB_PATH/known_macs.db"
+    fi
     KNOWN_DB="$USB_PATH/known_macs.db"
 	HISTORY_DB="$USB_PATH/rssi_history.db"
     ERROR_LOG="$USB_PATH/ssh_error.log"
@@ -357,7 +365,7 @@ get_usb() {
 
 check_github() {
 	GITHUB="https://raw.githubusercontent.com/JB1366/Wireless_Report/main/wirelessreport.sh"
-	LOCAL_HASH=$(sha256sum "$REPORT_SCRIPT" | awk '{print $1}')
+	LOCAL_HASH=$(sha256sum "$REPORT_SCRIPT" 2>/dev/null | awk '{print $1}')
 	REMOTE_TMP="/tmp/wr_remote.tmp"
 	if curl -sfL --retry 3 "$GITHUB" -o "$REMOTE_TMP" 2>/dev/null && [ -s "$REMOTE_TMP" ]; then
 		REMOTE_VERSION=$(grep "SCRIPT_VERSION=" "$REMOTE_TMP" | head -n 1 | cut -d'"' -f2 | tr -cd '0-9.')
@@ -397,8 +405,7 @@ check_ssh() {
 		echo -e "                                                       "
 		echo -e "${BL}=================================================="
         while true; do
-            printf "\n ${NC}Selection: ${BL}"
-            read -r ssh_choice
+            printf "\n ${NC}Selection: ${BL}"; read -r ssh_choice
             case "$ssh_choice" in
                 1)
                     ssh_keys
@@ -429,8 +436,7 @@ check_ssh() {
                     if [ -f "$ERROR_LOG" ]; then
                         cat "$ERROR_LOG"
                         echo -e "\n\n${BL}==================================================${NC}"
-                        printf "\nRemove error log? (y/n): "
-                        read -r rm_log
+                        printf "\nRemove error log? (y/n): "; read -r rm_log
                         if [ "$rm_log" = "y" ] || [ "$rm_log" = "Y" ]; then
                             rm -f "$ERROR_LOG"
                             echo -e "\n${GR}[✓] Error log removed.${NC}"
@@ -552,8 +558,7 @@ node_auth() {
             echo -e "  ${BL}[Enter]${NC} Retry authentication"
             echo -e "  ${BL}[$KEY_LBL]${NC}     $ACTION_MSG"
             echo -e "  ${BL}[e]${NC}     Exit to main menu\n"
-            printf "${BL}Selection: ${NC}"
-            read -rn 1 input
+            printf "${BL}Selection: ${NC}"; read -rn 1 input
             case "$input" in
 				[rR]|[cC])
 					echo -e "\n\n${YL}[!] $ACTION_MSG...${NC}\n"
@@ -620,16 +625,14 @@ ssh_keys() {
 	echo -e "${YL}[!] Do not press [Enter] until Nodes are confirmed to be back online.\n"
 	echo -e "${BL}[*] TIP: If a node is missing after authentication,     "
 	echo -e "${BL}[*]      use option #7 to reauthenticate.          ${NC}"
-	printf "\n[*] Press ${BL}[ENTER]${NC} to begin authentication check..."
-	read -r discard
+	printf "\n[*] Press ${BL}[ENTER]${NC} to begin authentication check..."; read -r discard
 	node_auth "pause"
 }
 
 del_ssh_keys() {
 	if [ -f "$SSH_KEY" ]; then
 		echo -e "\n${YL}[!] Main Router SSH Key exists.${NC}\n"
-		printf "Do you want to delete Key? (y/n): "
-		read -r delete
+		printf "Do you want to delete Key? (y/n): "; read -r delete
 		case "$delete" in [yY]*) ;; *) return ;; esac
 	else
 		echo -e "\n${YL}[!] No active RSA key found to delete.${NC}"
@@ -659,14 +662,13 @@ del_ssh_keys() {
 }
 
 inject_menu() {
-	. /usr/sbin/helper.sh
+	source /usr/sbin/helper.sh
 	TAB_LABEL="Wireless Report"
 	if [ -f "$CONFIG" ]; then sed -i '/^INSTALLED_PAGE=/d' "$CONFIG"
 	else touch "$CONFIG"; fi
     if ! nvram get rc_support | grep -q am_addons; then echo -e "\n${RD}[!] ERROR: This firmware does not support addons!${NC}"; exit 5; fi
     if [ ! -f "$WEB_PAGE" ]; then echo "<html><body>$TAB_LABEL Loading...</body></html>" > "$WEB_PAGE"; fi
-	LOCKFILE=/tmp/addonwebui.lock; FD=386
-	eval exec "$FD>$LOCKFILE"; flock -x "$FD"
+	LOCKFILE=/tmp/addonwebui.lock; FD=386; eval exec "$FD>$LOCKFILE"; flock -x "$FD"
     am_get_webui_page "$WEB_PAGE"
 	if [ "$am_webui_page" = "none" ]; then echo -e "\n${RD}[!] ERROR: Unable to install $TAB_LABEL.${NC}"; flock -u "$FD"; exit 5; fi
 	cp "$WEB_PAGE" "/www/user/$am_webui_page" 2>/dev/null
@@ -701,9 +703,14 @@ inject_menu() {
 
 do_uninstall() {
     echo -e "\n${RD}[!] WARNING: Removing Wireless Report...${NC}\n"
-    printf "Are you sure? (y/n): "
-    read -r confirm
-    case "$confirm" in [nN]) return ;; esac
+    while true; do
+        printf "Are you sure? (y/n): "; read -r confirm
+        case "$confirm" in
+            [yY]) break ;;
+            [nN]) return ;;
+            *) printf "\033[1A\033[J" ;;
+        esac
+    done
 	if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
 	if mount | grep -q "menuTree.js"; then
 		umount -l "$SYSTEM_MENU" >/dev/null 2>&1
@@ -717,14 +724,11 @@ do_uninstall() {
 		umount -l "/www/user/$INSTALLED_PAGE" >/dev/null 2>&1
 		rm -f /www/user/"${INSTALLED_PAGE}" /www/user/"${INSTALLED_PAGE%%.*}.title" >/dev/null 2>&1
 	fi
-	sed -i "\|$REPORT_SCRIPT|d" "$SS_FILE"
-	sed -i "/wireless_report/d" "$SE_FILE"
-	restart_httpd
-	rm -rf "$INSTALL_DIR" 2>/dev/null
-	rm -rf "$WEB_PAGE" 2>/dev/null
+	sed -i "\|$REPORT_SCRIPT|d" "$SS_FILE"; sed -i "/wireless_report/d" "$SE_FILE"
+	restart_httpd; ssh_init
+	rm -rf "$INSTALL_DIR" "$WEB_PAGE" 2>/dev/null
 	case "$USB_PATH" in *wirelessreport*) rm -rf "$USB_PATH" 2>/dev/null ;; esac
 	logger -p user.info -t "Wireless_Report" "(v$SCRIPT_VERSION) successfully uninstalled."
-	ssh_init
     unset RTIME BACKHAUL CUR_DATE RS_HIST_DATE RS_HIST CUR_RS_HIST CUR_ENTRIES
     unset THEME IPPAD PULSE_MINS DISPLAY_UNIT HOST_COLOR MAIN_COLOR NODE_COLORS
 	echo -e "${GR}[+] System cleaned. SSH Keys and Fingerprints preserved in /jffs/.ssh${NC}\n"
@@ -749,8 +753,7 @@ set_temp_date() {
         echo -e "                                                       "
 		echo -e "${BL}=================================================="
         while true; do
-            printf "\n ${NC}Selection: ${BL}"
-            read -r t_choice
+            printf "\n ${NC}Selection: ${BL}"; read -r t_choice
             case "$t_choice" in
                 1) NEW_UNIT="F" ;;
                 2) NEW_UNIT="C" ;;
@@ -804,8 +807,7 @@ set_nicknames() {
         fi
         echo -e "\n${BL}=================================================="
         while true; do
-            printf "\n ${NC}Selection: ${BL}"
-            read -r input_main
+            printf "\n ${NC}Selection: ${BL}"; read -r input_main
             case "$input_main" in
                 1)
                     echo -e "\n${BL}[+] Resetting to hardware defaults...${NC}\n"
@@ -865,8 +867,7 @@ set_nicknames() {
                 3)
                     echo -e "\n${BL}[*] Manual Entry Mode${NC}\n"
                     OLD_MAIN="${MAIN_NICK:-$MAIN_HW_MODEL}"
-                    printf "  ${MAIN_CLR}Main $MAIN_IP [$OLD_MAIN]:${NC} "
-                    read -r manual_main
+                    printf "  ${MAIN_CLR}Main $MAIN_IP [$OLD_MAIN]:${NC} "; read -r manual_main
                     if [ -n "$manual_main" ]; then
                         sed -i '/^MAIN_NICK=/d' "$CONFIG"
                         echo "MAIN_NICK=\"$manual_main\"" >> "$CONFIG"
@@ -879,8 +880,7 @@ set_nicknames() {
                         eval OLD_NICK=\$NODE_NICK_$CLEAN_IP
                         HEX_CLR=$(echo "$NODE_COLORS" | awk -v i="$node_idx" '{print $i}')
                         NODE_CLR=$(hex_to_ansi "$HEX_CLR")
-                        printf "  ${NODE_CLR}Node $IP [${OLD_NICK:-$MODEL}]:${NC} "
-                        read -r input_node
+                        printf "  ${NODE_CLR}Node $IP [${OLD_NICK:-$MODEL}]:${NC} "; read -r input_node
                         if [ -n "$input_node" ]; then
                             sed -i "/^NODE_NICK_$CLEAN_IP=/d" "$CONFIG"
                             echo "NODE_NICK_$CLEAN_IP=\"$input_node\"" >> "$CONFIG"
@@ -965,8 +965,7 @@ set_colors() {
         echo -e "  $NE Exit and Save Changes"
         echo -e "\n${BL}==============================================${NC}"
         while true; do
-            printf "\n ${NC}Select a Device number to change color ${BL}(0-$total_nodes): "
-            read -r node_choice
+            printf "\n ${NC}Select a Device number to change color ${BL}(0-$total_nodes): "; read -r node_choice
             case "$node_choice" in
                 c|C) return 0 ;;
                 e|E) break 2 ;;
@@ -1002,8 +1001,7 @@ set_colors() {
             echo -e "${NC}"
             local selected_hex=""
             while true; do
-                printf "${NC}Choose option ${BL}(1-10): "
-                read -r color_choice
+                printf "${NC}Choose option ${BL}(1-10): "; read -r color_choice
                 case "$color_choice" in
                     1) selected_hex="#0096ff"; break ;;
                     2) selected_hex="#30d158"; break ;;
@@ -1065,8 +1063,7 @@ set_options() {
         echo -e "                                                       "
         echo -e "${BL}=================================================="
         while true; do
-            printf "\n ${NC}Selection: ${BL}"
-            read -r t_choice
+            printf "\n ${NC}Selection: ${BL}"; read -r t_choice
             case "$t_choice" in
                 1)
                     if grep -q "RTIME=" "$CONFIG"; then
@@ -1091,8 +1088,7 @@ set_options() {
                 3)
                     while true; do
                         echo -e "\n (${GR}0${NC}) disable (${GR}15${NC}) def (${GR}1440${NC}) max "
-                        printf " ${BL}Enter alert interval in mins:${GR} "
-                        read -r user_mins
+                        printf " ${BL}Enter alert interval in mins:${GR} "; read -r user_mins
                         case "$user_mins" in ""|*[!0-9]*) freeze3; continue ;; esac
                         if [ "$user_mins" -le 1440 ]; then
                             NEW_MINS="$user_mins"
@@ -1165,16 +1161,14 @@ rssi_submenu() {
 		echo -e "                                                       "
 		echo -e "${BL}=================================================="
         while true; do
-            printf "\n ${NC}Selection: ${BL}"
-            read -r sub_choice
+            printf "\n ${NC}Selection: ${BL}"; read -r sub_choice
             case "$sub_choice" in
                 1)
                     if [ "$CUR_RS_HIST" = "1" ]; then CUR_RS_HIST="0"; else CUR_RS_HIST="1"; fi
                     break ;;
                 2)
                     while true; do
-                        printf "\n ${NC}Enter new depth (${BL}5-20${NC}) [Current: $CE]: "
-                        read -r new_days
+                        printf "\n ${NC}Enter new depth (${BL}5-20${NC}) [Current: $CE]: "; read -r new_days
                         case "$new_days" in *[!0-9]*|"") freeze2; continue ;; esac
                         if [ "$new_days" -ge 5 ] && [ "$new_days" -le 20 ]; then
                             CUR_ENTRIES="$new_days"
@@ -1227,29 +1221,19 @@ theme_submenu() {
         echo -e "                                                       "
         echo -e "${BL}=================================================="
         while true; do
-            printf "\n ${NC}Selection: ${BL}"
-            read -r theme_choice
+            printf "\n ${NC}Selection: ${BL}"; read -r theme_choice
             case "$theme_choice" in
                 1)
-                    if grep -q "^THEME=" "$CONFIG"; then
-                        sed -i "s/^THEME=.*/THEME=\"ORIGINAL\"/" "$CONFIG"
-                    else
-                        echo 'THEME="ORIGINAL"' >> "$CONFIG"
-                    fi
+                    if grep -q "^THEME=" "$CONFIG"; then sed -i "s/^THEME=.*/THEME=\"ORIGINAL\"/" "$CONFIG"
+                    else echo 'THEME="ORIGINAL"' >> "$CONFIG"; fi
                     break ;;
                 2)
-                    if grep -q "^THEME=" "$CONFIG"; then
-                        sed -i "s/^THEME=.*/THEME=\"DARKMODE\"/" "$CONFIG"
-                    else
-                        echo 'THEME="DARKMODE"' >> "$CONFIG"
-                    fi
+                    if grep -q "^THEME=" "$CONFIG"; then sed -i "s/^THEME=.*/THEME=\"DARKMODE\"/" "$CONFIG"
+                    else echo 'THEME="DARKMODE"' >> "$CONFIG"; fi
                     break ;;
                 3)
-                    if grep -q "^THEME=" "$CONFIG"; then
-                        sed -i "s/^THEME=.*/THEME=\"ASUS_WEBUI\"/" "$CONFIG"
-                    else
-                        echo 'THEME="ASUS_WEBUI"' >> "$CONFIG"
-                    fi
+                    if grep -q "^THEME=" "$CONFIG"; then sed -i "s/^THEME=.*/THEME=\"ASUS_WEBUI\"/" "$CONFIG"
+                    else  echo 'THEME="ASUS_WEBUI"' >> "$CONFIG"; fi
                     break ;;
                 e|E)
                     return 0 ;;
@@ -1767,34 +1751,28 @@ get_band() {
 }
 
 check_qca_up() {
-	if [ "$uptime" = "UP_QCA" ]; then case "$iface" in *ath*)
-		NOW=$(date +%s)
-		CLEAN_MAC="$mac"
-		START_TS=$(jq -r ".\"$CLEAN_MAC\".start // 0" "/jffs/wlcnt.json")
-		if [ "$START_TS" -gt 0 ]; then
-			uptime=$((NOW - START_TS))
-			if [ "$uptime" -lt 0 ]; then uptime=$((START_TS - NOW)); fi
-		else
-			uptime="0"
-		fi
-		;;
-	esac; fi
+    [ "$uptime" = "UP_QCA" ] || return 0
+    case "$iface" in *ath*) ;; *) return 0 ;; esac
+    local now=$(date +%s); local clean_mac="$mac"
+    local start_ts=$(jq -r --arg m "$clean_mac" '.[$m].start // 0' "/jffs/wlcnt.json" 2>/dev/null)
+    if [ "${start_ts:-0}" -gt 0 ]; then
+        diff=$((now - start_ts))
+        uptime=${diff#-}
+    else
+        uptime="0"
+    fi
 }
 
 fmt_uptime() {
-    local T=$1
+    local T=$1; local pulse=""
     if [ -z "$T" ] || case "$T" in *[!0-9]*) true ;; *) false ;; esac; then
         echo "<span data-sort='0'>---</span>"
         return
     fi
-    local check_mins="${PULSE_MINS:-15}"
-    local pulse_sec=$((check_mins * 60))
-    local pulse=""
+    local check_mins="${PULSE_MINS:-15}"; local pulse_sec=$((check_mins * 60))
     if [ "$check_mins" -ne 0 ] && [ "$T" -lt "$pulse_sec" ]; then pulse="pulse-blue"; fi
-    local d=$((T / 86400))
-    local rem=$((T % 86400))
-    local h=$((rem / 3600))
-    local m=$(((rem % 3600) / 60))
+    local d=$((T / 86400));  local rem=$((T % 86400))
+    local h=$((rem / 3600)); local m=$(((rem % 3600) / 60))
     if [ "$d" -gt 0 ]; then
         printf "<span class='%s' data-sort='%s'>%02dd %02dh</span>" "$pulse" "$T" "$d" "$h"
     elif [ "$h" -gt 0 ]; then
