@@ -200,10 +200,10 @@ do_install() {
 	local is_update=0
 	if [ -f "$REPORT_SCRIPT" ]; then is_update=1; fi
 	if [ "$is_update" = "1" ]; then
-		check_version do_install
-        printf "\033[s"
-        while true; do read -r update
-        case "$update" in [yY]) break ;; [nN]) return ;; *) printf "\033[u\033[K" ;; esac; done
+        while true; do
+            check_version do_install
+            read -r update
+            case "$update" in [yY]) break ;; [nN]) return ;; *) printf "\033[4A\033[J" ;; esac; done
     fi
     do_update || return 1
     echo -e "\n${GR}[+] Downloading latest version (${NC}v$REMOTE_VERSION${GR})${NC}"
