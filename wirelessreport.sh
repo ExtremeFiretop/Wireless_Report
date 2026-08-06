@@ -955,10 +955,7 @@ set_colors() {
         echo -e "\n${BL}==============================================${NC}"
         while true; do
             printf "\n ${NC}Select a Device number to change color ${BL}(0-$total_nodes): "; read -r node_choice
-            case "$node_choice" in
-                c|C) return 0 ;;
-                e|E) break 2 ;;
-            esac
+            case "$node_choice" in c|C) return 0 ;; e|E) break 2 ;; esac
             if ! [ "$node_choice" -ge 0 ] 2>/dev/null || ! [ "$node_choice" -le "$total_nodes" ] 2>/dev/null; then
                 freeze2; continue
             fi
@@ -1056,23 +1053,16 @@ set_options() {
             case "$t_choice" in
                 1)
                     if grep -q "RTIME=" "$CONFIG"; then
-                        if [ "$RTIME" = "1" ]; then
-                            sed -i 's/RTIME=.*/RTIME="0"/' "$CONFIG"
-                        else
-                            sed -i 's/RTIME=.*/RTIME="1"/' "$CONFIG"
-                        fi
-                    else
-                        echo 'RTIME="0"' >> "$CONFIG"
-                    fi
+                        if [ "$RTIME" = "1" ]; then sed -i 's/RTIME=.*/RTIME="0"/' "$CONFIG"
+                        else sed -i 's/RTIME=.*/RTIME="1"/' "$CONFIG"; fi
+                    else echo 'RTIME="0"' >> "$CONFIG"; fi
                     if [ -f "$USB_PATH/runtime.db" ]; then rm -f "$USB_PATH/runtime.db"; fi
                     break ;;
                 2)
                     if grep -q "BACKHAUL=" "$CONFIG"; then
                         if [ "$BACKHAUL" = "yes" ]; then NEW_BACK="no"; else NEW_BACK="yes"; fi
                         sed -i "s/BACKHAUL=.*/BACKHAUL=\"$NEW_BACK\"/" "$CONFIG"
-                    else
-                        echo 'BACKHAUL="yes"' >> "$CONFIG"
-                    fi
+                    else echo 'BACKHAUL="yes"' >> "$CONFIG"; fi
                     break ;;
                 3)
                     while true; do
