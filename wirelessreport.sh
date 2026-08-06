@@ -699,12 +699,7 @@ do_uninstall() {
     echo -e "\n${RD}[!] WARNING: Removing Wireless Report...${NC}\n"
     while true; do
         printf "Are you sure? (y/n): "; read -r confirm
-        case "$confirm" in
-            [yY]) break ;;
-            [nN]) return ;;
-            *) printf "\033[1A\033[J" ;;
-        esac
-    done
+        case "$confirm" in [yY]) break ;; [nN]) return ;; *) printf "\033[1A\033[J" ;; esac; done
 	if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
 	if mount | grep -q "menuTree.js"; then
 		umount -l "$SYSTEM_MENU" >/dev/null 2>&1
