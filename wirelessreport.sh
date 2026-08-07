@@ -2004,9 +2004,9 @@ for line in $SSH_NODES; do
 						;;
 				esac
 			done
-			echo "TEMP|\$(cut -c1-2 /sys/class/thermal/thermal_zone0/temp 2>/dev/null)"
-            echo "LOAD|\$(cut -d' ' -f1 /proc/loadavg)"
-            echo "UPTIME|\$(cut -d. -f1 /proc/uptime)"
+            echo \"TEMP|\$(cut -c1-2 /sys/class/thermal/thermal_zone0/temp 2>/dev/null)\"
+            echo \"LOAD|\$(cut -d' ' -f1 /proc/loadavg)\"
+            echo \"UPTIME|\$(cut -d. -f1 /proc/uptime)\"
 		" 2>/dev/null > "$NODE_DATA_DIR/${CLEAN_IP}.out"
 	) &
 done
