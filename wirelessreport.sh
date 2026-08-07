@@ -2064,8 +2064,6 @@ for iface in $IFACE_LIST; do
 		*) data_iface="$iface" ;;
 	esac
     ASSOCLIST=$(wl -i "$iface" assoclist 2>/dev/null)
-    WL_ALIVE=0
-    if [ -n "$ASSOCLIST" ]; then WL_ALIVE=1; fi
     ssid=$(nvram get "${iface}_ssid")
 	if [ -z "$ssid" ] || echo "$ssid" | grep -qE '^[0-9A-Fa-f]{16,}$'; then
 		idx=${iface#*.}
