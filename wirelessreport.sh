@@ -154,7 +154,6 @@ check_version() {
 
 menu_vars() {
     if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
-    startup; hex_to_ansi
     freeze2() { printf "\033[2A\033[J"; }; freeze3() { printf "\033[3A\033[J"; }
 	UL='\033[4m'; WH='\e[1;37m'; YL='\033[0;33m'; NC='\033[0m'
     BL='\033[38;5;39m'; GR='\033[0;32m'; RD='\033[0;31m'
@@ -616,8 +615,9 @@ ssh_keys() {
 del_ssh_keys() {
 	if [ -f "$SSH_KEY" ]; then
 		echo -e "\n${YL}[!] Main Router SSH Key exists.${NC}\n"
-		printf "Do you want to delete Key? (y/n): "; read -r delete
-		case "$delete" in [yY]*) ;; *) return ;; esac
+        while true; do
+            printf "Do you want to delete Key? (y/n): "; read -r delete
+            case "$delete" in [yY]) break ;; [nN]) return ;; *) printf "\033[1A\033[J" ;; esac; done
 	else
 		echo -e "\n${YL}[!] No active RSA key found to delete.${NC}"
 		pause; return
@@ -914,7 +914,7 @@ set_colors() {
         i=$((i + 1))
     done
     while true; do
-        show_header
+        show_header; hex_to_ansi
         echo -e "${BL}=================================================="
         echo -e "${NC}                Set Device Colors                 "
         echo -e "${BL}=================================================="
@@ -1847,7 +1847,7 @@ run_report() {
 #=================#
 #  Node Scan(s)   #
 #=================#
-startup; read -r START_RUNTIME _ < /proc/uptime
+read -r START_RUNTIME _ < /proc/uptime
 NODE_DATA_DIR="/tmp/node_data"
 rm -rf "$NODE_DATA_DIR" 2>/dev/null; mkdir -p "$NODE_DATA_DIR"
 for line in $SSH_NODES; do
@@ -2813,6 +2813,7 @@ HTML
 rm -rf "$SEEN_MACS" "$HISTORY_CACHE" "$KNOWN_CACHE" "$ARP_CACHE" "$LEASES_CACHE" 2>/dev/null
 rm -rf "$YAZ_CACHE" "$CUSTOM_CLIENTS_CACHE" "$DEVICE_LIST_CACHE" "$NODE_DATA_DIR" 2>/dev/null
 }
+startup
 case "$1" in
     install)
         # Install/Uninstall options
