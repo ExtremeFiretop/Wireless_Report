@@ -1823,8 +1823,7 @@ parse_node_out() {
         case "$key" in
             "TEMP")       N_TEMP_RAW=$val ;;
             "LOAD")       N_LOAD=$val ;;
-            "UPTIME_RAW") N_UPTIME_RAW=$val ;;
-            "UPTIME_VAL") N_UPTIME=$val ;;
+            "UPTIME")     N_UPTIME_RAW=$val ;;
         esac
     done <<EOF
 $1
@@ -1853,8 +1852,6 @@ for line in $SSH_NODES; do
 	CLEAN_IP=$(echo "$IP" | tr '.' '_')
 	(
 		/usr/bin/ssh -p "$SSH_PORT" -i "$SSH_KEY" -o StrictHostKeyChecking=no -o BatchMode=yes "${NODE_USER}@${IP}" "
-			UP_SEC=\$(cut -d. -f1 /proc/uptime)
-			F_UP=\$(awk -v s=\"\$UP_SEC\" 'BEGIN {d=int(s/86400); h=int((s%86400)/3600); m=int((s%3600)/60); if(d>0) printf \"%dd %dh %dm\", d, h, m; else if(h>0) printf \"%dh %dm\", h, m; else printf \"%dm\", m}')
 			NODE_COUNT=0
 			if ifconfig -a | grep -q "ath"; then
 				HW_ENGINE=\"QCA\"
@@ -1896,15 +1893,7 @@ for line in $SSH_NODES; do
 							W=\$(echo \"\$RAW\" | grep -i "bandwidth" | grep -oE '[0-9]+' | head -n 1)
 							if [ -z \"\$W\" ]; then
 								HEX=\$(echo \"\$RAW\" | grep -o '0x[0-9a-fA-F]*' | head -n1)
-								case \"\$HEX\" in
-									0x10*|0xd0*) W=\"20\" ;;
-									0x11*|0xd1*) W=\"40\" ;;
-									0xe0*) W=\"80\" ;;
-									0xe8*) W=\"160\" ;;
-									0xe9*) W=\"160\" ;;
-									0xf*) W=\"320\" ;;
-									*) W=\"20\" ;;
-								esac
+								case \"\$HEX\" in 0x10*|0xd0*) W=\"20\" ;; 0x11*|0xd1*) W=\"40\" ;; 0xe0*) W=\"80\" ;; 0xe8*|0xe9*) W=\"160\" ;; 0xf*) W=\"320\" ;; *) W=\"20\" ;; esac
 							fi
 							UP=\$(echo \"\$RAW\" | grep \"in network\" | awk '{print \$3}')
 							RX=\$(echo \"\$RAW\" | grep \"rate of last rx pkt\" | awk '{print \$6/1000}')
@@ -1924,13 +1913,9 @@ for line in $SSH_NODES; do
 						IFACE_INFO=\$(iw dev \"\$iface\" info 2>/dev/null)
 						LIVE_CHAN=\$(echo \"\$IFACE_INFO\" | grep \"channel\" | grep -oE '[0-9]+' | head -n1)
 						BASE_IFACE=\$(echo \"\$iface\" | sed 's/[0-9]\$/0/')
-						if [ \"\$BASE_IFACE\" = \"\$(nvram get wl2_ifname)\" ]; then
-							PREFIX=\"wl2\"
-						elif [ \"\$BASE_IFACE\" = \"\$(nvram get wl1_ifname)\" ]; then
-							PREFIX=\"wl1\"
-						else
-							PREFIX=\"wl0\"
-						fi
+						if [ \"\$BASE_IFACE\" = \"\$(nvram get wl2_ifname)\" ]; then PREFIX=\"wl2\"
+						elif [ \"\$BASE_IFACE\" = \"\$(nvram get wl1_ifname)\" ]; then PREFIX=\"wl1\"
+						else PREFIX=\"wl0\"; fi
 						DRIVER_SSID=\$(echo \"\$IFACE_INFO\" | grep \"ssid\" | sed 's/^[[:space:]]*ssid //')
 						if [ -n \"\$DRIVER_SSID\" ] && ! echo \"\$DRIVER_SSID\" | grep -qE \"^[0-9A-Fa-f]{32}\$\"; then
 							DISPLAY_SSID=\"\$DRIVER_SSID\"
@@ -2019,9 +2004,9 @@ for line in $SSH_NODES; do
 						;;
 				esac
 			done
-			echo \"TEMP|\$(cat /sys/class/thermal/thermal_zone0/temp 2>/dev/null | cut -c1-2)\"
-			echo \"LOAD|\$(cat /proc/loadavg | awk '{print \$1}')\"
-			echo \"UPTIME_VAL|\$F_UP\"; echo \"UPTIME_RAW|\$UP_SEC\"; echo \"COUNT|\$NODE_COUNT\"
+			echo "TEMP|\$(cut -c1-2 /sys/class/thermal/thermal_zone0/temp 2>/dev/null)"
+            echo "LOAD|\$(cut -d' ' -f1 /proc/loadavg)"
+            echo "UPTIME|\$(cut -d. -f1 /proc/uptime)"
 		" 2>/dev/null > "$NODE_DATA_DIR/${CLEAN_IP}.out"
 	) &
 done
@@ -2169,7 +2154,11 @@ for line in $SSH_NODES; do
 		if [ -z "$NODE_NAMES" ]; then NODE_NAMES="$NODE_BRAND"; else NODE_NAMES="$NODE_NAMES$BULLET$NODE_BRAND"; fi
 		parse_node_out "$NODE_OUT"
 		if [ "${#N_TEMP_RAW}" -gt 3 ]; then N_TEMP_RAW=$((N_TEMP_RAW / 1000)); fi
-		N_TEMP=$(get_temp_unit "$N_TEMP_RAW")
+        s="${N_UPTIME_RAW}"; s=${s%.*}; d=$((s / 86400)); h=$((s % 86400 / 3600)); m=$((s % 3600 / 60))
+        if [ $d -gt 0 ]; then N_UPTIME="${d}d ${h}h ${m}m"
+        elif [ $h -gt 0 ]; then N_UPTIME="${h}h ${m}m"
+        else N_UPTIME="${m}m"; fi
+        N_TEMP=$(get_temp_unit "$N_TEMP_RAW")
 		NC_TEMP=$(get_temp_class "$N_TEMP")
         NC_LOAD=$(get_load_class "$N_LOAD")
 		N_BOOT=$(date -d @$(( $(date +%s) - ${N_UPTIME_RAW:-0} )) "$D_FMT")
