@@ -43,7 +43,6 @@ LEASES_CACHE="/tmp/dnsmasq_leases.cache"
 DHCPSTATIC_CACHE="/tmp/dhcp_static.cache"
 DEVICE_LIST_CACHE="/tmp/asus_device_list.cache"
 CUSTOM_CLIENTS_CACHE="/tmp/custom_clients.cache"
-doScriptUpdateFromAMTM=true
 if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
 export PATH="/usr/sbin:/usr/bin:/sbin:/bin:$PATH"; unset LD_LIBRARY_PATH
 
@@ -292,6 +291,7 @@ do_update() {
 }
 
 ScriptUpdateFromAMTM() {
+    doScriptUpdateFromAMTM=true
     if [ "$doScriptUpdateFromAMTM" != "true" ]; then
         printf "Automatic updates via AMTM are currently disabled."
         return 1
