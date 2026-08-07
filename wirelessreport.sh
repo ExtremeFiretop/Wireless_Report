@@ -1799,6 +1799,14 @@ get_rssi_boxes() {
     <div class='rssi-quality-box rssi-poor'>Poor: <span style='background:#ff453a;' class='rssi-font'>$T_POOR</span></div>"
 }
 
+device_uptime() {
+    local s="${1%.*}" d h m
+    d=$((s / 86400)); h=$((s % 86400 / 3600)); m=$((s % 3600 / 60))
+    if [ $d -gt 0 ]; then echo "${d}d ${h}h ${m}m"
+    elif [ $h -gt 0 ]; then echo "${h}h ${m}m"
+    else echo "${m}m"; fi
+}
+
 parse_main_sta() {
     local raw_info="$1"
     printf "%s\n" "$raw_info" | awk '
@@ -2030,12 +2038,9 @@ MC_LOAD=$(get_load_class "$M_LOAD")
 M_T=$(($(cat /sys/class/thermal/thermal_zone0/temp 2>/dev/null || echo 0) / 1000))
 M_TEMP=$(get_temp_unit "$M_T")
 MC_TEMP=$(get_temp_class "$M_TEMP")
-read -r s _ < /proc/uptime; s=${s%.*}; d=$((s / 86400)); h=$((s % 86400 / 3600)); m=$((s % 3600 / 60))
-if [ $d -gt 0 ]; then M_UPTIME="${d}d ${h}h ${m}m"
-elif [ $h -gt 0 ]; then M_UPTIME="${h}h ${m}m"
-else M_UPTIME="${m}m"; fi
-read -r s _ < /proc/uptime; s=${s%.*}; boot_epoch=$(( $(date +%s) - s ))
-M_BOOT=$(date -d @$boot_epoch "$D_FMT")
+read -r s _ < /proc/uptime; s=${s%.*}; BOOT_TIME=$(( $(date +%s) - s ))
+M_UPTIME=$(device_uptime "$s")
+M_BOOT=$(date -d @$BOOT_TIME "$D_FMT")
 MAIN_PFX=$(nvram get lan_hwaddr | cut -c 3-14 | tr '[:lower:]' '[:upper:]')
 NODE_PFX=$(nvram get cfg_relist | sed 's/[<>]/ /g' | tr ' ' '\n' | grep ":" | cut -c 3-14 | sort -u | tr '[:lower:]' '[:upper:]')
 ROUTER_IP=$(nvram get lan_ipaddr)
@@ -2154,10 +2159,7 @@ for line in $SSH_NODES; do
 		if [ -z "$NODE_NAMES" ]; then NODE_NAMES="$NODE_BRAND"; else NODE_NAMES="$NODE_NAMES$BULLET$NODE_BRAND"; fi
 		parse_node_out "$NODE_OUT"
 		if [ "${#N_TEMP_RAW}" -gt 3 ]; then N_TEMP_RAW=$((N_TEMP_RAW / 1000)); fi
-        s="${N_UPTIME_RAW}"; s=${s%.*}; d=$((s / 86400)); h=$((s % 86400 / 3600)); m=$((s % 3600 / 60))
-        if [ $d -gt 0 ]; then N_UPTIME="${d}d ${h}h ${m}m"
-        elif [ $h -gt 0 ]; then N_UPTIME="${h}h ${m}m"
-        else N_UPTIME="${m}m"; fi
+        N_UPTIME=$(device_uptime "$N_UPTIME_RAW")
         N_TEMP=$(get_temp_unit "$N_TEMP_RAW")
 		NC_TEMP=$(get_temp_class "$N_TEMP")
         NC_LOAD=$(get_load_class "$N_LOAD")
