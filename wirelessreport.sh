@@ -1210,10 +1210,7 @@ theme_submenu() {
     done
 }
 
-restart_httpd() {
-    service restart_httpd >/dev/null 2>&1
-    killall -HUP httpd >/dev/null 2>&1
-}
+restart_httpd() { service restart_httpd >/dev/null 2>&1; killall -HUP httpd >/dev/null 2>&1; }
 
 pause() { printf "\nPress ${BL}[Enter]${NC} to return..."; read -r discard; }
 
@@ -1690,7 +1687,7 @@ get_band() {
     else echo "<td data-sort='$sort' style='text-align:center;'><span class='$class'>$Label$w_text</span></td>"; fi
 }
 
-check_qca_up() {
+qca_uptime() {
     [ "$uptime" = "UP_QCA" ] || return 0
     case "$iface" in *ath*) ;; *) return 0 ;; esac
     local now=$(date +%s); local clean_mac="$mac"
@@ -1699,7 +1696,7 @@ check_qca_up() {
     else uptime="0"; fi
 }
 
-fmt_uptime() {
+device_uptime() {
     local T=$1; local pulse=""
     if [ -z "$T" ] || case "$T" in *[!0-9]*) true ;; *) false ;; esac; then
         echo "<span data-sort='0'>---</span>"
@@ -1799,7 +1796,7 @@ get_rssi_boxes() {
     <div class='rssi-quality-box rssi-poor'>Poor: <span style='background:#ff453a;' class='rssi-font'>$T_POOR</span></div>"
 }
 
-device_uptime() {
+router_uptime() {
     local s="${1%.*}" d h m
     d=$((s / 86400)); h=$((s % 86400 / 3600)); m=$((s % 3600 / 60))
     if [ $d -gt 0 ]; then echo "${d}d ${h}h ${m}m"
@@ -1941,8 +1938,7 @@ for line in $SSH_NODES; do
 							echo \"\$IFACE_INFO\" | grep -q \"160 MHz\" && W=\"160\"
 							echo \"\$IFACE_INFO\" | grep -q \"80 MHz\" && W=\"80\"
 						elif [ -n \"\$LIVE_CHAN\" ] && [ \"\$(echo \"\$LIVE_CHAN\" | tr -d ',')\" -gt 14 ]; then
-							W=\"80\"
-							echo \"\$IFACE_INFO\" | grep -q \"160\" && W=\"160\"
+							W=\"80\"; echo \"\$IFACE_INFO\" | grep -q \"160\" && W=\"160\"
 						fi
 						RAW_STAS=\$(iw dev \"\$iface\" station dump 2>/dev/null)
 						if [ -n \"\$RAW_STAS\" ]; then
@@ -1979,14 +1975,10 @@ for line in $SSH_NODES; do
 								RX_INT=\$(echo \"\$c_rx\" | cut -d. -f1)
 								[ -z \"\$TX_INT\" ] && TX_INT=0
 								[ -z \"\$RX_INT\" ] && RX_INT=0
-								if [ \"\$RX_INT\" -eq 0 ] && [ \"\$TX_INT\" -eq 0 ]; then
-									LRD=\"1\"
+								if [ \"\$RX_INT\" -eq 0 ] && [ \"\$TX_INT\" -eq 0 ]; then LRD=\"1\"
 								else
-									if [ \"\$RX_INT\" -gt \"\$TX_INT\" ]; then
-										LRD=\"\$TX_INT / \$RX_INT\"
-									else
-										LRD=\"\$RX_INT / \$TX_INT\"
-									fi
+									if [ \"\$RX_INT\" -gt \"\$TX_INT\" ]; then LRD=\"\$TX_INT / \$RX_INT\"
+									else LRD=\"\$RX_INT / \$TX_INT\"; fi
 								fi
 								TX=\$(printf \"%04d\" \"\${TX_INT:-0}\")
 								echo \"DATA|\$c_mac|\$c_rssi|\$iface|\$c_uptime|\$DISPLAY_SSID|\$TX|\$LRD|\$c_width|\"
@@ -2013,8 +2005,7 @@ for line in $SSH_NODES; do
 				esac
 			done
             echo \"TEMP|\$(cut -c1-2 /sys/class/thermal/thermal_zone0/temp 2>/dev/null)\"
-            echo \"LOAD|\$(cut -d' ' -f1 /proc/loadavg)\"
-            echo \"UPTIME|\$(cut -d. -f1 /proc/uptime)\"
+            echo \"LOAD|\$(cut -d' ' -f1 /proc/loadavg)\"; echo \"UPTIME|\$(cut -d. -f1 /proc/uptime)\"
 		" 2>/dev/null > "$NODE_DATA_DIR/${CLEAN_IP}.out"
 	) &
 done
@@ -2039,7 +2030,7 @@ M_T=$(($(cat /sys/class/thermal/thermal_zone0/temp 2>/dev/null || echo 0) / 1000
 M_TEMP=$(get_temp_unit "$M_T")
 MC_TEMP=$(get_temp_class "$M_TEMP")
 read -r s _ < /proc/uptime; s=${s%.*}; BOOT_TIME=$(( $(date +%s) - s ))
-M_UPTIME=$(device_uptime "$s")
+M_UPTIME=$(router_uptime "$s")
 M_BOOT=$(date -d @$BOOT_TIME "$D_FMT")
 MAIN_PFX=$(nvram get lan_hwaddr | cut -c 3-14 | tr '[:lower:]' '[:upper:]')
 NODE_PFX=$(nvram get cfg_relist | sed 's/[<>]/ /g' | tr ' ' '\n' | grep ":" | cut -c 3-14 | sort -u | tr '[:lower:]' '[:upper:]')
@@ -2114,7 +2105,7 @@ for iface in $IFACE_LIST; do
 		is_mac_new=$(check_new_mac "$mac")
 		trend=$(get_trend "$mac" "$rssi" "$MAIN_NAME")
 		band=$(get_band "$iface" "$width" "$ROUTER")
-		uptime=$(fmt_uptime "$uptime")
+		uptime=$(device_uptime "$uptime")
 		get_bars_rssi_style
 		get_max_column
 		hostcolor_main_name
@@ -2159,7 +2150,7 @@ for line in $SSH_NODES; do
 		if [ -z "$NODE_NAMES" ]; then NODE_NAMES="$NODE_BRAND"; else NODE_NAMES="$NODE_NAMES$BULLET$NODE_BRAND"; fi
 		parse_node_out "$NODE_OUT"
 		if [ "${#N_TEMP_RAW}" -gt 3 ]; then N_TEMP_RAW=$((N_TEMP_RAW / 1000)); fi
-        N_UPTIME=$(device_uptime "$N_UPTIME_RAW")
+        N_UPTIME=$(router_uptime "$N_UPTIME_RAW")
         N_TEMP=$(get_temp_unit "$N_TEMP_RAW")
 		NC_TEMP=$(get_temp_class "$N_TEMP")
         NC_LOAD=$(get_load_class "$N_LOAD")
@@ -2174,8 +2165,8 @@ for line in $SSH_NODES; do
             is_mac_new=$(check_new_mac "$mac")
 			trend=$(get_trend "$mac" "$rssi" "$NODE_NAME")
 			band=$(get_band "$iface" "$width" "$ROUTER")
-			check_qca_up
-			uptime=$(fmt_uptime "$uptime")
+			qca_uptime
+			uptime=$(device_uptime "$uptime")
 			get_bars_rssi_style
 			get_max_column
 			hostcolor_node_name
