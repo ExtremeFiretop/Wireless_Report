@@ -2813,31 +2813,20 @@ HTML
 rm -rf "$SEEN_MACS" "$HISTORY_CACHE" "$KNOWN_CACHE" "$ARP_CACHE" "$LEASES_CACHE" 2>/dev/null
 rm -rf "$YAZ_CACHE" "$CUSTOM_CLIENTS_CACHE" "$DEVICE_LIST_CACHE" "$NODE_DATA_DIR" 2>/dev/null
 }
-startup
 case "$1" in
     install)
         # Install/Uninstall options
+        startup
         install_menu
         ;;
-    inject)
-        # Called by services-start to mount tab
+    inject|inject1|inject2|inject3)
+        case "$1" in
+            inject)  ;; # Called by services-start to mount tab
+            inject1) NOLOADSCRIPT="1" ;; # Manual Tab Injection
+            inject2) INJECT="2" ;; # Called by services-start to mount menu
+            inject3) NOLOADSCRIPT="1"; INJECT="2" ;; # Manual Menu Injection
+        esac
         inject_menu
-        ;;
-    inject1)
-        # Manual Tab Injection
-        NOLOADSCRIPT="1"
-        inject_menu
-        ;;
-    inject2)
-        # Called by services-start to mount menu
-        INJECT="2"
-		inject_menu
-        ;;
-	inject3)
-        # Manual Menu Injection
-        INJECT="2"
-        NOLOADSCRIPT="1"
-		inject_menu
         ;;
     amtmupdate)
         # Called by AMTM for autoupdates
@@ -2847,6 +2836,7 @@ case "$1" in
         ;;
 	*)
         # Run (Scans)
+		startup
 		run_report
         ;;
 esac
