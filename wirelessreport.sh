@@ -156,12 +156,6 @@ menu_vars() {
     if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
     startup; hex_to_ansi
     freeze2() { printf "\033[2A\033[J"; }; freeze3() { printf "\033[3A\033[J"; }
-    case "$THEME" in
-    1|2|3)
-        case "$THEME" in 1) THEME="ORIGINAL" ;; 2) THEME="DARKMODE" ;; 3) THEME="ASUS_WEBUI" ;; esac
-        sed -i "s/^THEME=.*/THEME=\"$THEME\"/" "$CONFIG"
-        ;;
-    esac
 	UL='\033[4m'; WH='\e[1;37m'; YL='\033[0;33m'; NC='\033[0m'
     BL='\033[38;5;39m'; GR='\033[0;32m'; RD='\033[0;31m'
     JB1366="${GR}${UL}https://github.com/JB1366/Wireless_Report${NC}"
@@ -524,19 +518,15 @@ node_auth() {
 		done
     fi
     sed -i '/SSH_NODES=/d' "$CONFIG"
-    if [ -z "$VALID_NODES" ]; then
-        echo 'SSH_NODES=" "' >> "$CONFIG"
-    else
-        echo "SSH_NODES=\"$VALID_NODES\"" >> "$CONFIG"
-    fi
+    if [ -z "$VALID_NODES" ]; then echo 'SSH_NODES=" "' >> "$CONFIG"
+    else echo "SSH_NODES=\"$VALID_NODES\"" >> "$CONFIG"; fi
     if [ "$any_success" -gt 0 ] && [ "$any_success" -eq "$TOTAL_NODES" ]; then
         echo -e "\n${GR}[✓] All nodes ($any_success/$TOTAL_NODES) authenticated successfully!${NC}"
         if [ "$new_nodes" -gt 0 ]; then
             [ "$new_nodes" -eq 1 ] && suffix="" || suffix="s"
             echo -e "\n${YL}[!] $new_nodes new node$suffix successfully authenticated.${NC}"
         fi
-        [ "$1" = "pause" ] && pause
-		return
+        [ "$1" = "pause" ] && pause; return
     else
         if [ "$any_success" -gt 0 ]; then
             echo -e "\n${YL}[!] Partial Success: Only $any_success of $TOTAL_NODES nodes authenticated.${NC}"
@@ -651,8 +641,7 @@ del_ssh_keys() {
 	nvram get sshd_authkeys > /root/.ssh/authorized_keys
 	chmod 600 /root/.ssh/authorized_keys
 	echo -e "\n${GR}[✓] RSA Keys removed successfully.${NC}"
-	ssh_init
-	pause
+	ssh_init; pause
 }
 
 inject_menu() {
@@ -1083,11 +1072,9 @@ set_options() {
                     done
                     pause; break ;;
                 4)
-                    rssi_submenu
-                    break ;;
+                    rssi_submenu; break ;;
                 5)
-                    theme_submenu
-                    break ;;
+                    theme_submenu; break ;;
                 6)
                     if grep -q "IPPAD=" "$CONFIG"; then
                         if [ "$IPPAD" = "1" ]; then
@@ -1226,14 +1213,9 @@ theme_submenu() {
 restart_httpd() {
     service restart_httpd >/dev/null 2>&1
     killall -HUP httpd >/dev/null 2>&1
-
 }
 
-pause() {
-    printf "\nPress ${BL}[Enter]${NC} to return..."
-    read -r discard
-
-}
+pause() { printf "\nPress ${BL}[Enter]${NC} to return..."; read -r discard; }
 
 do_runtime() {
 	RTIME=${RTIME:-1}
@@ -1280,12 +1262,6 @@ ssh_error() {
 }
 
 set_theme() {
-    case "$THEME" in
-    1|2|3)
-        case "$THEME" in 1) THEME="ORIGINAL" ;; 2) THEME="DARKMODE" ;; 3) THEME="ASUS_WEBUI" ;; esac
-        sed -i "s/^THEME=.*/THEME=\"$THEME\"/" "$CONFIG"
-        ;;
-    esac
     THEME="${THEME:-ORIGINAL}"
     case "$THEME" in
         "ASUS_WEBUI")
@@ -1485,8 +1461,7 @@ get_name() {
     fi
 	# Wireless Backhaul
 	if [ -z "$name" ] || [ "$name" = "*" ] || [ "$name" = "$mac" ]; then
-		local temp="${mac#*:}"
-		local mid_mac="${temp%:*}"
+		local temp="${mac#*:}"; local mid_mac="${temp%:*}"
 		if [ -n "$mid_mac" ]; then
 			local node_match=""
 			if [ -f "$DEVICE_LIST_CACHE" ]; then node_match=$(grep -i "$mid_mac" "$DEVICE_LIST_CACHE"); fi
@@ -1518,8 +1493,7 @@ get_ip() {
 		seg2="${ip_last_two#*.}"
 		ip=$(printf "%s.%03d.%03d" "$ip_base" "${seg1:-0}" "${seg2:-0}")
 	fi
-	ip_to_num "$ip"
-    ip_sort="$IP_NUM"
+	ip_to_num "$ip"; ip_sort="$IP_NUM"
 }
 
 ip_to_num() {
@@ -1557,16 +1531,12 @@ check_new_mac() {
 }
 
 get_trend() {
-    local mac="$1"
-    local current_rssi="$2"
-    local rssi_name="${3:-""}"
+    local mac="$1"; local current_rssi="$2"; local rssi_name="${3:-""}"
 	if [ "$RS_HIST" = "1" ]; then
 		local rband=$(get_band "$iface" "$width" "$ROUTER" "band")
 		local entry=$(grep -F "$mac|" "$HISTORY_CACHE" 2>/dev/null)
-		local history_str="${entry#*|}"
-		local prev_entry="${history_str##*,}"
-		local prev_rssi="${prev_entry%%|*}"
-		local trend_icon=""
+		local history_str="${entry#*|}"; local prev_entry="${history_str##*,}"
+		local prev_rssi="${prev_entry%%|*}"; local trend_icon=""
 		if [ -z "$prev_rssi" ]; then
 			trend_icon="<span class='trend-box'>•</span>"
 		elif [ "$current_rssi" -gt "$prev_rssi" ]; then
@@ -1590,13 +1560,10 @@ get_trend() {
 			count=$((count - 1))
 		done
 		echo "$mac|$final_history" >> "$NEW_HISTORY"
-		local rssi_history=""
-		local IFS=','
+		local rssi_history=""; local IFS=','
 		for entry in $final_history; do
-			rssi="${entry%%|*}"
-			rest="${entry#*|}"
-			name="${rest%%|*}"
-			rest="${rest#*|}"
+			rssi="${entry%%|*}"; rest="${entry#*|}"
+			name="${rest%%|*}"; rest="${rest#*|}"
 			if [ "$RS_HIST_DATE" = "1" ]; then
                 rband_val="${rest%%|*}"
                 time="${rest#*|}"
@@ -1636,8 +1603,9 @@ get_band() {
     local w_text=""; local Label="Unknown"
 	if [ -n "$width" ]; then w_text=" ($width)"; fi
     local m=$(echo "$model" | tr '[:lower:]' '[:upper:]')
-	case "$m" in
-		# Quad-Band Mapping (5G,6G-1,6G-2,2.4G)
+	# Unsupported: TUF-AX4200(MTK), RT-AX1800S(MTK), ZENWIFI_XD4_PLUS(MTK)
+    case "$m" in
+		# Quad-Band Mapping (5G, 6G-1, 6G-2, 2.4G)
 		# Models: GT-BE98(Pro), BQ16
         *BE98*|*BQ16*)
             case "$iface" in
@@ -1647,7 +1615,7 @@ get_band() {
                 wl3*|eth10*) Label="2.4G" ;;
             esac
             ;;
-		# Quad-Band Mapping (5G,5G-2,6G,2.4G)
+		# Quad-Band Mapping (5G, 5G-2, 6G, 2.4G)
 		# Models: GT-AXE16000, GT-BE25000
         *AXE16000*|*BE25000*)
             case "$iface" in
@@ -1665,7 +1633,7 @@ get_band() {
                 wl2*) Label="2.4G" ;;
             esac
             ;;
-		# Tri-Band Mapping (2.4G,5G,6G)
+		# Tri-Band Mapping (2.4G, 5G, 6G)
         # Models: RT-BE96U, RT-BE92U, GT-BE19000, GS-BE18000, GS-BE12000, BT6, ZENWIFI-BT8(MTK),
         #         RT-AXE7800, GT-AXE11000, ET8, ET9, ET12
         *BE96U*|*BE92U*|*BE19000*|*BE18000*|*BE12000*|*BT6*|*BT8*|*AXE7800*|*AXE11000*|*ET8*|*ET9*|*ET12*)
@@ -1675,7 +1643,7 @@ get_band() {
                 wl2*|eth6*|eth9*|rax[0-9]*)              Label="6G" ;;
             esac
             ;;
-		# Tri-Band Mapping (2.4G,5G-1,5G-2)
+		# Tri-Band Mapping (2.4G, 5G-1, 5G-2)
         # Models:  RT-AX92U, GT6, XT8, XT9, ZENWIFI-XT12
         *AX92U*|*GT6*|*XT8*|*XT9*|*XT12*)
             case "$iface" in
@@ -1702,15 +1670,11 @@ get_band() {
             esac
             ;;
     esac
-	# Unsupported: TUF-AX4200(MTK), RT-AX1800S(MTK), ZENWIFI_XD4_PLUS(MTK)
 	# Wireless Backhaul
     if [ -n "$width" ]; then
-        if [ "$width" -eq 320 ] && [ "$Label" = "Unknown" ]; then
-            Label="6G"
+        if [ "$width" -eq 320 ] && [ "$Label" = "Unknown" ]; then Label="6G"
         elif [ "$width" -ge 80 ] && [ "$width" -le 160 ]; then
-            if [ "$Label" = "2.4G" ] || [ "$Label" = "Unknown" ]; then
-                Label="5G"
-            fi
+            if [ "$Label" = "2.4G" ] || [ "$Label" = "Unknown" ]; then Label="5G"; fi
         elif [ "$Label" = "Unknown" ]; then
             case "$iface" in *0*) Label="2.4G" ;; *) Label="5G" ;; esac
         fi
@@ -1722,11 +1686,8 @@ get_band() {
 		5G*)    class="band-5g"; sort="5"   ;;
 		6G*)    class="band-6g"; sort="6"   ;;
 	esac
-	if [ "$4" = "band" ]; then
-        echo "$Label"
-    else
-		echo "<td data-sort='$sort' style='text-align:center;'><span class='$class'>$Label$w_text</span></td>"
-	fi
+	if [ "$4" = "band" ]; then echo "$Label"
+    else echo "<td data-sort='$sort' style='text-align:center;'><span class='$class'>$Label$w_text</span></td>"; fi
 }
 
 check_qca_up() {
@@ -1734,12 +1695,8 @@ check_qca_up() {
     case "$iface" in *ath*) ;; *) return 0 ;; esac
     local now=$(date +%s); local clean_mac="$mac"
     local start_ts=$(jq -r --arg m "$clean_mac" '.[$m].start // 0' "/jffs/wlcnt.json" 2>/dev/null)
-    if [ "${start_ts:-0}" -gt 0 ]; then
-        diff=$((now - start_ts))
-        uptime=${diff#-}
-    else
-        uptime="0"
-    fi
+    if [ "${start_ts:-0}" -gt 0 ]; then diff=$((now - start_ts)); uptime=${diff#-}
+    else uptime="0"; fi
 }
 
 fmt_uptime() {
@@ -1880,20 +1837,15 @@ $1
 ROW
 }
 
-startup() {
-    ssh_init; get_usb
-    check_github; update_time
-}
+startup() { ssh_init; get_usb; check_github; update_time; }
 
 run_report() {
 #=================#
 #  Node Scan(s)   #
 #=================#
-startup
-read -r START_RUNTIME _ < /proc/uptime
+startup; read -r START_RUNTIME _ < /proc/uptime
 NODE_DATA_DIR="/tmp/node_data"
-rm -rf "$NODE_DATA_DIR" 2>/dev/null
-mkdir -p "$NODE_DATA_DIR"
+rm -rf "$NODE_DATA_DIR" 2>/dev/null; mkdir -p "$NODE_DATA_DIR"
 for line in $SSH_NODES; do
 	ROUTER=$(echo "$line" | cut -d'|' -f1)
 	IP=$(echo "$line" | cut -d'|' -f2)
@@ -2107,8 +2059,7 @@ MAIN_NAME="${MAIN_NICK:-${ROUTER:-"Main Router"}}"
 if [ -z "$MAIN_COLOR" ]; then MAIN_COLOR="#0096ff"; fi
 if [ "${#MAIN_NAME}" -gt 25 ]; then MAIN_NAME="${MAIN_NAME:0:25}"; fi
 > "$SEEN_MACS"; > "$NEW_HISTORY"
-SEEN_MACS_VAR=""
-NL=$'\n'; MAIN_ROWS=""; NODE_ROWS=""; ALL_ROWS=""
+SEEN_MACS_VAR=""; NL=$'\n'; MAIN_ROWS=""; NODE_ROWS=""; ALL_ROWS=""
 T_EXCL=0; T_GOOD=0; T_FAIR=0; T_POOR=0; MAIN_DEVICE_TOTAL=0; NODE_DEVICE_TOTAL=0
 WL_BASES=$(nvram get wl_ifnames)
 WL0_PHYS=$(echo "$WL_BASES" | awk '{print $1}')
