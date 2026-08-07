@@ -1830,7 +1830,7 @@ $1
 EOF
 }
 
-parse_node() {
+parse_node_data() {
     IFS='|' read -r _ mac rssi iface uptime ssid lrd_val lrd width _ <<ROW
 $1
 ROW
@@ -2165,7 +2165,7 @@ for line in $SSH_NODES; do
         NODE_DEVICES=0
 		while read -r ssh_node_data; do
 			if [ -z "$ssh_node_data" ]; then continue; fi
-			parse_node "$ssh_node_data"
+			parse_node_data "$ssh_node_data"
 			get_mac_address || continue
 			get_ip
 			final_chk
