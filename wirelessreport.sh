@@ -26,7 +26,7 @@
 #        shellcheck shell=sh disable=SC2086,SC2155,SC3043         #
 #=================================================================#
 
-SCRIPT_VERSION="2.0.9"
+SCRIPT_VERSION="2.1.0"
 INSTALL_DIR="/jffs/addons/wireless_report"
 REPORT_SCRIPT="$INSTALL_DIR/wirelessreport.sh"
 SYSTEM_MENU="/www/require/modules/menuTree.js"
@@ -115,10 +115,10 @@ install_menu() {
 }
 
 check_version() {
-    local mode="$1"; freeze() { return 0; }
+    local mode="$1"; DEV=""; freeze() { return 0; }
     if [ ! -f "$REPORT_SCRIPT" ]; then STATE="NOT_INSTALLED"; freeze() { freeze2; return 1; }
     elif [ -z "$REMOTE_VERSION" ]; then STATE="OFFLINE"
-    elif [ "$(echo "$SCRIPT_VERSION" | tr -d '.')" -gt "$(echo "$REMOTE_VERSION" | tr -d '.')" ]; then  STATE="UP_TO_DATE"
+    elif [ "$(echo "$SCRIPT_VERSION" | tr -d '.')" -gt "$(echo "$REMOTE_VERSION" | tr -d '.')" ]; then  STATE="UP_TO_DATE"; DEV="-DEV"
     elif [ "$SCRIPT_VERSION" != "$REMOTE_VERSION" ]; then STATE="OUTDATED"
     elif [ -n "$REMOTE_HASH" ] && [ "$LOCAL_HASH" != "$REMOTE_HASH" ]; then STATE="HASH_DIFF"
     else STATE="UP_TO_DATE"; fi
@@ -126,20 +126,20 @@ check_version() {
         header_box)
             case "$STATE" in
                 OUTDATED)      HOVER_TEXT="Current v$SCRIPT_VERSION <br> New Version v$REMOTE_VERSION available"
-                               VERHASH="[$REMOTE_VERSION]"; TITLE="header-title2" ;;
+                               VERSION_HASH=" [$REMOTE_VERSION]"; HEADER_TITLE="header-title2" ;;
                 HASH_DIFF)     HOVER_TEXT="Current v$SCRIPT_VERSION <br> Hash Update available"
-                               VERHASH="[Hash]"; TITLE="header-title2" ;;
-                UP_TO_DATE|*)  HOVER_TEXT="Current v$SCRIPT_VERSION"
-                               VERHASH=""; TITLE="header-title" ;;
+                               VERSION_HASH=" [Hash]"; HEADER_TITLE="header-title2" ;;
+                UP_TO_DATE|*)  HOVER_TEXT="Current v$SCRIPT_VERSION$DEV"
+                               VERSION_HASH="$DEV"; HEADER_TITLE="header-title" ;;
             esac ;;
         do_install)
             case "$STATE" in
                 OUTDATED)      echo -e "\n${GR}[i] A new version (${NC}v$REMOTE_VERSION${GR}) is available!${NC}\n"
-                               printf "Do you want to update version (y/n): " ;;
+                               UP="update version?" ;;
                 HASH_DIFF)     echo -e "\n${GR}[i] There is a Hash Update for (${NC}v$SCRIPT_VERSION${GR}).${NC}\n"
-                               printf "Do you want to update Hash? (y/n): " ;;
-                UP_TO_DATE|*)  echo -e "\n${GR}[i] You are already on the latest version (${NC}v$SCRIPT_VERSION${GR}).${NC}\n"
-                               printf "Do you want to reinstall/overwrite anyway? (y/n): " ;;
+                               UP="update Hash?" ;;
+                UP_TO_DATE|*)  echo -e "\n${GR}[i] You are already on the latest version (${NC}v$SCRIPT_VERSION$DEV${GR}).${NC}\n"
+                               UP="reinstall/overwrite anyway?";;
             esac ;;
         *)
             case "$STATE" in
@@ -147,7 +147,7 @@ check_version() {
                 NOT_INSTALLED) echo -e "$STATUS ${RD}[Not Installed]${NC} Latest Available: ${GR}v$REMOTE_VERSION${NC}"; N1="${BL}(1)" ;;
                 OUTDATED)      echo -e "$STATUS [v$REMOTE_VERSION Available] $CURRENT" ;;
                 HASH_DIFF)     echo -e "$STATUS [Hash Update Available] $CURRENT" ;;
-                UP_TO_DATE|*)  echo -e "$STATUS [Up to date] $CURRENT" ;;
+                UP_TO_DATE|*)  echo -e "$STATUS [Up to date] $CURRENT$DEV" ;;
             esac ;;
     esac
 }
@@ -195,7 +195,7 @@ do_install() {
 	if [ "$is_update" = "1" ]; then
         while true; do
             check_version do_install
-            read -r update
+            printf "Do you want to $UP (y/n): "; read -r update
             case "$update" in [yY]) break ;; [nN]) return ;; *) printf "\033[4A\033[J" ;; esac; done
     fi
     do_update || return 1
@@ -251,20 +251,6 @@ do_update() {
     if curl -sfL --retry 3 "$GITHUB" -o "$TEMP_SCRIPT" && [ -s "$TEMP_SCRIPT" ]; then
         mv "$TEMP_SCRIPT" "$REPORT_SCRIPT"
         chmod +x "$REPORT_SCRIPT" 2>/dev/null
-        SS_FILE="/jffs/scripts/services-start"
-	    SE_FILE="/jffs/scripts/service-event"
-        if [ -f "$SS_FILE" ] && grep -qF "$REPORT_SCRIPT" "$SS_FILE" 2>/dev/null; then
-            if ! grep -qF "$REPORT_SCRIPT inject &" "$SS_FILE" 2>/dev/null; then
-                sed -i "\|$REPORT_SCRIPT|d" "$SS_FILE"
-                echo "$REPORT_SCRIPT inject & # Inject Wireless Report" >> "$SS_FILE"
-            fi
-        fi
-        if [ -f "$SE_FILE" ] && grep -qF "wireless_report" "$SE_FILE" 2>/dev/null; then
-            if ! grep -qF "then $REPORT_SCRIPT & fi" "$SE_FILE" 2>/dev/null; then
-                sed -i "/wireless_report/d" "$SE_FILE"
-                echo 'if [ "$1" = "restart" ] && [ "$2" = "wireless_report" ]; then '$REPORT_SCRIPT' & fi # Wireless Report' >> "$SE_FILE"
-            fi
-        fi
         return 0
     else
         rm -f "$TEMP_SCRIPT"
@@ -345,8 +331,7 @@ get_usb() {
         touch "$USB_PATH/rssi_history.db"
         touch "$USB_PATH/known_macs.db"
     fi
-    KNOWN_DB="$USB_PATH/known_macs.db"
-	HISTORY_DB="$USB_PATH/rssi_history.db"
+    KNOWN_DB="$USB_PATH/known_macs.db"; HISTORY_DB="$USB_PATH/rssi_history.db"
     ERROR_LOG="$USB_PATH/ssh_error.log"
 }
 
@@ -365,8 +350,7 @@ check_github() {
 
 ssh_init () {
 	NODE_USER=$(nvram get http_username)
-	SSH_PORT=$(nvram get sshd_port)
-	SSH_PORT=${SSH_PORT:-22}
+	SSH_PORT=$(nvram get sshd_port); SSH_PORT=${SSH_PORT:-22}
 	if [ -f "/root/.ssh/id_dropbear" ]; then SSH_KEY="/root/.ssh/id_dropbear"
 	else  SSH_KEY=""; fi
 }
@@ -473,9 +457,8 @@ node_auth() {
         TOTAL_NODES=$(echo "$AIMESH_NODES" | grep -o "|" | wc -l)
 		any_success=0; VALID_NODES=""; new_nodes=0
         for line in $AIMESH_NODES; do
-			ROUTER=$(echo "$line" | cut -d'|' -f1)
-			IP=$(echo "$line" | cut -d'|' -f2)
-			if [ -z "$IP" ]; then continue; fi
+			ROUTER="${line%%|*}"; IP="${line#*|}"
+            [ -z "$IP" ] || [ "$IP" = "$ROUTER" ] && continue
 			if [ -z "$ROUTER" ]; then ROUTER="Node_$IP"; fi
 			printf "${NC}[*] Testing ${GR}%-14s${NC} (%s) " "$ROUTER" "$IP"
             SSH_ERR=$(/usr/bin/ssh -p "$SSH_PORT" -i "$SSH_KEY" -o StrictHostKeyChecking=no -o BatchMode=yes "${NODE_USER}@${IP}" "exit" 2>&1 >/dev/null)
@@ -647,8 +630,7 @@ del_ssh_keys() {
 inject_menu() {
 	source /usr/sbin/helper.sh
 	TAB_LABEL="Wireless Report"
-	if [ -f "$CONFIG" ]; then sed -i '/^INSTALLED_PAGE=/d' "$CONFIG"
-	else touch "$CONFIG"; fi
+	if [ -f "$CONFIG" ]; then sed -i '/^INSTALLED_PAGE=/d' "$CONFIG"; else touch "$CONFIG"; fi
     if ! nvram get rc_support | grep -q am_addons; then echo -e "\n${RD}[!] ERROR: This firmware does not support addons!${NC}"; exit 5; fi
     if [ ! -f "$WEB_PAGE" ]; then echo "<html><body>$TAB_LABEL Loading...</body></html>" > "$WEB_PAGE"; fi
 	LOCKFILE=/tmp/addonwebui.lock; FD=386; eval exec "$FD>$LOCKFILE"; flock -x "$FD"
@@ -656,7 +638,6 @@ inject_menu() {
 	if [ "$am_webui_page" = "none" ]; then echo -e "\n${RD}[!] ERROR: Unable to install $TAB_LABEL.${NC}"; flock -u "$FD"; exit 5; fi
 	cp "$WEB_PAGE" "/www/user/$am_webui_page" 2>/dev/null
 	echo "INSTALLED_PAGE=$am_webui_page" >> "$CONFIG"
-    echo "$TAB_LABEL" > "/www/user/${INSTALLED_PAGE%%.*}.title"
 	if [ ! -f "$TEMP_MENU" ]; then cp "$SYSTEM_MENU" /tmp/; mount -o bind "$TEMP_MENU" "$SYSTEM_MENU"; fi
 	sed -i 'N; /menuName: "Wireless Report"/ { N; N; N; N; N; N; d; }; P; D' "$TEMP_MENU" 2>/dev/null
 	sed -i '/tabName:[[:space:]]*"Wireless Report"/d' "$TEMP_MENU" 2>/dev/null
@@ -700,7 +681,7 @@ do_uninstall() {
 	fi
 	if [ -n "$INSTALLED_PAGE" ]; then
 		umount -l "/www/user/$INSTALLED_PAGE" >/dev/null 2>&1
-		rm -f /www/user/"${INSTALLED_PAGE}" /www/user/"${INSTALLED_PAGE%%.*}.title" >/dev/null 2>&1
+		rm -f /www/user/"${INSTALLED_PAGE}" >/dev/null 2>&1
 	fi
 	sed -i "\|$REPORT_SCRIPT|d" "$SS_FILE"; sed -i "/wireless_report/d" "$SE_FILE"
 	restart_httpd; ssh_init
@@ -762,15 +743,12 @@ set_nicknames() {
 		echo -e "  $NE Back to main menu                                "
 		echo -e "                                                       "
         echo -e "${BL}=================================================="
-        MAIN_HW_MODEL=$(nvram get productid); MAIN_IP=$(nvram get lan_ipaddr)
+        MAIN_ROUTER=$(nvram get productid); MAIN_IP=$(nvram get lan_ipaddr)
         MAIN_CLR=$(hex_to_ansi "$MAIN_COLOR")
-        echo -e "\n  ${MAIN_CLR}Main $MAIN_IP -> ${MAIN_NICK:-$MAIN_HW_MODEL}${NC}"
+        echo -e "\n  ${MAIN_CLR}Main $MAIN_IP -> ${MAIN_NICK:-$MAIN_ROUTER}${NC}"
         if [ -n "$SSH_NODES" ] && [ "$SSH_NODES" != " " ]; then
             VALID_NODES=$(echo "$SSH_NODES" | tr ' ' '\n' | grep '|')
-            get_node_color() {
-                local idx="$1"
-                echo "$NODE_COLORS" | awk -v i="$idx" '{print $i}'
-            }
+            get_node_color() { local idx="$1"; echo "$NODE_COLORS" | awk -v i="$idx" '{print $i}'; }
             node_idx=1
             for node in $VALID_NODES; do
                 MODEL=$(echo "$node" | cut -d'|' -f1)
@@ -789,16 +767,15 @@ set_nicknames() {
             case "$input_main" in
                 1)
                     echo -e "\n${BL}[+] Resetting to hardware defaults...${NC}\n"
-                    OLD_NAME="${MAIN_NICK:-$MAIN_HW_MODEL}"
+                    OLD_NAME="${MAIN_NICK:-$MAIN_ROUTER}"
                     sed -i '/^MAIN_NICK=/d' "$CONFIG"
                     unset MAIN_NICK
-                    echo -e "    ${MAIN_CLR}$OLD_NAME -> $MAIN_HW_MODEL${NC}"; sleep 1
+                    echo -e "    ${MAIN_CLR}$OLD_NAME -> $MAIN_ROUTER${NC}"; sleep 1
                     if [ -n "$SSH_NODES" ] && [ "$SSH_NODES" != " " ]; then
                         node_idx=1
                         for node in $VALID_NODES; do
-                            MODEL=$(echo "$node" | cut -d'|' -f1)
-                            IP=$(echo "$node" | cut -d'|' -f2)
-                            CLEAN_IP=$(echo "$IP" | tr '.' '_')
+                            MODEL="${node%%|*}"; IP="${node#*|}"
+                            CLEAN_IP="${IP//./_}"
                             eval OLD_NICK=\$NODE_NICK_$CLEAN_IP
                             sed -i "/^NODE_NICK_$CLEAN_IP=/d" "$CONFIG"
                             eval "unset NODE_NICK_$CLEAN_IP"
@@ -812,7 +789,7 @@ set_nicknames() {
                     pause; break ;;
                 2)
                     echo -e "\n${BL}[*] Updating nicknames with Locations...${NC}\n"
-                    OLD_NAME="${MAIN_NICK:-$MAIN_HW_MODEL}"
+                    OLD_NAME="${MAIN_NICK:-$MAIN_ROUTER}"
                     NEW_LOC=$(nvram get cfg_alias)
                     sed -i '/^MAIN_NICK=/d' "$CONFIG"
                     if [ -n "$NEW_LOC" ]; then
@@ -820,12 +797,12 @@ set_nicknames() {
                         echo -e "    ${MAIN_CLR}$OLD_NAME -> $NEW_LOC${NC}"; sleep 1
                     else
                         unset MAIN_NICK
-                        echo -e "    ${MAIN_CLR}$OLD_NAME -> $MAIN_HW_MODEL (Default)${NC}"; sleep 1
+                        echo -e "    ${MAIN_CLR}$OLD_NAME -> $MAIN_ROUTER (Default)${NC}"; sleep 1
                     fi
                     node_idx=1
                     for node in $VALID_NODES; do
-                        MODEL=$(echo "$node" | cut -d'|' -f1); IP=$(echo "$node" | cut -d'|' -f2)
-                        CLEAN_IP=$(echo "$IP" | tr '.' '_')
+                        MODEL="${node%%|*}"; IP="${node#*|}"
+                        CLEAN_IP="${IP//./_}"
                         eval OLD_NICK=\$NODE_NICK_$CLEAN_IP
                         NODE_LOC=$(cat /jffs/.sys/cfg_mnt/re.info 2>/dev/null | sed 's/},/}\n/g' | grep "$IP" | sed -n 's/.*"alias":"\([^"]*\)".*/\1/p')
                         sed -i "/^NODE_NICK_$CLEAN_IP=/d" "$CONFIG"
@@ -844,7 +821,7 @@ set_nicknames() {
                     pause; break ;;
                 3)
                     echo -e "\n${BL}[*] Manual Entry Mode${NC}\n"
-                    OLD_MAIN="${MAIN_NICK:-$MAIN_HW_MODEL}"
+                    OLD_MAIN="${MAIN_NICK:-$MAIN_ROUTER}"
                     printf "  ${MAIN_CLR}Main $MAIN_IP [$OLD_MAIN]:${NC} "; read -r manual_main
                     if [ -n "$manual_main" ]; then
                         sed -i '/^MAIN_NICK=/d' "$CONFIG"
@@ -852,9 +829,8 @@ set_nicknames() {
                     fi
                     node_idx=1
                     for node in $VALID_NODES; do
-                        MODEL=$(echo "$node" | cut -d'|' -f1)
-                        IP=$(echo "$node" | cut -d'|' -f2)
-                        CLEAN_IP=$(echo "$IP" | tr '.' '_')
+                        MODEL="${node%%|*}"; IP="${node#*|}"
+                        CLEAN_IP="${IP//./_}"
                         eval OLD_NICK=\$NODE_NICK_$CLEAN_IP
                         HEX_CLR=$(echo "$NODE_COLORS" | awk -v i="$node_idx" '{print $i}')
                         NODE_CLR=$(hex_to_ansi "$HEX_CLR")
@@ -914,7 +890,7 @@ set_colors() {
         i=$((i + 1))
     done
     while true; do
-        show_header; hex_to_ansi
+        show_header
         echo -e "${BL}=================================================="
         echo -e "${NC}                Set Device Colors                 "
         echo -e "${BL}=================================================="
@@ -926,10 +902,10 @@ set_colors() {
             "$main_display_color" "$main_display_name" "$formatted_main_ip"
         local idx=1
         for node in $SSH_NODES; do
-            local node_ip=$(echo "$node" | cut -d'|' -f2)
-            local default_nick=$(echo "$node" | cut -d'|' -f1)
+            local node_ip="${node#*|}"
+            local default_nick="${node%%|*}"
             local active_color=$(echo "$working_colors" | awk -v col="$idx" '{print $col}')
-            local ip_underscores=$(echo "$node_ip" | tr '.' '_')
+            local ip_underscores="${node_ip//./_}"
             local nick_var_name="NODE_NICK_${ip_underscores}"
             local node_display_name=$(eval echo \"\${$nick_var_name}\")
             node_display_name="${node_display_name:-$default_nick}"
@@ -961,7 +937,7 @@ set_colors() {
                 target_name="${target_name:-$(echo "$target_node" | cut -d'|' -f1)}"
                 target_hex=$(echo "$working_colors" | awk -v col="$node_choice" '{print $col}')
             fi
-            local target_prompt_color=$(hex_to_ansi "$target_hex")
+            hex_to_ansi; local target_prompt_color=$(hex_to_ansi "$target_hex")
             echo -e "\nSelect a new color for ${target_prompt_color}[${target_name}]${NC}:\n"
             echo -e "${NB}   (1) Neon-Blue (#0096ff)"
             echo -e "${LG}   (2) Lime-Green (#30d158)"
@@ -1408,8 +1384,8 @@ get_load_class() {
 
 get_mac_address() {
 	mac_address=$(echo "$mac" | tr '[:lower:]' '[:upper:]')
-	mac_prefix="${mac_address#??}"
-	mac_prefix="${mac_prefix%???}"
+	mac_prefix="${mac_address#??:}"
+    mac_prefix="${mac_prefix%:??}"
 	is_node_pfx=0; bh="no"
 	case "$NODE_PFX" in *"$mac_prefix"*) is_node_pfx=1 ;; esac
 	if [ "$mac_prefix" = "$MAIN_PFX" ] || [ "$is_node_pfx" -eq 1 ]; then
@@ -1510,11 +1486,9 @@ ip_to_num() {
 }
 
 final_chk() {
-    if [ -z "$ssid" ]; then ssid="Wireless"; fi
-    case "$rssi" in
-        *[!0-9-]*|""|"-") rssi="N/A" ;;
-        0|1) rssi=-54 ;;
-    esac
+    width="${width:-20}"
+    ssid="${ssid:-Wireless}"
+    case "$rssi" in 0|1|""|"-"|*[!0-9-]*) rssi=-54 ;; esac
 }
 
 check_new_mac() {
@@ -1600,7 +1574,6 @@ get_band() {
     local w_text=""; local Label="Unknown"
 	if [ -n "$width" ]; then w_text=" ($width)"; fi
     local m=$(echo "$model" | tr '[:lower:]' '[:upper:]')
-	# Unsupported: TUF-AX4200(MTK), RT-AX1800S(MTK), ZENWIFI_XD4_PLUS(MTK)
     case "$m" in
 		# Quad-Band Mapping (5G, 6G-1, 6G-2, 2.4G)
 		# Models: GT-BE98(Pro), BQ16
@@ -1667,6 +1640,8 @@ get_band() {
             esac
             ;;
     esac
+    # Unsupported: TUF-AX4200(MTK), RT-AX1800S(MTK), ZENWIFI_XD4_PLUS(MTK)
+
 	# Wireless Backhaul
     if [ -n "$width" ]; then
         if [ "$width" -eq 320 ] && [ "$Label" = "Unknown" ]; then Label="6G"
@@ -1716,11 +1691,6 @@ device_uptime() {
 }
 
 get_bars_rssi_style() {
-    if [ "$rssi" = "N/A" ]; then
-        bars="<span class='rssi_bars'></span>"
-        rssi_style="color: #8e8e93;"
-        return
-    fi
     if [ "$rssi" -ge -50 ]; then
         bars="<span class='rssi_bars rssi-excl'>||||</span>"
         rssi_style="color: #30d158; font-weight: bold;"
@@ -1786,7 +1756,6 @@ get_row() {
 		$band
 		<td>$uptime</td>
 	</tr>"
-	ALL_ROWS="${ALL_ROWS}${ROW}${NL}"
 }
 
 get_rssi_boxes() {
@@ -1805,21 +1774,18 @@ router_uptime() {
 }
 
 parse_main_sta() {
-    local raw_info="$1"
-    printf "%s\n" "$raw_info" | awk '
-        /smoothed rssi:/ { split($0, a, ": "); rssi = a[2] }
-        /rate of last rx pkt/ { rx = $6 / 1000 }
-        /rate of last tx pkt/ { split($0, a, ": "); split(a[2], b, " "); tx = b[1] / 1000 }
-        /Max Rate =/ { max = $4 }
-        /in network/ { uptime = $3 }
-        /link bandwidth/ { for(i=1; i<=NF; i++) { if($i == "bandwidth") { if ($(i+1) == "=") width = $(i+2); else width = substr($(i+1), 2) } } }
-        END { print rssi "|" rx "|" tx "|" max "|" width "|" uptime }'
-}
-
-parse_main() {
-    IFS='|' read -r rssi rx tx max width uptime <<ROW
-$1
-ROW
+    local iface="$1" alt_iface="$2"
+    read -r rssi rx tx max width uptime <<EOF
+$({ wl -i "$iface" sta_info "$mac" 2>/dev/null || wl -i "$alt_iface" sta_info "$mac" 2>/dev/null; } | awk '
+    /smoothed rssi:/      { split($0, a, ": "); rssi = a[2] }
+    /rate of last rx pkt/ { rx = int($6 / 1000) }
+    /rate of last tx pkt/ { split($0, a, ": "); split(a[2], b, " "); tx = int(b[1] / 1000) }
+    /Max Rate =/          { max = $4 }
+    /in network/          { uptime = $3 }
+    /link bandwidth/      { for(i=1; i<=NF; i++) { if($i == "bandwidth") width = ($(i+1) == "=" ? $(i+2) : substr($(i+1), 2)) } }
+    END                   { if (rssi != "") print rssi, rx, tx, max, width, uptime }
+')
+EOF
 }
 
 parse_node_out() {
@@ -1851,70 +1817,82 @@ read -r START_RUNTIME _ < /proc/uptime
 NODE_DATA_DIR="/tmp/node_data"
 rm -rf "$NODE_DATA_DIR" 2>/dev/null; mkdir -p "$NODE_DATA_DIR"
 for line in $SSH_NODES; do
-	ROUTER=$(echo "$line" | cut -d'|' -f1)
-	IP=$(echo "$line" | cut -d'|' -f2)
-	if [ -z "$IP" ]; then continue; fi
-	CLEAN_IP=$(echo "$IP" | tr '.' '_')
+	ROUTER="${line%%|*}"; IP="${line#*|}"
+    [ -z "$IP" ] || [ "$IP" = "$ROUTER" ] && continue
+	CLEAN_IP="${IP//./_}"
 	(
 		/usr/bin/ssh -p "$SSH_PORT" -i "$SSH_KEY" -o StrictHostKeyChecking=no -o BatchMode=yes "${NODE_USER}@${IP}" "
 			NODE_COUNT=0
 			if ifconfig -a | grep -q "ath"; then
-				HW_ENGINE=\"QCA\"
-				ALL_IFACES=\$(ifconfig -a | grep -oE \"(ath|wl)[0-9]*(\.[0-9]+)?\")
-			elif [ -f \"/usr/sbin/wl\" ] || [ -f \"/usr/bin/wl\" ]; then
-				HW_ENGINE=\"BRCM\"
-				ALL_IFACES=\"\"
-				FOR_SCAN=\$(ifconfig -a | grep -oE \"(wl|eth6|eth7|eth8|eth9|eth10)[0-9]*(\.[0-9]+)?\")
-				for ifc in \$FOR_SCAN; do
-					case \"\$ifc\" in wl0.0|wl1.0|wl2.0|wl3.0) continue ;; esac
-					if wl -i \"\$ifc\" assoclist 2>/dev/null | grep -qE '^assoclist'; then
-						ALL_IFACES=\"\$ALL_IFACES \$ifc\"
-					fi
-				done
-			elif [ -d \"/sys/module/mt_wifi\" ] || [ -d \"/sys/module/mt79xx\" ] || [ -f \"/usr/sbin/cfg_client\" ] || ifconfig -a | grep -qE \"(ra|rai|rax)[0-9]\"; then
-				HW_ENGINE=\"MTK\"
-				ALL_IFACES=\$(ifconfig -a | grep -oE \"(ra|rai|rax)[0-9]*(\.[0-9]+)?\")
-			fi
-			for iface in \$ALL_IFACES; do
-				case \"\$iface\" in wl0.0|wl1.0|wl2.0|wl3.0) continue ;; esac
-				SN=\$(nvram get \"\${iface}_ssid\")
-				if [ -z \"\$SN\" ] || echo \"\$SN\" | grep -qE '^[0-9A-Fa-f]{16,}\$'; then
-					case \"\$iface\" in
-						eth6|eth8)  SN=\$(nvram get wl0_ssid) ;;
-						eth7|eth10) SN=\$(nvram get wl1_ssid) ;;
-						eth9)       SN=\$(nvram get wl2_ssid) ;;
-					esac
-				fi
-				[ -z \"\$SN\" ] && SN=\$(nvram get \"\${iface%.*}_ssid\")
-				[ -z \"\$SN\" ] && SN=\$(nvram get wl0_ssid)
-				if [ \"\$HW_ENGINE\" = \"BRCM\" ] && echo \"\$SN\" | grep -qE '^[0-9A-Fa-f]{16,}\$'; then continue; fi
-				if echo \"\$SN\" | grep -qE '^[0-9A-Fa-f]{16,}\$'; then SN=\"\"; fi
-				case \"\$HW_ENGINE\" in
+                HW_ENGINE=\"QCA\"
+                ALL_IFACES=\$(ifconfig -a | grep -oE \"(ath|wl)[0-9]*(\.[0-9]+)?\")
+            elif [ -f \"/usr/sbin/wl\" ] || [ -f \"/usr/bin/wl\" ]; then
+                HW_ENGINE=\"BRCM\"
+                ALL_IFACES=\$(ifconfig -a | grep -oE \"(wl|eth6|eth7|eth8|eth9|eth10)[0-9]*(\.[0-9]+)?\")
+            elif [ -d \"/sys/module/mt_wifi\" ] || [ -d \"/sys/module/mt79xx\" ] || [ -f \"/usr/sbin/cfg_client\" ] || ifconfig -a | grep -qE \"(ra|rai|rax)[0-9]\"; then
+                HW_ENGINE=\"MTK\"
+                ALL_IFACES=\$(ifconfig -a | grep -oE \"(ra|rai|rax)[0-9]*(\.[0-9]+)?\")
+            fi
+            ALL_IFACES=\$(echo \"\$ALL_IFACES\" | tr ' ' '\n' | sort -u | tr '\n' ' ')
+            for iface in \$ALL_IFACES; do
+                case \"\$iface\" in wl0.0|wl1.0|wl2.0|wl3.0) continue ;; esac
+                SN=\$(nvram get \"\${iface}_ssid\")
+                if [ -z \"\$SN\" ] || [ \${#SN} -ge 16 ]; then
+                    idx=\${iface#*.}
+                    if [ \"\$idx\" != \"\$iface\" ]; then
+                        SN=\$(nvram get \"gnp_name_\$idx\")
+                    fi
+                    if [ -z \"\$SN\" ] || [ \${#SN} -ge 16 ]; then
+                        case \"\$iface\" in
+                            eth6|eth8)  SN=\$(nvram get wl0_ssid) ;;
+                            eth7|eth10) SN=\$(nvram get wl1_ssid) ;;
+                            eth9)       SN=\$(nvram get wl2_ssid) ;;
+                            *)          SN=\$(nvram get \"\${iface%.*}_ssid\") ;;
+                        esac
+                    fi
+                fi
+                [ -z \"\$SN\" ] && SN=\$(nvram get wl0_ssid)
+                [ \${#SN} -ge 16 ] && SN=\"\"
+                case \"\$HW_ENGINE\" in
 					BRCM)
-						for mac in \$(wl -i \"\$iface\" assoclist 2>/dev/null | awk '{print \$2}'); do
-							RAW=\$(wl -i \"\$iface\" sta_info \"\$mac\" 2>/dev/null)
-							RSSI=\$(echo \"\$RAW\" | awk -F': ' '/smoothed rssi:/ {print \$2; exit}')
-							[ -z \"\$RSSI\" ] && RSSI=\$(wl -i \"\$iface\" rssi \"\$mac\" 2>/dev/null | awk '{print \$1}')
-							W=\$(echo \"\$RAW\" | grep -i "bandwidth" | grep -oE '[0-9]+' | head -n 1)
-							if [ -z \"\$W\" ]; then
-								HEX=\$(echo \"\$RAW\" | grep -o '0x[0-9a-fA-F]*' | head -n1)
-								case \"\$HEX\" in 0x10*|0xd0*) W=\"20\" ;; 0x11*|0xd1*) W=\"40\" ;; 0xe0*) W=\"80\" ;; 0xe8*|0xe9*) W=\"160\" ;; 0xf*) W=\"320\" ;; *) W=\"20\" ;; esac
-							fi
-							UP=\$(echo \"\$RAW\" | grep \"in network\" | awk '{print \$3}')
-							RX=\$(echo \"\$RAW\" | grep \"rate of last rx pkt\" | awk '{print \$6/1000}')
-							TX=\$(echo \"\$RAW\" | grep \"rate of last tx pkt\" | awk -F': ' '{print \$2}' | awk '{print \$1/1000}')
-							MX=\$(echo \"\$RAW\" | grep \"Max Rate =\" | awk '{print \$4}')
-							RXD=\$(echo \"\$RX\" | awk '{if (\$1==0) print \"1\"; else printf \"%.0f\", \$1}')
-							TXD=\$(echo \"\$TX\" | awk -v m=\"\$MX\" '{if (\$1==0) print \"1\"; else printf \"%.0f\", \$1}')
-							[ \"\$RXD\" = \"1\" ] && [ \"\$TXD\" = \"1\" ] && LRD=\"1 / 72\" || LRD=\"\${RXD} / \${TXD}\"
-							V1=\$(echo \"\$RXD\" | tr -dc '0-9'); V2=\$(echo \"\$TXD\" | tr -dc '0-9')
-							[ -n \"\$V1\" ] && [ -n \"\$V2\" ] && [ \"\$V1\" -gt \"\$V2\" ] 2>/dev/null && { T=\$RXD; RXD=\$TXD; TXD=\$T; LRD=\"\$RXD / \$TXD\"; }
-							TX=\$(printf \"%04d\" \"\${TXD:-0}\")
-							echo \"DATA|\$mac|\$RSSI|\$iface|\$UP|\$SN|\$TX|\$LRD|\$W|\"
+                        for mac in \$(wl -i \"\$iface\" assoclist 2>/dev/null | awk '{print \$2}'); do
+                            RAW=\$(wl -i \"\$iface\" sta_info \"\$mac\" 2>/dev/null)
+                            echo \"\$RAW\" | awk -v mac=\"\$mac\" -v iface=\"\$iface\" -v sn=\"\$SN\" '
+                                /smoothed rssi:/ { split(\$0, a, \": \"); rssi = a[2] }
+                                /bandwidth/ && !w { gsub(/[^0-9]/, \"\", \$0); if (\$0 != \"\") w = \$0 }
+                                /in network/ { up = \$3 }
+                                /rate of last rx pkt/ { rx_raw = \$6 / 1000 }
+                                /rate of last tx pkt/ { split(\$0, a, \": \"); tx_raw = a[2] / 1000 }
+                                END {
+                                    w = w ? w : \"20\"
+                                    rxd = (rx_raw == 0) ? \"1\" : sprintf(\"%.0f\", rx_raw)
+                                    txd = (tx_raw == 0) ? \"1\" : sprintf(\"%.0f\", tx_raw)
+                                    lrd = (rxd == \"1\" && txd == \"1\") ? \"1 / 72\" : rxd \" / \" txd
+                                    v1 = rxd; gsub(/[^0-9]/, \"\", v1); v2 = txd; gsub(/[^0-9]/, \"\", v2)
+                                    if (v1 != \"\" && v2 != \"\" && (v1 + 0) > (v2 + 0)) { tmp = rxd; rxd = txd; txd = tmp; lrd = rxd \" / \" txd }
+                                    tx = (txd != \"\") ? txd : 0
+				                    printf \"DATA|%s|%s|%s|%s|%s|%04d|%s|%s|\\n\", mac, rssi, iface, up, sn, tx, lrd, w
+                                }'
+                            NODE_COUNT=\$((NODE_COUNT + 1))
+                        done
+                        ;;
+					QCA)
+						SN=\$(iw dev \"\$iface\" info 2>/dev/null | grep ssid | awk '{print \$2}')
+						[ -z \"\$SN\" ] && SN=\$(nvram get \"\${iface}_ssid\")
+						MACS=\$(wlanconfig \"\$iface\" list 2>/dev/null | awk 'NR>1 {print \$1}' | grep \":\")
+						for mac in \$MACS; do
+							ROW=\$(wlanconfig \"\$iface\" list 2>/dev/null | grep -i \"\$mac\")
+							RSSI=\$(echo \"\$ROW\" | awk '{print \$7}')
+							TX=\$(echo \"\$ROW\" | awk '{print \$5}' | tr -dc '0-9')
+							RX=\$(echo \"\$ROW\" | awk '{print \$6}' | tr -dc '0-9')
+							W=\"20\"; echo \"\$iface\" | grep -q \"ath1\" && W=\"80\"
+							LRD=\"\${RX} / \${TX}\"
+							TXV=\$(printf \"%04d\" \"\${TX:-0}\")
+							echo \"DATA|\$mac|\$RSSI|\$iface|UP_QCA|\$SN|\$TXV|\$LRD|\$W|\"
 							NODE_COUNT=\$((NODE_COUNT + 1))
 						done
 						;;
-					MTK)
+                    MTK)
 						IFACE_INFO=\$(iw dev \"\$iface\" info 2>/dev/null)
 						LIVE_CHAN=\$(echo \"\$IFACE_INFO\" | grep \"channel\" | grep -oE '[0-9]+' | head -n1)
 						BASE_IFACE=\$(echo \"\$iface\" | sed 's/[0-9]\$/0/')
@@ -1943,69 +1921,29 @@ for line in $SSH_NODES; do
 						RAW_STAS=\$(iw dev \"\$iface\" station dump 2>/dev/null)
 						if [ -n \"\$RAW_STAS\" ]; then
 							echo \"\$RAW_STAS\" | awk -v def_w=\"\$W\" '
-								/^Station/ {
-									if (mac != \"\") print mac, rssi, tx, rx, uptime, c_width
-									mac=\$2; rssi=\"-60\"; tx=\"0\"; rx=\"0\"; uptime=\"0\"; c_width=def_w
-								}
-								/signal:/ && !/last ack/ {
-									gsub(/[^0-9-]/, \"\", \$2);
-									rssi=\$2
-								}
-								/tx bitrate:/ {
-									tx=\$3
-									if (\$0 ~ /[0-9]+MHz/) {
-										match(\$0, /[0-9]+MHz/)
-										str = substr(\$0, RSTART, RLENGTH)
-										gsub(/[^0-9]/, \"\", str)
-										c_width = str
-									} else {
-										c_width = \"20\"
-									}
-								}
-								/rx bitrate:/ { rx=\$3 }
-								/connected time:/ {
-									s=\$3;
-									gsub(/[^0-9]/, \"\", s);
-									uptime=s
-								}
-								END { if (mac != \"\") print mac, rssi, tx, rx, uptime, c_width }
-							' | while read -r c_mac c_rssi c_tx c_rx c_uptime c_width; do
+								/^Station/ { if (mac != \"\") print mac, rssi, tx, rx, uptime, c_width; mac=\$2; rssi=\"-60\"; tx=\"0\"; rx=\"0\"; uptime=\"0\"; c_width=def_w }
+                                /signal:/ && !/last ack/ { gsub(/[^0-9-]/, \"\", \$2); rssi=\$2 }
+                                /tx bitrate:/ { tx=\$3; if (\$0 ~ /[0-9]+MHz/) { match(\$0, /[0-9]+MHz/); str=substr(\$0, RSTART, RLENGTH); gsub(/[^0-9]/, \"\", str); c_width=str } else c_width=\"20\" }
+                                /rx bitrate:/ { rx=\$3 }
+                                /connected time:/ { s=\$3; gsub(/[^0-9]/, \"\", s); uptime=s }
+								END { if (mac != \"\") print mac, rssi, tx, rx, uptime, c_width }' | while read -r c_mac c_rssi c_tx c_rx c_uptime c_width; do
 								[ -z \"\$c_mac\" ] && continue
-								TX_INT=\$(echo \"\$c_tx\" | cut -d. -f1)
-								RX_INT=\$(echo \"\$c_rx\" | cut -d. -f1)
-								[ -z \"\$TX_INT\" ] && TX_INT=0
-								[ -z \"\$RX_INT\" ] && RX_INT=0
-								if [ \"\$RX_INT\" -eq 0 ] && [ \"\$TX_INT\" -eq 0 ]; then LRD=\"1\"
-								else
-									if [ \"\$RX_INT\" -gt \"\$TX_INT\" ]; then LRD=\"\$TX_INT / \$RX_INT\"
-									else LRD=\"\$RX_INT / \$TX_INT\"; fi
-								fi
+								TX_INT=\$(echo \"\$c_tx\" | cut -d. -f1); RX_INT=\$(echo \"\$c_rx\" | cut -d. -f1)
+								[ -z \"\$TX_INT\" ] && TX_INT=0; [ -z \"\$RX_INT\" ] && RX_INT=0
+                                if [ \"\$RX_INT\" -eq 0 ] && [ \"\$TX_INT\" -eq 0 ]; then LRD=\"1\"
+                                elif [ \"\$RX_INT\" -gt \"\$TX_INT\" ]; then LRD=\"\$TX_INT / \$RX_INT\"
+                                else LRD=\"\$RX_INT / \$TX_INT\"; fi
 								TX=\$(printf \"%04d\" \"\${TX_INT:-0}\")
 								echo \"DATA|\$c_mac|\$c_rssi|\$iface|\$c_uptime|\$DISPLAY_SSID|\$TX|\$LRD|\$c_width|\"
 								NODE_COUNT=\$((NODE_COUNT + 1))
 							done
 						fi
 						;;
-					QCA)
-						SN=\$(iw dev \"\$iface\" info 2>/dev/null | grep ssid | awk '{print \$2}')
-						[ -z \"\$SN\" ] && SN=\$(nvram get \"\${iface}_ssid\")
-						MACS=\$(wlanconfig \"\$iface\" list 2>/dev/null | awk 'NR>1 {print \$1}' | grep \":\")
-						for mac in \$MACS; do
-							ROW=\$(wlanconfig \"\$iface\" list 2>/dev/null | grep -i \"\$mac\")
-							RSSI=\$(echo \"\$ROW\" | awk '{print \$7}')
-							TX=\$(echo \"\$ROW\" | awk '{print \$5}' | tr -dc '0-9')
-							RX=\$(echo \"\$ROW\" | awk '{print \$6}' | tr -dc '0-9')
-							W=\"20\"; echo \"\$iface\" | grep -q \"ath1\" && W=\"80\"
-							LRD=\"\${RX} / \${TX}\"
-							TXV=\$(printf \"%04d\" \"\${TX:-0}\")
-							echo \"DATA|\$mac|\$RSSI|\$iface|UP_QCA|\$SN|\$TXV|\$LRD|\$W|\"
-							NODE_COUNT=\$((NODE_COUNT + 1))
-						done
-						;;
 				esac
 			done
             echo \"TEMP|\$(cut -c1-2 /sys/class/thermal/thermal_zone0/temp 2>/dev/null)\"
-            echo \"LOAD|\$(cut -d' ' -f1 /proc/loadavg)\"; echo \"UPTIME|\$(cut -d. -f1 /proc/uptime)\"
+            echo \"LOAD|\$(cut -d' ' -f1 /proc/loadavg)\"
+            echo \"UPTIME|\$(cut -d. -f1 /proc/uptime)\"
 		" 2>/dev/null > "$NODE_DATA_DIR/${CLEAN_IP}.out"
 	) &
 done
@@ -2026,34 +1964,31 @@ nvram get asus_device_list | sed 's/</\n/g' > "$DEVICE_LIST_CACHE" 2>/dev/null |
 nvram get custom_clientlist | sed 's/</\n/g' | awk -F'>' '{if($2!="") print toupper($2)"|"$1}' > "$CUSTOM_CLIENTS_CACHE" 2>/dev/null || > "$CUSTOM_CLIENTS_CACHE"
 read -r M_LOAD _ < /proc/loadavg
 MC_LOAD=$(get_load_class "$M_LOAD")
-M_T=$(($(cat /sys/class/thermal/thermal_zone0/temp 2>/dev/null || echo 0) / 1000))
-M_TEMP=$(get_temp_unit "$M_T")
+read -r M_T < /sys/class/thermal/thermal_zone0/temp 2>/dev/null
+M_TEMP=$(get_temp_unit $(( ${M_T:-0} / 1000 )))
 MC_TEMP=$(get_temp_class "$M_TEMP")
-read -r s _ < /proc/uptime; s=${s%.*}; BOOT_TIME=$(( $(date +%s) - s ))
+read -r s _ < /proc/uptime; s=${s%.*}
 M_UPTIME=$(router_uptime "$s")
-M_BOOT=$(date -d @$BOOT_TIME "$D_FMT")
-MAIN_PFX=$(nvram get lan_hwaddr | cut -c 3-14 | tr '[:lower:]' '[:upper:]')
-NODE_PFX=$(nvram get cfg_relist | sed 's/[<>]/ /g' | tr ' ' '\n' | grep ":" | cut -c 3-14 | sort -u | tr '[:lower:]' '[:upper:]')
-ROUTER_IP=$(nvram get lan_ipaddr)
-ROUTER=$(nvram get cfg_device_list | sed 's/</\n/g' | grep ">$ROUTER_IP>" | awk -F'>' '{print $1}')
-MAIN_NAME="${MAIN_NICK:-${ROUTER:-"Main Router"}}"
+M_TIME=$(( $(date +%s) - s ))
+M_BOOT=$(date -d @$M_TIME "$D_FMT")
+MAIN_PFX=$(nvram get lan_hwaddr | cut -c 4-14 | tr '[:lower:]' '[:upper:]')
+NODE_PFX=$(nvram get cfg_relist | grep -oE '([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}' | cut -c 4-14 | sort -u | tr '[:lower:]' '[:upper:]')
+ROUTER=$(nvram get productid)
+MAIN_NAME="${MAIN_NICK:-${ROUTER:-"Main Router"}}"; if [ "${#MAIN_NAME}" -gt 25 ]; then MAIN_NAME="${MAIN_NAME:0:25}"; fi
 if [ -z "$MAIN_COLOR" ]; then MAIN_COLOR="#0096ff"; fi
-if [ "${#MAIN_NAME}" -gt 25 ]; then MAIN_NAME="${MAIN_NAME:0:25}"; fi
 > "$SEEN_MACS"; > "$NEW_HISTORY"
 SEEN_MACS_VAR=""; NL=$'\n'; MAIN_ROWS=""; NODE_ROWS=""; ALL_ROWS=""
 T_EXCL=0; T_GOOD=0; T_FAIR=0; T_POOR=0; MAIN_DEVICE_TOTAL=0; NODE_DEVICE_TOTAL=0
-WL_BASES=$(nvram get wl_ifnames)
-WL0_PHYS=$(echo "$WL_BASES" | awk '{print $1}')
-WL1_PHYS=$(echo "$WL_BASES" | awk '{print $2}')
-WL2_PHYS=$(echo "$WL_BASES" | awk '{print $3}')
-WL3_PHYS=$(echo "$WL_BASES" | awk '{print $4}')
-for base in $WL_BASES; do
-	IFACE_LIST="$IFACE_LIST $base"
-	SUBS=$(ifconfig -a | grep -oE "${base}\.[0-9]+" | sort -u | xargs)
-	IFACE_LIST="$IFACE_LIST $SUBS"
+WL_BASES=$(nvram get wl_ifnames); set -- $WL_BASES
+WL0_PHYS=$1; WL1_PHYS=$2; WL2_PHYS=$3; WL3_PHYS=$4
+RAW_IFACES=$(printf "%s\n" $WL_BASES $(ifconfig -a | grep -oE "wl[0-9]+\.[0-9]+") | sort -u)
+ACTIVE_IFACES=""
+for iface in $RAW_IFACES; do
+    if wl -i "$iface" bss 2>/dev/null | grep -q "up"; then
+        ACTIVE_IFACES="$ACTIVE_IFACES $iface"
+    fi
 done
-SDN_IFACES=$(ifconfig -a | grep -oE "wl[0-9]+\.[0-9]+" | sort -u | xargs)
-IFACE_LIST=$(echo "$IFACE_LIST $SDN_IFACES" | tr ' ' '\n' | sort -u | xargs)
+IFACE_LIST=$(echo $ACTIVE_IFACES | xargs)
 for iface in $IFACE_LIST; do
 	case "$iface" in lo|eth0|eth1|eth2|eth3) continue ;; esac
 	case "$iface" in
@@ -2063,42 +1998,35 @@ for iface in $IFACE_LIST; do
 		${WL3_PHYS:+"$WL3_PHYS"*}) data_iface="wl3" ;;
 		*) data_iface="$iface" ;;
 	esac
-    ASSOCLIST=$(wl -i "$iface" assoclist 2>/dev/null)
-    ssid=$(nvram get "${iface}_ssid")
-	if [ -z "$ssid" ] || echo "$ssid" | grep -qE '^[0-9A-Fa-f]{16,}$'; then
-		idx=${iface#*.}
-		if [ "$idx" != "$iface" ]; then ssid=$(nvram get "gnp_name_$idx"); fi
-	fi
-	if [ -z "$ssid" ] && [ -n "$data_iface" ]; then ssid=$(nvram get "${data_iface}_ssid"); fi
-	if [ -z "$ssid" ]; then ssid=$(nvram get "${iface%.*}_ssid"); fi
-	if [ -z "$ssid" ] && [ -n "$data_iface" ]; then ssid=$(nvram get "${data_iface%.*}_ssid"); fi
-	MAC_LIST=$(echo "$ASSOCLIST" | awk '{print $2}')
+    MAC_LIST=$(wl -i "$iface" assoclist 2>/dev/null); MAC_LIST=${MAC_LIST//assoclist /}
 	if [ -z "$MAC_LIST" ]; then
 		BRIDGE=$(brctl show 2>/dev/null | grep "$iface" | awk '{print $1}')
 		if [ -z "$BRIDGE" ]; then BRIDGE=$(brctl show 2>/dev/null | grep -B1 "$iface" | grep -v "\-\-" | head -n1 | awk '{print $1}'); fi
 		if [ -n "$BRIDGE" ]; then MAC_LIST=$(brctl showmacs "$BRIDGE" 2>/dev/null | grep -v "yes" | awk '{print $2}'); fi
 	fi
+    [ -z "$MAC_LIST" ] && continue
+    ssid=$(nvram get "${iface}_ssid")
+	if [ -z "$ssid" ] || [ "${#ssid}" -ge 16 ]; then
+        idx=${iface#*.}
+        if [ "$idx" != "$iface" ]; then ssid=$(nvram get "gnp_name_$idx"); else ssid=""; fi
+    fi
+	if [ -z "$ssid" ] && [ -n "$data_iface" ]; then ssid=$(nvram get "${data_iface}_ssid"); fi
+	if [ -z "$ssid" ]; then ssid=$(nvram get "${iface%.*}_ssid"); fi
+	if [ -z "$ssid" ] && [ -n "$data_iface" ]; then ssid=$(nvram get "${data_iface%.*}_ssid"); fi
 	for mac in $MAC_LIST; do
 		if [ -z "$mac" ] || [ "$mac" = "mac" ]; then continue; fi
 		get_mac_address || continue
 		get_ip
-		raw_info=$(wl -i "$iface" sta_info "$mac" 2>/dev/null)
-		if [ -z "$raw_info" ]; then raw_info=$(wl -i "$data_iface" sta_info "$mac" 2>/dev/null); fi
-		sta_parsed=$(parse_main_sta "$raw_info")
-		parse_main "$sta_parsed"
-		if [ -z "$rssi" ]; then rssi=$(wl -i "$iface" rssi "$mac_address" 2>/dev/null); rssi="${rssi%% *}"; fi
-		[ -z "$width" ] && case "0x${raw_info##*0x}" in
-		0x10*|0xd0*|*) width="20" ;; 0x11*|0xd1*) width="40" ;; 0xe0*) width="80" ;;
-		0xe8*|0xe9*) width="160" ;; 0xf0*) width="320" ;; esac
-		if [ -z "$rx" ] || [ "$rx" = "0" ]; then rx_disp="?"; else rx_disp="${rx%.*}"; fi
-		if [ -z "$tx" ] || [ "$tx" = "0" ]; then tx_disp="${max:-?}"; else tx_disp="${tx%.*}"; fi
-		if [ "$rx_disp" = "?" ]; then rx_disp="1"; fi
-		if [ "$tx_disp" = "?" ]; then tx_disp="1"; fi
-		if [ "$rx_disp" = "1" ] && [ "$tx_disp" = "1" ]; then lrd="1 / 72"; else lrd="${rx_disp} / ${tx_disp}"; fi
-		case "$rx_disp" in *[!0-9]*|"") V1="" ;; *) V1="$rx_disp" ;; esac
-		case "$tx_disp" in *[!0-9]*|"") V2="" ;; *) V2="$tx_disp" ;; esac
-		if [ -n "$V1" ] && [ -n "$V2" ] && [ "$V1" -gt "$V2" ] 2>/dev/null; then T=$rx_disp; rx_disp=$tx_disp; tx_disp=$T; lrd="$rx_disp / $tx_disp"; fi
-		lrd_val=$(printf "%04d" "${tx_disp:-0}")
+        parse_main_sta "$iface" "$data_iface"
+		rx_disp="${rx:-1}"; [ "$rx_disp" = "0" ] && rx_disp="1"
+        tx_disp="${tx:-${max:-1}}"; [ "$tx_disp" = "0" ] && tx_disp="1"
+        if [ "$rx_disp" = "1" ] && [ "$tx_disp" = "1" ]; then lrd="1 / 72"
+        else lrd="${rx_disp} / ${tx_disp}"; fi
+        if [ "$rx_disp" -gt "$tx_disp" ] 2>/dev/null; then
+            T=$rx_disp; rx_disp=$tx_disp; tx_disp=$T
+            lrd="$rx_disp / $tx_disp"
+        fi
+        lrd_val=$(printf "%04d" "${tx_disp:-0}")
 		final_chk
 		is_mac_new=$(check_new_mac "$mac")
 		trend=$(get_trend "$mac" "$rssi" "$MAIN_NAME")
@@ -2122,20 +2050,16 @@ wait
 #========================#
 #  Node Device Assembly  #
 #========================#
-if [ -z "$NODE_COLORS" ]; then NODE_COLORS="#30d158 #bf40bf #ffd60a #64d2ff #ff9500 #ff453a"; fi
-N_COLORS=$NODE_COLORS
+N_COLORS="${NODE_COLORS:-#30d158 #bf40bf #ffd60a #64d2ff #ff9500 #ff453a}"
 BULLET=" <span style='color:white;'>•</span> "
 NODE_NAMES=""; NODE_TEMPS=""; NODE_LOADS=""; NODE_BOOTTIMES=""; NODE_UPTIMES=""
 NODE_TOTALS=""; COLOR_INDEX=0; NUMBERED_NODE=0
 for line in $SSH_NODES; do
 	NODE_OUT=""
-	ROUTER=$(echo "$line" | cut -d'|' -f1)
-	IP=$(echo "$line" | cut -d'|' -f2)
-	if [ -z "$IP" ]; then continue; fi
-	CLEAN_IP=$(echo "$IP" | tr '.' '_')
-	eval CUSTOM_NICK=\$NODE_NICK_$CLEAN_IP
-	NODE_NAME="${CUSTOM_NICK:-${ROUTER:-$IP}}"
-	if [ "${#NODE_NAME}" -gt 25 ]; then NODE_NAME="${NODE_NAME:0:25}"; fi
+	ROUTER="${line%%|*}"; IP="${line#*|}"
+    [ -z "$IP" ] || [ "$IP" = "$ROUTER" ] && continue
+	CLEAN_IP="${IP//./_}"; eval CUSTOM_NICK=\$NODE_NICK_$CLEAN_IP
+	NODE_NAME="${CUSTOM_NICK:-${ROUTER:-$IP}}"; if [ "${#NODE_NAME}" -gt 25 ]; then NODE_NAME="${NODE_NAME:0:25}"; fi
 	if [ -f "$NODE_DATA_DIR/${CLEAN_IP}.out" ]; then NODE_OUT=$(cat "$NODE_DATA_DIR/${CLEAN_IP}.out"); fi
 	if [ -n "$NODE_OUT" ]; then
         NUMBERED_NODE=$((NUMBERED_NODE + 1))
@@ -2154,7 +2078,7 @@ for line in $SSH_NODES; do
         NC_LOAD=$(get_load_class "$N_LOAD")
 		N_BOOT=$(date -d @$(( $(date +%s) - ${N_UPTIME_RAW:-0} )) "$D_FMT")
         NODE_DEVICES=0
-		while read -r ssh_node_data; do
+        while read -r ssh_node_data; do
 			if [ -z "$ssh_node_data" ]; then continue; fi
 			parse_node_data "$ssh_node_data"
 			get_mac_address || continue
@@ -2182,6 +2106,7 @@ EOF
         NODE_TOTALS="${NODE_TOTALS}${NODE_TOTALS:+$BULLET}<span style='color:$NODE_COLOR;'>$NODE_DEVICES</span>"
     fi
 done
+ALL_ROWS="${MAIN_ROWS}${NODE_ROWS}"
 ALL_TEMP="$MAIN_TEMP$BULLET$NODE_TEMPS"
 ALL_LOAD="$MAIN_LOAD$BULLET$NODE_LOADS"
 ALL_UPTIME="$MAIN_UPTIME$BULLET$NODE_UPTIMES"
@@ -2206,7 +2131,7 @@ cat <<HTML >> "$WEB_PAGE"
 <html>
 <head>
 <meta charset="UTF-8" />
-<title>Wireless Report $SCRIPT_VERSION $VERHASH</title>
+<title>Wireless Report $SCRIPT_VERSION$VERSION_HASH</title>
 <link rel="shortcut icon" href="images/favicon.png">
 <link rel="icon" href="images/favicon.png">
 <link rel="stylesheet" href="index_style.css" />
@@ -2659,7 +2584,7 @@ document.addEventListener('mouseout', function(e) {
                     <div class="top-header">
                         <div class="header-wrap">
                             <div class="header-tooltip">
-                                <h1 class="$TITLE">WIRELESS REPORT</h1>
+                                <h1 class="$HEADER_TITLE">WIRELESS REPORT</h1>
                                 <span class="header-box">$HOVER_TEXT</span>
                             </div>
                         </div>
