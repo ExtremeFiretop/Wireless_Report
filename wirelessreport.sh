@@ -1383,8 +1383,7 @@ get_load_class() {
 }
 
 get_mac_address() {
-	mac_address=$(echo "$mac" | tr '[:lower:]' '[:upper:]')
-	mac_prefix="${mac_address#??:}"
+	mac_prefix="${mac#??:}"
     mac_prefix="${mac_prefix%:??}"
 	is_node_pfx=0; bh="no"
 	case "$NODE_PFX" in *"$mac_prefix"*) is_node_pfx=1 ;; esac
@@ -1393,12 +1392,12 @@ get_mac_address() {
 			bh="yes"
 	fi
 	if [ "$bh" = "yes" ]; then
-		mac_check="${CLEAN_IP}_${iface}_${mac_address}"
+		mac_check="${CLEAN_IP}_${iface}_${mac}"
 	else
-		mac_check="$mac_address"
+		mac_check="$mac"
 	fi
 	case " $SEEN_MACS_VAR " in *" $mac_check "*) return 1 ;; esac
-	get_name "$mac_address"
+	get_name "$mac"
 	if [ "$bh" = "yes" ]; then
 		mac_final="${CLEAN_IP}_${iface}_${mac}"
 	else
@@ -1406,21 +1405,21 @@ get_mac_address() {
 	fi
 	case " $SEEN_MACS_VAR " in *" $mac_final "*) return 1 ;; esac
 	SEEN_MACS_VAR="$SEEN_MACS_VAR $mac_final"
+
 	return 0
 }
 
 get_name() {
-	mac="$mac_address"
 	name=""
 	# YazDHCP
 	if [ -f "$YAZ_CACHE" ]; then
-		local entry=$(grep -i "^$mac|" "$YAZ_CACHE")
+		local entry=$(grep -m1 "^$mac|" "$YAZ_CACHE")
 		name="${entry##*|}"
 	fi
 	# Custom Client List
 	if [ -z "$name" ] || [ "$name" = "*" ]; then
 		if [ -f "$CUSTOM_CLIENTS_CACHE" ]; then
-			local entry=$(grep -i "^$mac|" "$CUSTOM_CLIENTS_CACHE")
+			local entry=$(grep -m1 "^$mac|" "$CUSTOM_CLIENTS_CACHE")
 			name="${entry#*|}"
 		fi
 	fi
