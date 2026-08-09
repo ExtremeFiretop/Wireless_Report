@@ -1405,7 +1405,6 @@ get_mac_address() {
 	fi
 	case " $SEEN_MACS_VAR " in *" $mac_final "*) return 1 ;; esac
 	SEEN_MACS_VAR="$SEEN_MACS_VAR $mac_final"
-
 	return 0
 }
 
