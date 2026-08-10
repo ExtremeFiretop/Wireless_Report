@@ -1779,9 +1779,9 @@ $({ wl -i "$iface" sta_info "$mac" 2>/dev/null || wl -i "$alt_iface" sta_info "$
     /rate of last rx pkt/ { rx = int($6 / 1000) }
     /rate of last tx pkt/ { split($0, a, ": "); split(a[2], b, " "); tx = int(b[1] / 1000) }
     /Max Rate =/          { max = $4 }
-    /in network/          { uptime = $3 }
-    /link bandwidth/      { for(i=1; i<=NF; i++) { if($i == "bandwidth") width = ($(i+1) == "=" ? $(i+2) : substr($(i+1), 2)) } }
-    END                   { if (rssi != "") print rssi, rx, tx, max, width, uptime }
+    /in network/          { for(i=1;i<=NF;i++) if($i=="network") uptime=$(i+1) }
+    /link bandwidth/      { for(i=1;i<=NF;i++) if($i=="bandwidth") { w=($(i+1)=="="?$(i+2):$(i+1)); gsub(/[^0-9]/,"",w); width=w } }
+    END                   { if (rssi != "") print rssi, (rx?rx:0), (tx?tx:0), (max?max:0), (width?width:"-"), (uptime?uptime:0) }
 ')
 EOF
 }
