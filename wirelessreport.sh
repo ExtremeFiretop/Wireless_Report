@@ -74,7 +74,7 @@ install_menu() {
 		echo -e "                                                       "
 		echo -e "  $N1  Install/Update                                  "
 		echo -e "  $N2  Uninstall                                       "
-		echo -e "  $N3  Edit Date/Time ($CT)                            "
+		echo -e "  $N3  Edit Date/Time ($DU) ($CT)                      "
 		echo -e "  $N4  Edit Device Nicknames                           "
         echo -e "  $N5  Edit Device Colors                              "
 		echo -e "  $N6  Configure Display Options ($TM_STAT)            "
@@ -171,9 +171,11 @@ menu_vars() {
 	NE="${BL}(e)${NC}"; NQ="${BL}(c)${NC}"; ON="${GR}ON${NC}"; OFF="${RD}OFF${NC}"
 	STATUS=" ${BL}STATUS:${NC}"; CURRENT="${GR}Current: v$SCRIPT_VERSION${NC}"
     SS_FILE="/jffs/scripts/services-start"; SE_FILE="/jffs/scripts/service-event"
-	DISPLAY_UNIT="${REPORT_UNIT:-F}"
-    if [ "$REPORT_UNIT" = "ISO" ]; then DISPLAY_UNIT="C"; fi
-	CT="${GR}$CUR_TIME${NC}"
+	DU="${REPORT_UNIT:-F}"; CT="${GR}$CUR_TIME${NC}"
+    if [ "$REPORT_UNIT" = "ISO" ]; then DU="${GR}ISO${NC}"
+    elif [ "$REPORT_UNIT" = "C" ]; then DU="${GR}INTL${NC}"
+    else DU="${GR}USA${NC}"; fi
+
 	DATE_USA=$(date +"%b-%d"); DATE_INTL=$(date +"%d-%b"); DATE_ISO=$(date +"%Y-%m-%d")
 	RTIME=${RTIME:-1}; if [ "$RTIME" = "0" ]; then RT_STAT="$OFF"; else RT_STAT="$ON"; fi
     PULSE_MINS=${PULSE_MINS:-15}
@@ -416,14 +418,14 @@ set_date_time() {
     while true; do
         show_header
         echo -e "${BL}=================================================="
-        echo -e "${NC}                 Set Date/Temp                    "
+        echo -e "${NC}                Set Date/Time                     "
         echo -e "${BL}=================================================="
-        echo -e "${BL}           Current:${NC} $CT                      "
+        echo -e "${NC}  Format: $DU            Date: $CT                "
         echo -e "${BL}=================================================="
         echo -e "                                                       "
-        echo -e "  $N1  USA                      $DATE_USA              "
-        echo -e "  $N2  INTERNATIONAL            $DATE_INTL             "
-        echo -e "  $N3  TECH/ISO                 $DATE_ISO              "
+        echo -e "  $N1  USA                       (${GR}$DATE_USA${NC}) "
+        echo -e "  $N2  INTERNATIONAL             (${GR}$DATE_INTL${NC})"
+        echo -e "  $N3  ISO                       (${GR}$DATE_ISO${NC}) "
         echo -e "                                                       "
         echo -e "  $NE  Back to main menu                               "
         echo -e "                                                       "
@@ -1025,16 +1027,14 @@ MAIN_TEMP="<span id='wr-main-cpu' class='stat-cool'>--</span>"
 MAIN_LOAD="<span id='wr-main-memory' class='stat-cool'>--</span>"
 MAIN_DEVICE_TOTAL="<span id='wr-main-count' class='main-color'>0</span>"
 MAIN_UPTIME="<span id='wr-main-uptime' class='main-color'>--</span>"
-#MAIN_BOOTTIME="<span id='wr-main-reboot' class='main-color'>--</span>"
-M_TIME=$(( $(date +%s) - s ))
-M_BOOT=$(date -d "@$M_TIME" "$D_FMT" 2>/dev/null || date -r "$M_TIME" "$D_FMT" 2>/dev/null || echo "--")
+read -r s _ < /proc/uptime; s=${s%.*}; M_TIME=$(( $(date +%s) - s ))
+M_BOOT=$(date -d "@$M_TIME" "$D_FMT") 2>/dev/null
 MAIN_BOOTTIME="<span class='main-color' id='wr-main-reboot'>${M_BOOT}</span>"
 
 NODE_NAMES="<span id='wr-node-names' class='router-style'>AiMesh nodes</span>"
 NODE_TEMPS="<span id='wr-node-cpu' class='stat-cool'>--</span>"
 NODE_LOADS="<span id='wr-node-memory' class='stat-cool'>--</span>"
 NODE_DEVICE_TOTAL="<span id='wr-node-count' class='stat-cool'>0</span>"
-# NODE_UPTIMES="<span id='wr-node-diag'>Controller telemetry pending...</span>"
 NODE_UPTIMES="<span id='wr-all-api-note'>Primary-router WebUI APIs • no direct node authentication</span>"
 NODE_BOOTTIMES=""
 
