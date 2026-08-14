@@ -175,7 +175,6 @@ menu_vars() {
     if [ "$REPORT_UNIT" = "ISO" ]; then DU="${GR}ISO${NC}"
     elif [ "$REPORT_UNIT" = "C" ]; then DU="${GR}INTL${NC}"
     else DU="${GR}USA${NC}"; fi
-
 	DATE_USA=$(date +"%b-%d"); DATE_INTL=$(date +"%d-%b"); DATE_ISO=$(date +"%Y-%m-%d")
 	RTIME=${RTIME:-1}; if [ "$RTIME" = "0" ]; then RT_STAT="$OFF"; else RT_STAT="$ON"; fi
     PULSE_MINS=${PULSE_MINS:-15}
@@ -542,6 +541,7 @@ set_nicknames() {
                     OLD_MAIN="${MAIN_NICK:-$MAIN_ROUTER}"
                     printf "  ${MAIN_CLR}Main $MAIN_IP [$OLD_MAIN]:${NC} "; read -r manual_main
                     if [ -n "$manual_main" ]; then
+                        manual_main="${manual_main:0:25}"
                         sed -i '/^MAIN_NICK=/d' "$CONFIG"
                         echo "MAIN_NICK=\"$manual_main\"" >> "$CONFIG"
                     fi
@@ -554,12 +554,13 @@ set_nicknames() {
                         NODE_CLR=$(hex_to_ansi "$HEX_CLR")
                         printf "  ${NODE_CLR}Node $IP [${OLD_NICK:-$MODEL}]:${NC} "; read -r input_node
                         if [ -n "$input_node" ]; then
+                            input_node="${input_node:0:25}"
                             sed -i "/^NODE_NICK_$CLEAN_IP=/d" "$CONFIG"
                             echo "NODE_NICK_$CLEAN_IP=\"$input_node\"" >> "$CONFIG"
                         fi
                         node_idx=$((node_idx + 1))
                     done
-                    echo -e "\n${GR}[+] Manual nicknames saved.${NC}"
+                    echo -e "\n${GR}[+] Manual nicknames saved (max 25 chars).${NC}"
                     pause; break ;;
                 e|E)
                     return ;;
@@ -996,13 +997,6 @@ run_report() {
 #   /get_diag_latest_content_data.cgi
 # All client/node refreshes happen in-page with same-origin fetch() calls.
 
-IPPAD=${IPPAD:-1}; HOST_COLOR=${HOST_COLOR:-0}; PULSE_MINS=${PULSE_MINS:-15}
-: "${MAIN_COLOR:=#0096ff}"
-: "${NODE_COLORS:=#30d158 #bf40bf #ffd60a #64d2ff #ff9500 #ff453a #ffffff #ff70a6 #64ffda}"
-ROUTER=$(nvram get productid)
-MAIN_NAME="${MAIN_NICK:-${ROUTER:-Main Router}}"
-[ "${#MAIN_NAME}" -gt 25 ] && MAIN_NAME="${MAIN_NAME:0:25}"
-
 NODE_NICK_JS=""
 if [ -f "$CONFIG" ]; then
 	while IFS='=' read -r nick_key nick_value; do
@@ -1016,12 +1010,14 @@ if [ -f "$CONFIG" ]; then
 fi
 
 set_theme; check_version header_box; update_time
-
+IPPAD=${IPPAD:-1}; HOST_COLOR=${HOST_COLOR:-0}; PULSE_MINS=${PULSE_MINS:-15}
+: "${MAIN_COLOR:=#0096ff}"
+: "${NODE_COLORS:=#30d158 #bf40bf #ffd60a #64d2ff #ff9500 #ff453a #ffffff #ff70a6 #64ffda}"
 TEMP_STYLE="text-align: center; justify-content: center;"
 UPTIME_STYLE="text-align: center; justify-content: center;"
 if [ "$HOST_COLOR" = "1" ]; then IP_COLOR=""; MAC_COLOR="color: #64d2ff;"
 else IP_COLOR="color: #64d2ff; "MAC_COLOR=""; fi
-
+ROUTER=$(nvram get productid); MAIN_NAME="${MAIN_NICK:-${ROUTER:-Main Router}}"
 MAIN_NAME="<span id='wr-main-name' class='router-style'>${MAIN_NAME}</span>"
 MAIN_TEMP="<span id='wr-main-cpu' class='stat-cool'>--</span>"
 MAIN_LOAD="<span id='wr-main-memory' class='stat-cool'>--</span>"
@@ -1233,9 +1229,7 @@ function update_time() {
     const hours = now.getHours();
     const minutes = String(now.getMinutes()).padStart(2, '0');
     const seconds = String(now.getSeconds()).padStart(2, '0');
-
     let formattedTime = '';
-
     if (WR_CONFIG.reportUnit === 'ISO') {
         const mm = String(now.getMonth() + 1).padStart(2, '0');
         const dd = String(day).padStart(2, '0');
@@ -1245,7 +1239,6 @@ function update_time() {
     } else {
         formattedTime = month + '-' + day + ' ' + hours + ':' + minutes + ':' + seconds;
     }
-
     document.querySelectorAll('.wr-updated-time').forEach(function(el) {
         el.textContent = 'Updated: ' + formattedTime;
     });
@@ -1349,7 +1342,6 @@ function wrFormatConnection(value) {
 
     var sec = wrNumber(value);
     if (Number.isFinite(sec) && sec >= 0) return wrFormatSeconds(sec);
-
     if (value !== undefined && value !== null && String(value).trim() !== '') {
         return "<span data-sort='0'>" + wrEscape(String(value)) + "</span>";
     }
@@ -1383,14 +1375,12 @@ function wrPad2(value) {
 function wrFormatDateTime(value) {
     var d = value instanceof Date ? value : new Date(value);
     if (!d || Number.isNaN(d.getTime())) return '--';
-
     var y = d.getFullYear();
     var month = wrPad2(d.getMonth() + 1);
     var day = wrPad2(d.getDate());
     var hh24 = d.getHours();
     var minute = wrPad2(d.getMinutes());
     var second = wrPad2(d.getSeconds());
-
     switch (WR_CONFIG.dateFormat) {
         case 'INTL':
             return day + '/' + month + '/' + y + ' ' + wrPad2(hh24) + ':' + minute + ':' + second;
@@ -1551,7 +1541,6 @@ function wrGetTrend(item, rssi, history) {
         var text = String(entry.rssi) +
             ' [' + wrEscape(entry.name || '--') + ']' +
             ' [' + wrEscape(entry.band || '--') + ']';
-
         if (WR_CONFIG.rssiHistoryDate && Number.isFinite(wrNumber(entry.time))) {
             var d = new Date(Number(entry.time));
             var day = d.getDate();
@@ -1561,7 +1550,6 @@ function wrGetTrend(item, rssi, history) {
             var hours = String(d.getHours()).padStart(2, '0');
             var minutes = String(d.getMinutes()).padStart(2, '0');
             var seconds = String(d.getSeconds()).padStart(2, '0');
-
             var formattedTime = '';
             if (typeof WR_CONFIG !== 'undefined' && WR_CONFIG.reportUnit === 'ISO') {
                 var mm = String(d.getMonth() + 1).padStart(2, '0');
@@ -1572,7 +1560,6 @@ function wrGetTrend(item, rssi, history) {
             } else {
                 formattedTime = month + '-' + day + ' ' + hours + ':' + minutes + ':' + seconds;
             }
-
             text += ' ' + wrEscape(formattedTime);
         }
         return "<span style='" + wrRssiHistoryStyle(entry.rssi) + "'>" + text + "</span>";
@@ -1692,7 +1679,6 @@ function wrCpuUsageBetween(first, second) {
             usageDelta += ud;
         }
     });
-
     return totalDelta > 0 ? Math.round((usageDelta / totalDelta) * 100) : null;
 }
 
@@ -1729,12 +1715,10 @@ async function wrGetMainHealthSample() {
         wrAppGet('cpu_usage();'),
         wrAppGet('memory_usage();')
     ]);
-
     var sample = {
         cpu: (responses[0] && responses[0].cpu_usage) || {},
         memory: (responses[1] && responses[1].memory_usage) || {}
     };
-
     if (!wrMainHealthSampleUsable(sample)) {
         throw new Error('primary CPU/memory response did not contain usable counters');
     }
@@ -1754,7 +1738,6 @@ async function wrGetMainHealth(first) {
         cpu = wrCpuUsageBetween(second.cpu, third.cpu);
         second = third;
     }
-
     var memory = wrMemoryUsage(second.memory);
     if (memory === null) memory = wrMemoryUsage(first.memory);
     return { cpuUsage: cpu, memoryUsage: memory };
@@ -1770,7 +1753,6 @@ function wrNodeIsExplicitlyOffline(node) {
     if (node.online !== undefined && node.online !== null && node.online !== '') {
         return String(node.online) !== '1';
     }
-
     if (node.isOnline !== undefined && node.isOnline !== null && node.isOnline !== '') {
         var raw = String(node.isOnline).toLowerCase();
         if (node.isOnline === false || raw === 'false' || raw === '0') return true;
@@ -1850,11 +1832,9 @@ function wrRenderRow(item, history, known, firstHistoryLoad) {
     var rawIp = wrFirst(c, ['ip']) || '';
     var rawName = wrClientName(mac, c, saved);
     var rawSsid = wrFirst(c, ['ssid']) || '';
-
     var ip = rawIp.length > 15 ? rawIp.slice(0, 15) : rawIp;
     var name = rawName.length > 20 ? rawName.slice(0, 20) : rawName;
     var ssid = rawSsid.length > 15 ? rawSsid.slice(0, 15) : rawSsid;
-
     var iface = sta ? (sta.conn_if || '') : wrFirst(c, ['ifname', 'interface']);
     var rssi = sta && sta.sta_rssi !== undefined ? wrNumber(sta.sta_rssi) : wrNumber(c.rssi);
     var rx = sta && sta.sta_rx !== undefined ? Math.round(wrNumber(sta.sta_rx)) : Math.round(wrNumber(c.curRx));
@@ -1864,12 +1844,10 @@ function wrRenderRow(item, history, known, firstHistoryLoad) {
     var trend = wrGetTrend(item, rssi, history);
     var isNew = !firstHistoryLoad && !known[mac] ? 'new-device-row' : '';
     var nodeMarker = '';
-
     if (item.node) {
         var markerColor = wrNodeColor(item.nodeIndex);
         var hiddenNodeNum = "<span class='hidden-node-number' style='display:none;'>" + (item.nodeIndex + 1) + "</span>";
         var nodeMarker = "<sup style='color:" + markerColor + ";'>" + (item.nodeIndex + 1) + "</sup>";
-
         if (WR_CONFIG.hostColor) {
             name = "<span style='color:" + markerColor + ";'>" + wrEscape(name) + "</span>" + hiddenNodeNum;
         } else {
@@ -1880,7 +1858,6 @@ function wrRenderRow(item, history, known, firstHistoryLoad) {
     } else {
         name = wrEscape(name);
     }
-
     var rxText = Number.isFinite(rx) && rx >= 0 ? rx : 1;
     if (rxText === 0) rxText = 1;
     var txText = Number.isFinite(tx) && tx >= 0 ? tx : 1;
@@ -1894,12 +1871,10 @@ function wrRenderRow(item, history, known, firstHistoryLoad) {
         rxText = txText;
         txText = T;
     }
-
     var rateText = rxText + ' / ' + txText;
     var rateSort = txText;
     var rssiText = Number.isFinite(rssi) && rssi < 0 && rssi >= -120 ? rssi : '--';
     var bars = quality.bars ? "<span class='rssi_bars " + quality.cls + "'>" + quality.bars + "</span>" : '';
-
     return "<tr class='" + isNew + "'>" +
         "<td style='text-align:left;'>" + name + "</td>" +
         "<td><span class='mac-val' data-sort='" + wrEscape(mac) + "'>" + wrEscape(mac) + "</span>" +
@@ -1951,7 +1926,6 @@ function wrRestoreTableState() {
     ids.forEach(function(id) {
         var tableObj = document.getElementById(id);
         if (!tableObj || !tableObj.rows || tableObj.rows.length <= 1) return;
-
         var ipState = localStorage.getItem('toggle_' + id + '_show-ip');
         var ipHeader = tableObj.querySelector('thead th:nth-child(2)');
         if (ipState === 'true' || ipState === null) {
@@ -1961,7 +1935,6 @@ function wrRestoreTableState() {
             tableObj.classList.remove('show-ip');
             if (ipHeader) ipHeader.innerHTML = 'MAC ADDRESS ⇅';
         }
-
         var ifaceState = localStorage.getItem('toggle_' + id + '_show-iface');
         var ifaceHeader = tableObj.querySelector('thead th:nth-child(5)');
         if (ifaceState === 'true') {
@@ -1971,7 +1944,6 @@ function wrRestoreTableState() {
             tableObj.classList.remove('show-iface');
             if (ifaceHeader) ifaceHeader.innerHTML = 'SSID ⇅';
         }
-
         var savedCol = localStorage.getItem('savedSortCol_' + id);
         var savedDir = localStorage.getItem('savedSortDir_' + id);
         try {
@@ -1989,7 +1961,6 @@ async function wrResolveSta(item, staMaps) {
     var map = staMaps.get(nodeMac);
     var candidates = wrGetMloCandidates(item.mac, item.client, item.saved);
     var best = null;
-
     if (map) {
         candidates.forEach(function(candidate) {
             var found = map.get(candidate);
@@ -2018,7 +1989,6 @@ async function loadWirelessReport() {
         console.warn('Primary CPU/memory first sample failed', e);
         return { cpu: {}, memory: {} };
     });
-
     var base = await wrAppGet(
         'get_cfg_clientlist();' +
         'get_clientlist();' +
@@ -2027,7 +1997,6 @@ async function loadWirelessReport() {
         'nvram_get(lan_hwaddr);' +
         'uptime();'
     );
-
     var live = base.get_clientlist || {};
     var saved = base.get_clientlist_from_json_database || {};
     var allNodes = Array.isArray(base.get_cfg_clientlist) ? base.get_cfg_clientlist : [];
@@ -2048,31 +2017,26 @@ async function loadWirelessReport() {
         if (mac) offlineNodeMacs.add(mac);
         return false;
     });
-
     var nodeByMac = new Map();
     nodes.forEach(function(node, index) {
         var mac = wrNormMac(node.mac || node.mac_addr);
         nodeByMac.set(mac, { node: node, index: index });
     });
-
     var staTargets = [];
     if (mainMac) staTargets.push(mainMac);
     nodes.forEach(function(node) {
         var mac = wrNormMac(node.mac || node.mac_addr);
         if (mac && staTargets.indexOf(mac) === -1) staTargets.push(mac);
     });
-
     var staResults = await Promise.all(staTargets.map(function(mac) { return wrGetStaRows(mac); }));
     var staMaps = new Map();
     staTargets.forEach(function(mac, i) { staMaps.set(mac, wrIndexSta(staResults[i] || [])); });
-
     var items = [];
     Object.entries(live).forEach(function(entry) {
         var macRaw = entry[0];
         var c = entry[1] || {};
         var mac = wrNormMac(macRaw);
         if (!wrIsMac(mac) || !wrLooksWireless(c)) return;
-
         var parent = wrNormMac(c.amesh_papMac || c.amesh_pap_mac);
         if (parent && offlineNodeMacs.has(parent)) return;
         var nodeInfo = nodeByMac.get(parent);
@@ -2097,29 +2061,23 @@ async function loadWirelessReport() {
     // the same timestamp for a given refresh and the persisted sample matches it.
     var historySampleTime = Date.now();
     items.forEach(function(item) { item.historyTime = historySampleTime; });
-
     var mainItems = items.filter(function(item) { return !item.node; });
     var nodeItems = items.filter(function(item) { return !!item.node; });
-
     var diagPairs = await Promise.all(nodes.map(async function(node) {
         var mac = wrNormMac(node.mac || node.mac_addr);
         try { return [mac, await wrGetNodeDiag(mac)]; }
         catch (e) { console.warn('Node diagnostic query failed for ' + mac, e); return [mac, null]; }
     }));
     var diagByMac = new Map(diagPairs);
-
     var history = wrLoadJson('wirelessReportRssiHistory', {});
     var known = wrLoadJson('wirelessReportKnownMacs', {});
     var firstHistoryLoad = Object.keys(known).length === 0;
-
     var mainRows = mainItems.map(function(item) { return wrRenderRow(item, history, known, firstHistoryLoad); }).join('');
     var nodeRows = nodeItems.map(function(item) { return wrRenderRow(item, history, known, firstHistoryLoad); }).join('');
     var allRows = items.map(function(item) { return wrRenderRow(item, history, known, firstHistoryLoad); }).join('');
-
     document.querySelector('#mainTable tbody').innerHTML = mainRows || "<tr><td colspan='7'>No wireless clients reported on the primary router.</td></tr>";
     document.querySelector('#nodeTable tbody').innerHTML = nodeRows || "<tr><td colspan='7'>No AiMesh-node wireless clients reported.</td></tr>";
     document.querySelector('#allTable tbody').innerHTML = allRows || "<tr><td colspan='7'>No active wireless clients reported.</td></tr>";
-
     items.forEach(function(item) {
         var rssi = item.sta && item.sta.sta_rssi !== undefined ? wrNumber(item.sta.sta_rssi) : wrNumber(item.client.rssi);
         wrStoreRssiHistory(item, rssi, history);
@@ -2127,13 +2085,11 @@ async function loadWirelessReport() {
     });
     localStorage.setItem('wirelessReportRssiHistory', JSON.stringify(history));
     localStorage.setItem('wirelessReportKnownMacs', JSON.stringify(known));
-
     wrApplyRssiCounts(items);
     wrSetText('wr-grand-total', items.length);
     wrSetText('wr-main-count', mainItems.length);
     wrSetText('wr-node-count', nodeItems.length);
     wrSetText('wr-all-count', items.length);
-
     var mainHealthFirst = await mainHealthFirstPromise;
     var mainHealth;
     try {
@@ -2146,7 +2102,6 @@ async function loadWirelessReport() {
     // Set Main Router specific metrics only here
     wrSetMetric('wr-main-cpu', mainHealth.cpuUsage, '%');
     wrSetMetric('wr-main-memory', mainHealth.memoryUsage, '%');
-
     var uptimeSecs = wrParseUptime(base.uptime);
     wrSetText('wr-main-uptime', wrFormatRouterUptime(uptimeSecs));
 
@@ -2155,13 +2110,11 @@ async function loadWirelessReport() {
 
     var mainNameEl = document.getElementById('wr-main-name');
     if (mainNameEl && !mainNameEl.textContent.trim()) mainNameEl.textContent = base.productid || 'Main Router';
-
     var nodeNamesHtml = [];
     var cpuHtml = [];
     var memHtml = [];
     var nodeCountParts = [];
     var nodeDiagParts = [];
-
     nodes.forEach(function(node, index) {
         var mac = wrNormMac(node.mac || node.mac_addr);
         var ip = String(wrFirst(node, ['ip', 'ip_addr', 'ipAddr']) || '');
@@ -2171,10 +2124,8 @@ async function loadWirelessReport() {
         // var marker = '';
         var diag = diagByMac.get(mac);
         var nodeClientCount = nodeItems.filter(function(item) { return item.nodeIndex === index; }).length;
-
         nodeNamesHtml.push("<span style='color:" + color + ";'>" + wrEscape(name) + marker + "</span>");
         nodeCountParts.push("<span style='color:" + color + ";'>" + nodeClientCount + "</span>");
-
         if (diag && diag.cpuUsage !== null) {
             cpuHtml.push("<span class='" + wrMetricClass(diag.cpuUsage) + "'>" + diag.cpuUsage + "%" + "</span>");
         } else {
@@ -2185,7 +2136,6 @@ async function loadWirelessReport() {
         } else {
             memHtml.push("<span style='color:" + color + ";'>--" + "</span>");
         }
-
         var model = wrFirst(node, ['model_name', 'product_id']) || '';
         var firmware = wrFirst(node, ['firmware', 'fwver', 'fw_version', 'version']);
         var details = "<span style='color:" + color + ";'>" + wrEscape(name) + "</span>";
@@ -2195,7 +2145,6 @@ async function loadWirelessReport() {
         if (diag && Number.isFinite(diag.timestamp)) details += ' • Telemetry ' + new Date(diag.timestamp * 1000).toLocaleTimeString();
         nodeDiagParts.push(details);
     });
-
     var bullet = " <span style='color:white;'>•</span> ";
     wrSetHtml('wr-node-names', nodeNamesHtml.length ? nodeNamesHtml.join(bullet) : 'No AiMesh nodes detected');
     wrSetHtml('wr-node-cpu', cpuHtml.length ? cpuHtml.join(bullet) : '--');
@@ -2208,12 +2157,10 @@ async function loadWirelessReport() {
         "<span class='" + wrMetricClass(mainHealth.cpuUsage) + "'>" + (mainHealth.cpuUsage !== null ? mainHealth.cpuUsage + "%" : "--") + "</span>"
     ].concat(cpuHtml);
     wrSetHtml('wr-all-main-cpu', allCpuCombined.join(bullet));
-
     var allMemCombined = [
         "<span class='" + wrMetricClass(mainHealth.memoryUsage) + "'>" + (mainHealth.memoryUsage !== null ? mainHealth.memoryUsage + "%" : "--") + "</span>"
     ].concat(memHtml);
     wrSetHtml('wr-all-main-memory', allMemCombined.join(bullet));
-
     var allDeviceParts = [mainItems.length].concat(nodeCountParts);
     wrSetHtml('wr-all-count', nodes.length > 1 && nodeCountParts.length ? items.length + " <span class='right-arrow'>—›</span> " + allDeviceParts.join(bullet) : items.length);
     // ----------------------------------------------
@@ -2221,7 +2168,6 @@ async function loadWirelessReport() {
     var allNames = ["<span style='color:" + WR_CONFIG.mainColor + ";'>" + wrEscape(document.getElementById('wr-main-name').textContent) + "</span>"];
     allNames = allNames.concat(nodeNamesHtml);
     wrSetHtml('wr-all-names', allNames.join(bullet));
-
     var nodeCol = document.getElementById('nodeCol');
     if (nodeCol) nodeCol.style.display = nodes.length ? 'flex' : 'none';
 
@@ -2232,7 +2178,6 @@ async function loadWirelessReport() {
     // Apply dynamic font sizing and alignment based on node count (TEMP_STYLE logic)
     var nodeCount = nodes.length;
     var tempStyle = "";
-
     if (nodeCount > 4) {
         tempStyle = "text-align: center; justify-content: flex-start; font-size: 10px;";
     } else if (nodeCount === 4) {
@@ -2248,7 +2193,6 @@ async function loadWirelessReport() {
             el.style.cssText += tempStyle;
         }
     });
-
     wrRestoreTableState();
     if (localStorage.getItem('wifiReportPopoutOpen') === 'true') {
         openPopout();
@@ -2353,7 +2297,6 @@ function initAutoRefresh(seconds) {
     var countdown = document.getElementById('refresh-countdown');
     if (countdown) countdown.innerHTML = timeLeft > 0 ? '&nbsp;' + timeLeft + 's' : '';
     if (timeLeft <= 0) return;
-
     refreshTimer = setInterval(function() {
         timeLeft--;
         if (timeLeft <= 0) {
