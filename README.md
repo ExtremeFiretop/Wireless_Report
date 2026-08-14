@@ -11,7 +11,7 @@ I created this script to solve a specific gap in the ASUS WebGUI: the lack of re
 \
 \
 $\color{blue}{\Large\text{NODE DATA INTEGRATION}}$<br>
-To display data for AiMesh nodes, the script now includes an automated Password-less SSH Key Setup. This securely configures each node to allow the script to retrieve remote connection details. While the setup is now built-in, you can still refer to the [SNB Forums Guide](https://www.snbforums.com/threads/asus-merlin-router-to-aimesh-nodes-ssh-key-setup-password-19-passwordless-16-or-use-curl-30.96817/#post-985905) for manual troubleshooting or deep-dive details. Works with both stock and Merlin nodes.
+To display data for AiMesh nodes, the script now uses inline Browser/API data integration.
 \
 \
 $\color{blue}{\Large\text{PRO-TIP: CUSTOMIZING HOSTNAMES}}$<br>
@@ -41,19 +41,17 @@ Note that both methods only initiate the install screen, the installation is NOT
 $\color{blue}{\text{Step 2:}}$ Select option $\color{blue}{\text{(1)}}$ from the menu to begin.<br>
 You only need to perform this full step during the initial setup and subsequent updates. The script will automatically perform the following:
 
-* $\color{green}{\text{Storage Check:}}$ Verifies the presence of a USB drive or JFFS for persistent storage.
-* $\color{green}{\text{Node Auth/SSH Keygen:}}$ Authenticates nodes, creates SSH Key if needed.
 * $\color{green}{\text{File Processing:}}$ Deploys and configures the core Wireless Report system files.
 * $\color{green}{\text{Asus Menu Tab:}}$ Injects Wireless Report Tab into Wireless Menu.
 * $\color{green}{\text{Confirmation:}}$ Displays a completion message once the script is successfully integrated.
-* $\color{green}{\text{How-to/Tip:}}$ Displays how/where to view Report, router-only TIP.
+* $\color{green}{\text{How-to:}}$ Displays how/where to view Report.
 
 $\color{blue}{\text{Note:}}$ At this stage, Wireless Report is active and ready to view in your WebGUI. However, it is highly recommended to explore the Optional Configuration items in the menu before exiting.<br>
 \
 \
 $\color{blue}{\Large\text{OPTIONAL CONFIGURATION:}}$<br>
 
-$\color{green}{\text{Option (3):}}$ Regional Settings: Toggle between Fahrenheit (default) and Celsius. Selecting Celsius will also automatically adjust the date to a non-US format (DD/MM/YYYY). Default is $\color{green}{\text{(1)}}$, if you do nothing.<br>
+$\color{green}{\text{Option (3):}}$ Date/Time Settings: Toggle different date/time formats. Default is $\color{green}{\text{(1)}}$, if you do nothing.<br>
 
 ![Instructions2](https://raw.githubusercontent.com/JB1366/Wireless_Report/main/images/Instructions2.png)<br>
 \
@@ -70,7 +68,6 @@ $\color{green}{\text{Option (5):}}$ Edit Device Colors: Customize individual dev
 \
 $\color{green}{\text{Option (6):}}$ Set Options
  * $\color{blue}{\text{Toggle Runtime Tracking:}}$ Measures and displays the total duration of script scans across your router and nodes. Toggling this setting will also reset the execution counter.
- * $\color{blue}{\text{Toggle Wireless Backhaul:}}$ Toggles the visibility of dedicated node-to-router wireless backhaul links within the report tables.
  * $\color{blue}{\text{Configure Uptime Alert Pulse:}}$ Sets the frequency interval (Default: 15 mins, Max: 1440 mins) for checking and reporting system uptime fluctuations or heartbeat alerts.<br>
  * $\color{blue}{\text{Toggle RSSI Tooltips:}}$ Hover over any RSSI value to display a trend indicator with your configured history (up to 20 readings).<br>
  * $\color{blue}{\text{Set Theme:}}$ Switch between Original, Darkmode, and Asus WebUI theme styles.<br>
@@ -83,69 +80,14 @@ $\color{green}{\text{Option (6):}}$ Set Options
    * $\color{green}{\text{Colored Hostnames:}}$ The entire hostname text dynamically takes on the color of its connected node. The tracking superscripts are seamlessly hidden using invisible styling, preserving your right-click table sorting perfectly without breaking the visual layout.
 
 ![Instructions4](https://raw.githubusercontent.com/JB1366/Wireless_Report/main/images/Instructions4.png)<br>
-\
-\
-$\color{green}{\text{Option (7):}}$ Node Authentication: Streamlines node management by allowing on-the-fly syncing of new or disconnected AiMesh nodes.<br>
 
-![Instructions5](https://raw.githubusercontent.com/JB1366/Wireless_Report/main/images/Instructions5.png)<br>
-\
-\
-$\color{green}{\text{Option (8):}}$ Configure SSH Options:<br>
-* $\color{blue}{\text{Generate RSA Keys + Provision AiMesh Nodes:}}$ Generates new RSA key pairs and configures authentication between your primary router and all connected AiMesh nodes. This is the primary setup step for enabling secure, passwordless SSH communication across your mesh network.
-* $\color{blue}{\text{Remove RSA Keys:}}$ Purges existing RSA key pairs from the primary router's storage, memory, and NVRAM configuration. Use this option to completely reset your secure SSH environment or clear out old credentials before a clean reinstall.
-* $\color{blue}{\text{Provision Main Router-Only:}}$ Standalone Dashboard: A consolidated view for single-router setups. Select this if you do not have AiMesh nodes and want to display all connected devices grouped on a single screen.
-* $\color{blue}{\text{View Authorized Keys:}}$ Displays the contents of the authorized_keys file. This allows you to verify which public keys are currently permitted to access your router via SSH.
-* $\color{blue}{\text{View Known Hosts:}}$ Shows the list of hosts that your router has connected to and verified. This is useful for troubleshooting SSH "Host Key" verification errors when connecting between nodes.
-* $\color{blue}{\text{View SSH Error Log:}}$ Displays the recent logs generated by the SSH daemon (dropbear). Use this to diagnose connection failures, authentication timeouts, or configuration errors.
-* $\color{blue}{\text{Manage Node Authentication:}}$ Provides a status check and management interface for node-to-node authentication. This confirms if your nodes are correctly trusted and identifies any authentication gaps in your mesh topology.
 
-![Instructions10](https://raw.githubusercontent.com/JB1366/Wireless_Report/main/images/Instructions10.png)<br>
-\
-\
 $\color{blue}{\Large\text{VIEWING THE REPORT}}$<br>
 To access your data, navigate to Advanced Settings > Wireless in the ASUS WebGUI and select the Wireless Report tab on the far right.<br>
 \
 \
 $\color{blue}{\Large\text{KEY FEATURES + NAVIGATION}}$
 
-* $\color{green}{\text{Temp-Load:}}$ View real-time router temperature and system load. The dashboard uses dynamic, intuitive color cues to highlight performance status:
-
-<ul style="list-style-type: none; margin-top: 10px; margin-bottom: 10px;">
-    <li>
-      <table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse; text-align: left;">
-        <thead>
-          <tr style="background-color: #161b22;">
-            <td><strong>Metric</strong></td>
-            <th>$\color{blue}{\text{Cool Blue (Optimal)}}$</th>
-            <th>$\color{orange}{\text{Warm Orange (Elevated)}}$</th>
-            <th>$\color{red}{\text{Hot Red (Action Required)}}$</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><strong>Temp (°C)</strong></td>
-            <td>$\color{blue}{\text{Under 75°C}}$</td>
-            <td>$\color{orange}{\text{75°C to 90°C}}$</td>
-            <td>$\color{red}{\text{Over 90°C}}$</td>
-          </tr>
-          <tr>
-            <td><strong>Temp (°F)</strong></td>
-            <td>$\color{blue}{\text{Under 167°F}}$</td>
-            <td>$\color{orange}{\text{167°F to 194°F}}$</td>
-            <td>$\color{red}{\text{Over 194°F}}$</td>
-          </tr>
-          <tr>
-            <td><strong>CPU Load</strong></td>
-            <td>$\color{blue}{\text{Under 1.5}}$</td>
-            <td>$\color{orange}{\text{1.5 to 4.0}}$</td>
-            <td>$\color{red}{\text{Over 4.0}}$</td>
-          </tr>
-        </tbody>
-      </table>
-    </li>
-  </ul>
-
-* $\color{green}{\text{Auto-Refresh:}}$ The table automatically refreshes every time you navigate to the tab. To ensure data integrity, please allow at least 30 seconds between manual refreshes.
 * $\color{green}{\text{Unified Dashboard:}}$ View all connected clients across your entire mesh system in one place. The table includes Hostnames, IP/MAC Addresses, RSSI, RX/TX Rates, SSID/Interface, Band, and Client Uptime.
 * $\color{green}{\text{Interactive Sorting:}}$ Click any column header (except IP and SSID) to sort data alphabetically or numerically.
 * $\color{green}{\text{Device Summary:}}$ The header displays the Grand Total of connected devices, followed by a color-coded breakdown of exactly how many clients are on each specific Router or Node.
@@ -248,12 +190,6 @@ sh /jffs/addons/wireless_report/wirelessreport.sh install
    * Select Option (2) to uninstall the WR files.<br>
    * Once the cleanup is complete, press (e) to exit the terminal.<br>
 
-\
-\
-$\color{blue}{\Large\text{UNSUPPORTED MODELS}}$<br>
-```
-TUF-AX4200(MTK), RT-AX1800S(MTK), ZENWIFI_XD4_PLUS(MTK)
-```
 \
 \
 Wireless Report AiMesh is free to use under the [GNU General Public License version GPL 3.0](LICENSE)<br>
