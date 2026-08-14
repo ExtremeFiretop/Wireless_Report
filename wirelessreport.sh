@@ -409,7 +409,7 @@ do_uninstall() {
     unset RTIME CUR_DATE RS_HIST_DATE RS_HIST CUR_RS_HIST CUR_ENTRIES
     unset THEME IPPAD PULSE_MINS DISPLAY_UNIT HOST_COLOR MAIN_COLOR NODE_COLORS
 	echo -e "${GR}[+] Success: Wireless Report uninstalled.${NC}"
-	pause
+	exit 0
 }
 
 set_date_time() {
@@ -2800,7 +2800,6 @@ case "$1" in
         ;;
 	*)
         # Run (Scans)
-		startup
 		run_report
         ;;
 esac
