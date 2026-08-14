@@ -2743,6 +2743,7 @@ case "$1" in
         ;;
 	*)
         # Run (Scans)
+        startup
 		run_report
         ;;
 esac
