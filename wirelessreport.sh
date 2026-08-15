@@ -28,7 +28,7 @@
 #        shellcheck shell=sh disable=SC2086,SC2155,SC3043         #
 #=================================================================#
 
-SCRIPT_VERSION="3.0.9"
+SCRIPT_VERSION="3.0.10"
 INSTALL_DIR="/jffs/addons/wireless_report"
 REPORT_SCRIPT="$INSTALL_DIR/wirelessreport.sh"
 SYSTEM_MENU="/www/require/modules/menuTree.js"
@@ -66,6 +66,12 @@ show_header() {
 }
 
 install_menu() {
+    # The menu intentionally leaves the terminal in the blue theme between
+    # prompts. Always reset ANSI attributes when the interactive script exits,
+    # including Ctrl+C/TERM/HUP, so the parent shell/amtm prompt is not left
+    # colored after an interrupted menu session.
+    trap 'printf "\033[0m"' 0
+    trap 'exit 130' INT TERM HUP
 	while true; do
 		show_header
 		echo -e "${BL}=================================================="
@@ -394,16 +400,6 @@ check_github() {
     fi
 
     rm -f "$REMOTE_TMP"
-	GITHUB="https://raw.githubusercontent.com/JB1366/Wireless_Report/main/wirelessreport.sh"
-	LOCAL_HASH=$(sha256sum "$REPORT_SCRIPT" 2>/dev/null | awk '{print $1}')
-	REMOTE_TMP="/tmp/wr_remote.tmp"
-	if curl -sfL --retry 3 "$GITHUB" -o "$REMOTE_TMP" 2>/dev/null && [ -s "$REMOTE_TMP" ]; then
-		REMOTE_VERSION=$(grep "SCRIPT_VERSION=" "$REMOTE_TMP" | head -n 1 | cut -d'"' -f2 | tr -cd '0-9.')
-		REMOTE_HASH=$(sha256sum "$REMOTE_TMP" | awk '{print $1}')
-	else
-		REMOTE_VERSION=""; REMOTE_HASH=""
-	fi
-	rm -f "$REMOTE_TMP"
 }
 # this function gets deleted after a couple weeks, only for transition.
 get_usb() {
