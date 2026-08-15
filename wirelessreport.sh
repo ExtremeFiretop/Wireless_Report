@@ -101,10 +101,6 @@ install_menu() {
                     clear; hasta; exit 0
                     ;;
 				*) freeze2; continue ;;
-                    if [ -x "$REPORT_SCRIPT" ]; then reload_report; fi
-                    clear; hasta; exit 0 ;;
-				*)
-                    freeze2; continue ;;
 			esac
 		done
 	done
