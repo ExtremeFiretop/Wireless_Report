@@ -28,7 +28,7 @@
 #        shellcheck shell=sh disable=SC2086,SC2155,SC3043         #
 #=================================================================#
 
-SCRIPT_VERSION="3.0.12"
+SCRIPT_VERSION="3.1.2"
 INSTALL_DIR="/jffs/addons/wireless_report"
 REPORT_SCRIPT="$INSTALL_DIR/wirelessreport.sh"
 SYSTEM_MENU="/www/require/modules/menuTree.js"
