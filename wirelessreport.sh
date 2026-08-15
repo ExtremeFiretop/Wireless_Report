@@ -28,7 +28,7 @@
 #        shellcheck shell=sh disable=SC2086,SC2155,SC3043         #
 #=================================================================#
 
-SCRIPT_VERSION="3.0.3"
+SCRIPT_VERSION="3.0.4"
 INSTALL_DIR="/jffs/addons/wireless_report"
 REPORT_SCRIPT="$INSTALL_DIR/wirelessreport.sh"
 SYSTEM_MENU="/www/require/modules/menuTree.js"
@@ -381,10 +381,20 @@ get_usb() {
 
 mesh_init() {
 	VALID_NODES=""
-	MESH_NODES=$(nvram get asus_device_list | sed 's/</\n/g' | grep '>2$' | awk -F '>' '{print $2 "|" $3}' | sort -t . -k 4,4n)
-	if [ -z "$MESH_NODES" ]; then
-		MESH_NODES=$(nvram get cfg_device_list | sed 's/</\n/g' | grep '>0$' | awk -F '>' '{print $1 "|" $2}' | sort -t . -k 4,4n)
-	fi
+	local ASUS_NODES CFG_NODES MAIN_IP
+	MAIN_IP=$(nvram get lan_ipaddr)
+
+	# AiMesh inventory differs between firmware/node combinations.  Some mixed
+	# networks (notably stock-firmware nodes behind a Merlin primary) can be
+	# missing from asus_device_list while still being present in cfg_device_list.
+	# Merge both sources instead of treating cfg_device_list as fallback-only.
+	ASUS_NODES=$(nvram get asus_device_list | sed 's/</\n/g' | grep '>2$' | awk -F '>' '{print $2 "|" $3}')
+	CFG_NODES=$(nvram get cfg_device_list | sed 's/</\n/g' | grep '>0$' | awk -F '>' '{print $1 "|" $2}')
+
+	MESH_NODES=$(printf '%s\n%s\n' "$ASUS_NODES" "$CFG_NODES" | \
+		awk -F '|' -v main_ip="$MAIN_IP" '
+			NF >= 2 && $1 != "" && $2 != "" && $2 != main_ip && !seen[$2]++ { print $1 "|" $2 }
+		' | sort -t . -k 4,4n)
 }
 
 inject_menu() {
