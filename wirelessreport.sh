@@ -28,7 +28,7 @@
 #        shellcheck shell=sh disable=SC2086,SC2155,SC3043         #
 #=================================================================#
 
-SCRIPT_VERSION="3.0.9"
+SCRIPT_VERSION="3.1.2"
 INSTALL_DIR="/jffs/addons/wireless_report"
 REPORT_SCRIPT="$INSTALL_DIR/wirelessreport.sh"
 SYSTEM_MENU="/www/require/modules/menuTree.js"
@@ -66,6 +66,12 @@ show_header() {
 }
 
 install_menu() {
+    # The menu intentionally leaves the terminal in the blue theme between
+    # prompts. Always reset ANSI attributes when the interactive script exits,
+    # including Ctrl+C/TERM/HUP, so the parent shell/amtm prompt is not left
+    # colored after an interrupted menu session.
+    trap 'printf "\033[0m"' 0
+    trap 'exit 130' INT TERM HUP
 	while true; do
 		show_header
 		echo -e "${BL}=================================================="
@@ -394,16 +400,6 @@ check_github() {
     fi
 
     rm -f "$REMOTE_TMP"
-	GITHUB="https://raw.githubusercontent.com/JB1366/Wireless_Report/main/wirelessreport.sh"
-	LOCAL_HASH=$(sha256sum "$REPORT_SCRIPT" 2>/dev/null | awk '{print $1}')
-	REMOTE_TMP="/tmp/wr_remote.tmp"
-	if curl -sfL --retry 3 "$GITHUB" -o "$REMOTE_TMP" 2>/dev/null && [ -s "$REMOTE_TMP" ]; then
-		REMOTE_VERSION=$(grep "SCRIPT_VERSION=" "$REMOTE_TMP" | head -n 1 | cut -d'"' -f2 | tr -cd '0-9.')
-		REMOTE_HASH=$(sha256sum "$REMOTE_TMP" | awk '{print $1}')
-	else
-		REMOTE_VERSION=""; REMOTE_HASH=""
-	fi
-	rm -f "$REMOTE_TMP"
 }
 # this function gets deleted after a couple weeks, only for transition.
 get_usb() {
@@ -712,6 +708,21 @@ hex_to_ansi() {
     esac
 }
 
+get_node_nick() {
+    local node_ip="$1" key
+    key="NODE_NICK_$(printf '%s' "$node_ip" | tr '.' '_')"
+
+    [ -f "$CONFIG" ] || return 0
+    awk -v key="$key" '
+        index($0, key "=\"") == 1 {
+            value = substr($0, length(key) + 3)
+            sub(/\"$/, "", value)
+            print value
+            exit
+        }
+    ' "$CONFIG" 2>/dev/null
+}
+
 set_colors() {
     local main_name=$(nvram get productid); local main_ip=$(nvram get lan_ipaddr)
     local m_color_hex="" current_colors=""
@@ -745,9 +756,7 @@ set_colors() {
             local node_ip="${node#*|}"
             local default_nick="${node%%|*}"
             local active_color=$(echo "$working_colors" | awk -v col="$idx" '{print $col}')
-            local ip_underscores="${node_ip//./_}"
-            local nick_var_name="NODE_NICK_${ip_underscores}"
-            local node_display_name=$(eval echo \"\${$nick_var_name}\")
+            local node_display_name=$(get_node_nick "$node_ip")
             node_display_name="${node_display_name:-$default_nick}"
             local display_color=$(hex_to_ansi "$active_color")
             local formatted_ip=$(printf "(%s)" "$node_ip")
@@ -769,12 +778,14 @@ set_colors() {
                 target_name="${MAIN_NICK:-$main_name}"
                 target_hex="$m_color_hex"
             else
-                local target_node=$(echo "$MESH_NODES" | awk -v n="$node_choice" '{print $n}')
-                local target_ip=$(echo "$target_node" | cut -d'|' -f2)
-                local target_ip_underscores=$(echo "$target_ip" | tr '.' '_')
-                local target_nick_var="NODE_NICK_${target_ip_underscores}"
-                target_name=$(eval echo \"\${$target_nick_var}\")
-                target_name="${target_name:-$(echo "$target_node" | cut -d'|' -f1)}"
+                # MESH_NODES is one node per line. Select by record number, not
+                # by awk field number; '$n' returned every line for choice 1 and
+                # produced a multi-line variable name that made eval fail with
+                # "bad substitution" on multi-node systems.
+                local target_node=$(printf '%s\n' "$MESH_NODES" | awk -v n="$node_choice" 'NR == n { print; exit }')
+                local target_ip=$(printf '%s\n' "$target_node" | cut -d'|' -f2)
+                target_name=$(get_node_nick "$target_ip")
+                target_name="${target_name:-$(printf '%s\n' "$target_node" | cut -d'|' -f1)}"
                 target_hex=$(echo "$working_colors" | awk -v col="$node_choice" '{print $col}')
             fi
             local target_prompt_color=$(hex_to_ansi "$target_hex")
@@ -1173,6 +1184,23 @@ set_theme; check_version header_box; update_time
 IPPAD=${IPPAD:-1}; HOST_COLOR=${HOST_COLOR:-0}; PULSE_MINS=${PULSE_MINS:-15}
 : "${MAIN_COLOR:=#0096ff}"
 : "${NODE_COLORS:=#30d158 #bf40bf #ffd60a #64d2ff #ff9500 #ff453a #ffffff #ff70a6 #64ffda}"
+
+# NODE_COLORS is configured positionally by the shell menu, whose MESH_NODES
+# inventory is sorted by node IP. Publish an IP-keyed map into the generated
+# page so browser API ordering (and omitted/offline nodes) cannot shift colors.
+NODE_COLOR_JS=""
+node_color_idx=1
+for node in $MESH_NODES; do
+    node_ip=${node#*|}
+    node_hex=$(printf '%s\n' "$NODE_COLORS" | awk -v i="$node_color_idx" '{print $i}')
+    [ -z "$node_hex" ] && node_hex="#30d158"
+    case "$node_ip" in
+        *[!0-9.]*|'') ;;
+        *) NODE_COLOR_JS="${NODE_COLOR_JS}WR_NODE_COLOR_BY_IP['${node_ip}']='${node_hex}';" ;;
+    esac
+    node_color_idx=$((node_color_idx + 1))
+done
+
 TEMP_STYLE="text-align: center; justify-content: center;"
 UPTIME_STYLE="text-align: center; justify-content: center;"
 if [ "$HOST_COLOR" = "1" ]; then IP_COLOR=""; MAC_COLOR="color: #64d2ff;"
@@ -1367,6 +1395,8 @@ cat <<HTML >> "$WEB_PAGE"
 <script>
 var WR_CUSTOM_NODE_NAMES = {};
 $NODE_NICK_JS
+var WR_NODE_COLOR_BY_IP = {};
+$NODE_COLOR_JS
 
 var WR_CONFIG = {
     mainColor: "$MAIN_COLOR",
@@ -1493,7 +1523,13 @@ function wrFirst(obj, keys) {
     return '';
 }
 
-function wrNodeColor(index) {
+function wrNodeColor(index, node) {
+    // Shell color choices are tied to the IP-sorted node inventory. ASUS'
+    // get_cfg_clientlist() does not guarantee that same order, so resolve the
+    // configured color by node IP first. Positional lookup remains a fallback
+    // for older/generated pages without the keyed map.
+    var ip = String(wrFirst(node, ['ip', 'ip_addr', 'ipAddr']) || '').trim();
+    if (ip && WR_NODE_COLOR_BY_IP[ip]) return WR_NODE_COLOR_BY_IP[ip];
     if (!WR_CONFIG.nodeColors.length) return '#30d158';
     return WR_CONFIG.nodeColors[index % WR_CONFIG.nodeColors.length] || '#30d158';
 }
@@ -1839,8 +1875,35 @@ function wrSavedClient(saved, macRaw, mac) {
     return saved[macRaw] || saved[mac] || saved[String(mac).toLowerCase()] || {};
 }
 
-function wrStaSsidNvramKey(sta) {
-    var iface = String(sta && sta.conn_if || '').trim();
+function wrStaIface(sta, client) {
+    // Prefer ASUS' explicit interface string whenever stainfo supplies it.
+    var direct = String(sta && sta.conn_if || '').trim();
+    if (direct) return direct;
+
+    // 388-series conn_diag can return a valid station sample (RSSI/rates/uptime)
+    // with conn_if blank while still supplying the radio/virtual-interface
+    // indexes. Reconstruct the same ASUS wlX[.Y] form from that row instead of
+    // showing an empty IFACE. Keep this compatibility reconstruction legacy-only
+    // so the working 3006/latest path is unchanged.
+    if (WR_DIAG_API === 'legacy' && sta) {
+        var idxRaw = sta.conn_if_idx;
+        var vidxRaw = sta.conn_if_vidx;
+        var idx = Number(idxRaw);
+        var vidx = Number(vidxRaw);
+        var idxValid = idxRaw !== undefined && idxRaw !== null && String(idxRaw).trim() !== '' &&
+            Number.isFinite(idx) && Math.floor(idx) === idx && idx >= 0;
+        var vidxValid = vidxRaw !== undefined && vidxRaw !== null && String(vidxRaw).trim() !== '' &&
+            Number.isFinite(vidx) && Math.floor(vidx) === vidx && vidx >= 0;
+        if (idxValid) return 'wl' + idx + (vidxValid && vidx > 0 ? '.' + vidx : '');
+    }
+
+    // Last resort for either API family: use the live client interface if ASUS
+    // exposes one there. Importantly, do this even when a sta object exists.
+    return String(wrFirst(client, ['ifname', 'interface']) || '').trim();
+}
+
+function wrStaSsidNvramKey(sta, client) {
+    var iface = wrStaIface(sta, client);
     if (!/^wl[0-9]+(?:\.[0-9]+)?$/i.test(iface)) return '';
     return iface.toLowerCase() + '_ssid';
 }
@@ -1885,7 +1948,7 @@ async function wrResolveClientSsids(items, allNodes, mainMac) {
         // Primary-router interface names belong to the primary, so an exact
         // <conn_if>_ssid lookup is valid here and retains guest/virtual SSIDs.
         primaryMissing.push(item);
-        var key = wrStaSsidNvramKey(item.sta);
+        var key = wrStaSsidNvramKey(item.sta, item.client);
         if (key) primaryKeys.add(key);
     });
 
@@ -1913,7 +1976,7 @@ async function wrResolveClientSsids(items, allNodes, mainMac) {
         // Never replace a virtual-interface SSID with the main radio's SSID if
         // the exact primary NVRAM lookup failed. For a non-virtual interface,
         // the primary's advertised band SSID is a safe final fallback.
-        var iface = String(sta && sta.conn_if || '');
+        var iface = wrStaIface(sta, item.client);
         var vidx = wrNumber(sta && sta.conn_if_vidx);
         var isVirtual = iface.indexOf('.') !== -1 || (Number.isFinite(vidx) && vidx > 0);
         if (!isVirtual) item.resolvedSsid = wrNodeBandSsid(mainNode, sta, item.client) || '';
@@ -2304,7 +2367,7 @@ function wrRenderRow(item, history, known, firstHistoryLoad) {
     var ip = rawIp.length > 15 ? rawIp.slice(0, 15) : rawIp;
     var name = rawName.length > 20 ? rawName.slice(0, 20) : rawName;
     var ssid = rawSsid;
-    var iface = sta ? (sta.conn_if || '') : wrFirst(c, ['ifname', 'interface']);
+    var iface = wrStaIface(sta, c);
     var rssi = sta && sta.sta_rssi !== undefined ? wrNumber(sta.sta_rssi) : wrNumber(c.rssi);
     var rx = sta && sta.sta_rx !== undefined ? Math.round(wrNumber(sta.sta_rx)) : Math.round(wrNumber(c.curRx));
     var tx = sta && sta.sta_tx !== undefined ? Math.round(wrNumber(sta.sta_tx)) : Math.round(wrNumber(c.curTx));
@@ -2314,7 +2377,7 @@ function wrRenderRow(item, history, known, firstHistoryLoad) {
     var isNew = !firstHistoryLoad && !known[mac] ? 'new-device-row' : '';
     var nodeMarker = '';
     if (item.node) {
-        var markerColor = wrNodeColor(item.nodeIndex);
+        var markerColor = wrNodeColor(item.nodeIndex, item.node);
         var hiddenNodeNum = "<span class='hidden-node-number' style='display:none;'>" + (item.nodeIndex + 1) + "</span>";
         var nodeMarker = "<sup style='color:" + markerColor + ";'>" + (item.nodeIndex + 1) + "</sup>";
         if (WR_CONFIG.hostColor) {
@@ -2498,6 +2561,18 @@ async function loadWirelessReport() {
         if (mac) offlineNodeMacs.add(mac);
         return false;
     });
+
+    // Match the shell menus' deterministic IP order. get_cfg_clientlist() can
+    // return AiMesh nodes in a different order, which previously juxtaposed
+    // node names, numeric markers and positional colors in the WebUI.
+    nodes.sort(function(a, b) {
+        var aip = String(wrFirst(a, ['ip', 'ip_addr', 'ipAddr']) || '');
+        var bip = String(wrFirst(b, ['ip', 'ip_addr', 'ipAddr']) || '');
+        var cmp = wrIpSort(aip).localeCompare(wrIpSort(bip));
+        if (cmp) return cmp;
+        return wrNormMac(a.mac || a.mac_addr).localeCompare(wrNormMac(b.mac || b.mac_addr));
+    });
+
     var nodeByMac = new Map();
     nodes.forEach(function(node, index) {
         var mac = wrNormMac(node.mac || node.mac_addr);
@@ -2607,7 +2682,7 @@ async function loadWirelessReport() {
         var mac = wrNormMac(node.mac || node.mac_addr);
         var ip = String(wrFirst(node, ['ip', 'ip_addr', 'ipAddr']) || '');
         var name = wrNodeDisplayName(node);
-        var color = wrNodeColor(index);
+        var color = wrNodeColor(index, node);
         var marker = (WR_CONFIG.hostColor === 0 && nodes.length > 1) ? '<sup>' + (index + 1) + '</sup>' : '';
         // var marker = '';
         var diag = diagByMac.get(mac);
