@@ -28,7 +28,7 @@
 #        shellcheck shell=sh disable=SC2086,SC2155,SC3043         #
 #=================================================================#
 
-SCRIPT_VERSION="3.0.7"
+SCRIPT_VERSION="3.0.8"
 INSTALL_DIR="/jffs/addons/wireless_report"
 REPORT_SCRIPT="$INSTALL_DIR/wirelessreport.sh"
 SYSTEM_MENU="/www/require/modules/menuTree.js"
@@ -1568,6 +1568,36 @@ function wrBandName(band) {
     return map[String(band || '')] || String(band || '');
 }
 
+function wrNormalizeBand(band) {
+    var value = String(band || '').trim().toUpperCase();
+    if (value === '2G' || value === '2.4G') return '2G';
+    if (value === '5G') return '5G';
+    if (value === '5G1' || value === '5G-2') return '5G1';
+    if (value === '5G2' || value === '5G-3') return '5G2';
+    if (value === '6G') return '6G';
+    if (value === '6G1' || value === '6G-2') return '6G1';
+    if (value === '6G2' || value === '6G-3') return '6G2';
+    return value;
+}
+
+function wrClientBandHint(client) {
+    if (!client) return '';
+
+    // On the affected 388 client list, isWL remains tied to the actual
+    // association while conn_diag/stainfo can intermittently surface a stale
+    // active sample from another radio. Only use the two values proven on this
+    // firmware family; leave unknown/tri-band values to stainfo unchanged.
+    var raw = client.isWL;
+    if (raw !== undefined && raw !== null && raw !== '') {
+        var value = String(raw).trim();
+        if (value === '1') return '2G';
+        if (value === '2') return '5G';
+    }
+
+    var named = wrNormalizeBand(wrFirst(client, ['band', 'wlBand']));
+    return named || '';
+}
+
 function wrWidth(code) {
     var map = { 0: '', 1: '20', 2: '40', 3: '80', 4: '160', 5: '320' };
     var n = Number(code);
@@ -1575,8 +1605,15 @@ function wrWidth(code) {
 }
 
 function wrBandHtml(sta, client) {
-    var band = sta ? wrBandName(sta.sta_band) : String(wrFirst(client, ['band', 'wlBand']) || '');
-    var width = sta ? wrWidth(sta.bw) : '';
+    var staBand = wrNormalizeBand(sta && sta.sta_band);
+    var clientBand = WR_DIAG_API === 'legacy' ? wrClientBandHint(client) : '';
+    var mismatch = Boolean(staBand && clientBand && staBand !== clientBand);
+    var selectedBand = mismatch ? clientBand : (staBand || clientBand);
+    var band = selectedBand ? wrBandName(selectedBand) : String(wrFirst(client, ['band', 'wlBand']) || '');
+
+    // A mismatched legacy stainfo sample can carry the other radio's channel
+    // width too. Do not display that width if the live client band disagrees.
+    var width = sta && !mismatch ? wrWidth(sta.bw) : '';
 
     // Fallback to '2.4G (20)' if both band and width evaluate to empty
     var label = (band + (width ? ' (' + width + ')' : '')).trim() || '2.4G (20)';
@@ -1753,9 +1790,10 @@ function wrStaSsidNvramKey(sta) {
     return iface.toLowerCase() + '_ssid';
 }
 
-function wrNodeBandSsid(node, sta) {
-    if (!node || !sta) return '';
-    var band = String(sta.sta_band || '').trim().toUpperCase();
+function wrNodeBandSsid(node, sta, client) {
+    if (!node) return '';
+    var band = WR_DIAG_API === 'legacy' ? wrClientBandHint(client) : '';
+    if (!band) band = wrNormalizeBand(sta && sta.sta_band);
     if (band === '2G' || band === '2.4G') return wrFirst(node, ['ap2g_ssid']);
     if (band === '5G') return wrFirst(node, ['ap5g_ssid']);
     if (band === '5G1') return wrFirst(node, ['ap5g1_ssid']);
@@ -1785,7 +1823,7 @@ async function wrResolveClientSsids(items, allNodes, mainMac) {
         if (item.resolvedSsid) return;
 
         if (item.node) {
-            item.resolvedSsid = wrNodeBandSsid(item.node, item.sta) || '';
+            item.resolvedSsid = wrNodeBandSsid(item.node, item.sta, item.client) || '';
             return;
         }
 
@@ -1823,7 +1861,7 @@ async function wrResolveClientSsids(items, allNodes, mainMac) {
         var iface = String(sta && sta.conn_if || '');
         var vidx = wrNumber(sta && sta.conn_if_vidx);
         var isVirtual = iface.indexOf('.') !== -1 || (Number.isFinite(vidx) && vidx > 0);
-        if (!isVirtual) item.resolvedSsid = wrNodeBandSsid(mainNode, sta) || '';
+        if (!isVirtual) item.resolvedSsid = wrNodeBandSsid(mainNode, sta, item.client) || '';
     });
 }
 
@@ -2143,10 +2181,11 @@ async function wrGetStaRows(nodeMac) {
     }
 }
 
-async function wrGetSta(nodeMac, staMac) {
+async function wrGetSta(nodeMac, staMac, expectedBand) {
     try {
         var targetNode = wrNormMac(nodeMac);
         var targetSta = wrNormMac(staMac);
+        var targetBand = wrNormalizeBand(expectedBand);
         var filter =
             'node_mac>txt>' + targetNode + '>0;' +
             'sta_mac>txt>' + targetSta + '>0;' +
@@ -2154,14 +2193,19 @@ async function wrGetSta(nodeMac, staMac) {
         var data = await wrDiag('stainfo', WR_STA_COLUMNS.join(';'), filter);
         var rows = data && Array.isArray(data.contents) ? data.contents : [];
         var latest = null;
+        var latestBandMatch = null;
 
         rows.forEach(function(row) {
             var obj = wrStaFromRow(row);
             if (!obj || wrNormMac(obj.node_mac) !== targetNode ||
                 wrNormMac(obj.sta_mac) !== targetSta || String(obj.sta_active) !== '1') return;
             if (!latest || Number(obj.data_time) > Number(latest.data_time)) latest = obj;
+            if (targetBand && wrNormalizeBand(obj.sta_band) === targetBand &&
+                (!latestBandMatch || Number(obj.data_time) > Number(latestBandMatch.data_time))) {
+                latestBandMatch = obj;
+            }
         });
-        return latest;
+        return latestBandMatch || latest;
     } catch (_) {
         return null;
     }
@@ -2330,6 +2374,7 @@ async function wrResolveSta(item, staMaps) {
     if (!nodeMac) return null;
     var map = staMaps.get(nodeMac);
     var candidates = wrGetMloCandidates(item.mac, item.client, item.saved);
+    var expectedBand = WR_DIAG_API === 'legacy' ? wrClientBandHint(item.client) : '';
     var best = null;
     if (map) {
         candidates.forEach(function(candidate) {
@@ -2337,18 +2382,29 @@ async function wrResolveSta(item, staMaps) {
             if (found && (!best || Number(found.data_time) > Number(best.data_time))) best = found;
         });
     }
-    if (best) return best;
+
+    // On some 388 AiMesh nodes conn_diag can leave more than one radio sample
+    // marked active for the same station. The broad node query then occasionally
+    // hands us the other radio (for example 2G while get_clientlist().isWL still
+    // identifies the client as 5G). Accept the batch fast-path only when its band
+    // agrees with that live-client hint; otherwise do the exact per-client query
+    // and prefer the newest row from the expected band.
+    if (best && (!expectedBand || wrNormalizeBand(best.sta_band) === expectedBand)) return best;
+
+    var fallback = best;
 
     // ASUS get_diag_latest_content_data.cgi returns only one/latest matching
     // stainfo row for a broad node_mac query on the tested GT-BE98 Pro.
     // Therefore the batch map is only a fast-path hint, not a complete station
     // inventory. Fall back to the proven per-client node_mac + sta_mac query
-    // for BOTH primary-router and AiMesh-node clients when the batch map misses.
+    // for BOTH primary-router and AiMesh-node clients when the batch map misses
+    // or a legacy batch row disagrees with the live-client band.
+    best = null;
     for (var i = 0; i < candidates.length; i++) {
-        var found = await wrGetSta(nodeMac, candidates[i]);
+        var found = await wrGetSta(nodeMac, candidates[i], expectedBand);
         if (found && (!best || Number(found.data_time) > Number(best.data_time))) best = found;
     }
-    return best;
+    return best || fallback;
 }
 
 async function loadWirelessReport() {
