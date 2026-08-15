@@ -120,12 +120,6 @@ $\color{blue}{\Large\text{SIDE-BY-SIDE VIEW - COLORED HOSTNAMES - DARK MODE}}$<b
 
 \
 \
-$\color{blue}{\Large\text{ROUTER ONLY VIEW - ORIGINAL MODE}}$
-
-![Instructions9](https://raw.githubusercontent.com/JB1366/Wireless_Report/main/images/Instructions9.png)
-
-\
-\
 $\color{blue}{\Large\text{ADVANCED VIEWING + INTERACTIVE FEATURES}}$<br>
 Wireless Report is designed to be more than just a static table. Use these interactive elements to manage your network:
   * $\color{green}{\text{Version, Hash + Update Alerts:}}$ Hover your mouse over the "Wireless Report" header to instantly check your current script version and view file hash updates—when an update or hash change is available, the header text softly pulses twice to catch your eye. Additionally, the browser tab title displays the active Wireless Report version, dynamically appending an alert whenever a new version or hash update is detected.
@@ -174,7 +168,7 @@ Once configured, simply typing wr from any location in the SSH terminal will lau
 \
 \
 $\color{blue}{\Large\text{UNINSTALL}}$<br>
-If you need to remove Wireless Report AiMesh, you can do so through the installer menu. Both methods below will strip the script files and remove the WebGUI tab.
+If you need to remove Wireless Report, you can do so through the installer menu. Both methods below will strip the script files and remove the WebGUI tab.
 
 $\color{green}{\text{Method A:}}$ Via amtm<br>
    * Open the amtm menu and type wr.<br>
@@ -192,13 +186,13 @@ sh /jffs/addons/wireless_report/wirelessreport.sh install
 
 \
 \
-Wireless Report AiMesh is free to use under the [GNU General Public License version GPL 3.0](LICENSE)<br>
+Wireless Report is free to use under the [GNU General Public License version GPL 3.0](LICENSE)<br>
 \
 \
 If you have any questions, please feel free to post in this thread [Wireless Report @ SNB Forums](https://www.snbforums.com/threads/96861/latest)<br>
 \
 \
-[![Donate](https://img.shields.io/badge/Donate-PayPal-blue.svg)](https://www.paypal.com/paypalme/JB1366) [Support the development of Wireless Report AiMesh](https://www.paypal.com/paypalme/JB1366) [![Donate](https://img.shields.io/badge/Donate-PayPal-blue.svg)](https://www.paypal.com/paypalme/JB1366)<br>
+[![Donate](https://img.shields.io/badge/Donate-PayPal-blue.svg)](https://www.paypal.com/paypalme/JB1366) [Support the development of Wireless Report](https://www.paypal.com/paypalme/JB1366) [![Donate](https://img.shields.io/badge/Donate-PayPal-blue.svg)](https://www.paypal.com/paypalme/JB1366)<br>
 \
 \
 [View Changelog](changelog.txt)

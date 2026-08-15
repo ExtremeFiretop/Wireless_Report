@@ -2,6 +2,9 @@
 # Wireless Report - Changelog #
 #=============================#
 
+v3.1.2-fixed AiMesh WebUI node order/color mismatch by matching shell IP order and keying configured node colors by IP.
+v3.1.1-fixed intermittent/missing IFACE on 388-series firmware by reconstructing wlX[.Y] from stainfo interface indexes when conn_if is blank.
+v3.1.0-fixed legacy firmware sha256sum errors and reset terminal ANSI colors when the interactive menu is interrupted.
 v3.0.9-added portable SHA-256 local/remote update comparison with compatibility fallback for firmware lacking sha256sum.
 v3.0.8-stabilized 388-series AiMesh band/SSID reporting by rejecting mismatched legacy stainfo radio samples.
 v3.0.7-fixed first-install WebUI ordering by generating the complete report page before addon binding/httpd restart.
