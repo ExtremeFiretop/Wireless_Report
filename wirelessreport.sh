@@ -175,7 +175,7 @@ menu_vars() {
     if [ "$REPORT_UNIT" = "ISO" ]; then DU="${GR}ISO${NC}"
     elif [ "$REPORT_UNIT" = "C" ]; then DU="${GR}INTL${NC}"
     else DU="${GR}USA${NC}"; fi
-	DATE_USA=$(date +"%b-%d"); DATE_INTL=$(date +"%d-%b"); DATE_ISO=$(date +"%Y-%m-%d")
+	DATE_USA="${GR}$(date +"%b-%d")${NC}"; DATE_INTL="${GR}$(date +"%d-%b")${NC}"; DATE_ISO="${GR}$(date +"%Y-%m-%d")${NC}"
 	RTIME=${RTIME:-1}; if [ "$RTIME" = "0" ]; then RT_STAT="$OFF"; else RT_STAT="$ON"; fi
     PULSE_MINS=${PULSE_MINS:-15}
     if [ "$PULSE_MINS" = "0" ]; then UP_STAT="$OFF"; else UP_STAT="${GR}${PULSE_MINS} Mins${NC}"; fi
@@ -417,14 +417,14 @@ set_date_time() {
     while true; do
         show_header
         echo -e "${BL}=================================================="
-        echo -e "${NC}                Set Date/Time                     "
+        echo -e "${NC}                 Set Date/Time                    "
         echo -e "${BL}=================================================="
         echo -e "${NC}  Format: $DU            Date: $CT                "
         echo -e "${BL}=================================================="
         echo -e "                                                       "
-        echo -e "  $N1  USA                       (${GR}$DATE_USA${NC}) "
-        echo -e "  $N2  INTERNATIONAL             (${GR}$DATE_INTL${NC})"
-        echo -e "  $N3  ISO                       (${GR}$DATE_ISO${NC}) "
+        echo -e "  $N1  USA                          ($DATE_USA)        "
+        echo -e "  $N2  INTERNATIONAL                ($DATE_INTL)       "
+        echo -e "  $N3  ISO                          ($DATE_ISO)        "
         echo -e "                                                       "
         echo -e "  $NE  Back to main menu                               "
         echo -e "                                                       "
