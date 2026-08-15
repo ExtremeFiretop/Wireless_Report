@@ -204,12 +204,6 @@ menu_vars() {
 	else HN_STAT="${GR}Numbered${NC}"; fi
 }
 
-reload_report() {
-    if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
-    startup
-    run_report
-}
-
 do_install() {
 	mkdir -p "$INSTALL_DIR" 2>/dev/null
     if [ ! -f "$CONFIG" ]; then touch "$CONFIG"; fi
