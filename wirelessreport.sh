@@ -28,7 +28,7 @@
 #        shellcheck shell=sh disable=SC2086,SC2155,SC3043         #
 #=================================================================#
 
-SCRIPT_VERSION="3.0.0"
+SCRIPT_VERSION="3.0.4"
 INSTALL_DIR="/jffs/addons/wireless_report"
 REPORT_SCRIPT="$INSTALL_DIR/wirelessreport.sh"
 SYSTEM_MENU="/www/require/modules/menuTree.js"
@@ -95,7 +95,18 @@ install_menu() {
 						6) set_options ;;
 					esac
 					break ;;
-				e|E) inject_menu; clear; hasta; exit 0 ;;
+				e|E)
+                    # Config-only changes do not require rebuilding/remounting
+                    # the addon menu. Regenerate the bound report page using a
+                    # fresh process so webui.conf and any newly installed code
+                    # are re-read before the next browser refresh.
+                    if [ -x "$REPORT_SCRIPT" ]; then
+                        "$REPORT_SCRIPT" reload
+                    else
+                        reload_report
+                    fi
+                    clear; hasta; exit 0
+                    ;;
 				*) freeze2; continue ;;
 			esac
 		done
@@ -211,12 +222,12 @@ do_install() {
             printf "Do you want to $UP (y/n): "; read -r update
             case "$update" in [yY]) break ;; [nN]) return ;; *) printf "\033[4A\033[J" ;; esac; done
     fi
-    do_update || return 1
-    echo -e "\n${GR}[+] Downloading latest version (${NC}v$REMOTE_VERSION${GR})${NC}"
+    do_update "$is_update" || return 1
+    echo -e "\n${GR}[+] Installing Wireless Report (${NC}v${INSTALL_VERSION:-$REMOTE_VERSION}${GR})${NC}"
 	if [ "$is_update" = "1" ]; then
 		echo -e "\n${BL}[✓] Wireless Report successfully installed.${NC}"
 		printf "\nPress ${BL}[Enter]${NC} to apply changes & restart script..."; read -r discard
-		logger -p user.info -t "Wireless_Report" "(v$REMOTE_VERSION) successfully installed."
+		logger -p user.info -t "Wireless_Report" "(v${INSTALL_VERSION:-$REMOTE_VERSION}) successfully installed."
         exec "$REPORT_SCRIPT" install "$@"
 		echo -e "${RD}Error: Failed to restart script!${NC}" >&2
 		exit 1
@@ -231,8 +242,8 @@ do_install() {
     sed -i "\|$REPORT_SCRIPT|d" "$SS_FILE" 2>/dev/null
     echo "$REPORT_SCRIPT inject & # Inject Wireless Report" >> "$SS_FILE"
     chmod +x "$SS_FILE"
-    install=""; SCRIPT_VERSION="$REMOTE_VERSION"
-    logger -p user.info -t "Wireless_Report" "(v$REMOTE_VERSION) successfully installed."
+    install=""; SCRIPT_VERSION="${INSTALL_VERSION:-$REMOTE_VERSION}"
+    logger -p user.info -t "Wireless_Report" "(v$SCRIPT_VERSION) successfully installed."
     echo -e "${GR}[✓] SUCCESS: Installation complete!${NC}\n"
     echo -e "${YL}[i] To access Report, navigate to Advanced Settings > Wireless "
     echo -e "${YL}    in the ASUS WebGUI and select the Wireless Report tab on the far right.${NC}\n"
@@ -241,33 +252,51 @@ do_install() {
 
 do_update() {
     TEMP_SCRIPT="/tmp/wirelessreport.sh"
+    local is_update="${1:-1}"
+    local CURRENT_PATH; local TARGET_PATH
+    CURRENT_PATH=$(readlink -f "$0" 2>/dev/null)
+    [ -z "$CURRENT_PATH" ] && CURRENT_PATH="$0"
+    TARGET_PATH=$(readlink -f "$REPORT_SCRIPT" 2>/dev/null)
+    [ -z "$TARGET_PATH" ] && TARGET_PATH="$REPORT_SCRIPT"
+
+    # Existing installs already have their WebUI page registered and bind
+    # mounted. Regenerate that page in-place with the newly installed script;
+    # only a first install needs the heavier inject_menu path.
+    apply_updated_report() {
+        SE_FILE="/jffs/scripts/service-event"; sed -i "/wireless_report/d" "$SE_FILE"
+        get_usb
+        if [ "$is_update" = "1" ]; then
+            "$REPORT_SCRIPT" reload || return 1
+        else
+            inject_menu
+        fi
+        case "$USB_PATH" in *wirelessreport*) rm -rf "$USB_PATH" 2>/dev/null ;; esac
+    }
+
+    # When install is explicitly launched from a different local file (for
+    # example /tmp/wirelessreport.sh), install THAT supplied build. A fresh
+    # process then runs reload so the just-copied code, not the old in-memory
+    # functions, generates the report page.
+    if [ "$CURRENT_PATH" != "$TARGET_PATH" ]; then
+        INSTALL_VERSION="$SCRIPT_VERSION"
+        echo -e "\n${YL}[i] Installing supplied local copy (v$SCRIPT_VERSION)...${NC}\n"
+        cp "$0" "$REPORT_SCRIPT" || return 1
+        chmod +x "$REPORT_SCRIPT" 2>/dev/null
+        apply_updated_report || return 1
+        return 0
+    fi
+
+    # Normal update initiated by the already-installed script: fetch upstream.
     if curl -sfL --retry 3 "$GITHUB" -o "$TEMP_SCRIPT" && [ -s "$TEMP_SCRIPT" ]; then
+        INSTALL_VERSION="$REMOTE_VERSION"
         mv "$TEMP_SCRIPT" "$REPORT_SCRIPT"
         chmod +x "$REPORT_SCRIPT" 2>/dev/null
-        SE_FILE="/jffs/scripts/service-event"; sed -i "/wireless_report/d" "$SE_FILE"
-        get_usb; inject_menu
-        case "$USB_PATH" in *wirelessreport*) rm -rf "$USB_PATH" 2>/dev/null ;; esac
+        apply_updated_report || return 1
         return 0
     else
         rm -f "$TEMP_SCRIPT"
-        if [ ! -f "$0" ]; then
-            echo -e "${RD}[!] Download failed. Aborting installation.${NC}"
-            return 1
-        fi
-        local CURRENT_PATH; local TARGET_PATH
-        CURRENT_PATH=$(readlink -f "$0" 2>/dev/null)
-        [ -z "$CURRENT_PATH" ] && CURRENT_PATH="$0"
-        TARGET_PATH=$(readlink -f "$REPORT_SCRIPT" 2>/dev/null)
-        [ -z "$TARGET_PATH" ] && TARGET_PATH="$REPORT_SCRIPT"
-        if [ "$CURRENT_PATH" != "$TARGET_PATH" ]; then
-            echo -e "\n${YL}[!] GitHub unreachable. Installing current local copy...${NC}\n"
-            cp "$0" "$REPORT_SCRIPT"
-            chmod +x "$REPORT_SCRIPT" 2>/dev/null
-            return 0
-        else
-            echo -e "${RD}[!] GitHub unreachable and script is already in place.${NC}"
-            return 1
-        fi
+        echo -e "${RD}[!] GitHub unreachable and script is already in place.${NC}"
+        return 1
     fi
 }
 
@@ -279,7 +308,7 @@ ScriptUpdateFromAMTM() {
     fi
     if [ "$1" = "check" ]; then return 0; fi
 	check_github
-    if do_update; then
+    if do_update 1; then
         echo -e "\n  [+] Downloading latest version (v$REMOTE_VERSION)\n"
         echo -e "\n  [✓] Wireless Report successfully updated.\n"
 		logger -p user.info -t "Wireless_Report" "AMTM Update: (v$REMOTE_VERSION) successfully installed."
@@ -290,16 +319,29 @@ ScriptUpdateFromAMTM() {
 }
 
 check_github() {
-	GITHUB="https://raw.githubusercontent.com/JB1366/Wireless_Report/main/wirelessreport.sh"
-	LOCAL_HASH=$(sha256sum "$REPORT_SCRIPT" 2>/dev/null | awk '{print $1}')
-	REMOTE_TMP="/tmp/wr_remote.tmp"
-	if curl -sfL --retry 3 "$GITHUB" -o "$REMOTE_TMP" 2>/dev/null && [ -s "$REMOTE_TMP" ]; then
-		REMOTE_VERSION=$(grep "SCRIPT_VERSION=" "$REMOTE_TMP" | head -n 1 | cut -d'"' -f2 | tr -cd '0-9.')
-		REMOTE_HASH=$(sha256sum "$REMOTE_TMP" | awk '{print $1}')
-	else
-		REMOTE_VERSION=""; REMOTE_HASH=""
-	fi
-	rm -f "$REMOTE_TMP"
+    GITHUB="https://raw.githubusercontent.com/JB1366/Wireless_Report/main/wirelessreport.sh"
+    REMOTE_TMP="/tmp/wr_remote.tmp"
+    LOCAL_HASH=""
+    REMOTE_HASH=""
+
+    if curl -sfL --retry 3 "$GITHUB" -o "$REMOTE_TMP" 2>/dev/null && [ -s "$REMOTE_TMP" ]; then
+        REMOTE_VERSION=$(grep "SCRIPT_VERSION=" "$REMOTE_TMP" | head -n 1 | cut -d'"' -f2 | tr -cd '0-9.')
+
+        if [ -f "$REPORT_SCRIPT" ]; then
+            if cmp -s "$REPORT_SCRIPT" "$REMOTE_TMP"; then
+                LOCAL_HASH="same"
+                REMOTE_HASH="same"
+            else
+                LOCAL_HASH="local"
+                REMOTE_HASH="remote"
+            fi
+        fi
+    else
+        REMOTE_VERSION=""
+        REMOTE_HASH=""
+    fi
+
+    rm -f "$REMOTE_TMP"
 }
 
 get_usb() {
@@ -339,10 +381,20 @@ get_usb() {
 
 mesh_init() {
 	VALID_NODES=""
-	MESH_NODES=$(nvram get asus_device_list | sed 's/</\n/g' | grep '>2$' | awk -F '>' '{print $2 "|" $3}' | sort -t . -k 4,4n)
-	if [ -z "$MESH_NODES" ]; then
-		MESH_NODES=$(nvram get cfg_device_list | sed 's/</\n/g' | grep '>0$' | awk -F '>' '{print $1 "|" $2}' | sort -t . -k 4,4n)
-	fi
+	local ASUS_NODES CFG_NODES MAIN_IP
+	MAIN_IP=$(nvram get lan_ipaddr)
+
+	# AiMesh inventory differs between firmware/node combinations.  Some mixed
+	# networks (notably stock-firmware nodes behind a Merlin primary) can be
+	# missing from asus_device_list while still being present in cfg_device_list.
+	# Merge both sources instead of treating cfg_device_list as fallback-only.
+	ASUS_NODES=$(nvram get asus_device_list | sed 's/</\n/g' | grep '>2$' | awk -F '>' '{print $2 "|" $3}')
+	CFG_NODES=$(nvram get cfg_device_list | sed 's/</\n/g' | grep '>0$' | awk -F '>' '{print $1 "|" $2}')
+
+	MESH_NODES=$(printf '%s\n%s\n' "$ASUS_NODES" "$CFG_NODES" | \
+		awk -F '|' -v main_ip="$MAIN_IP" '
+			NF >= 2 && $1 != "" && $2 != "" && $2 != main_ip && !seen[$2]++ { print $1 "|" $2 }
+		' | sort -t . -k 4,4n)
 }
 
 inject_menu() {
@@ -987,6 +1039,16 @@ update_time() {
 
 startup() { mesh_init; check_github; update_time; hex_to_ansi; }
 
+reload_report() {
+    # Run in a fresh shell for normal callers so both webui.conf and any script
+    # replacement are picked up. run_report truncates /tmp/wireless.asp in
+    # place, so the existing bind mount remains valid and menu reinjection is
+    # unnecessary.
+    if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
+    startup
+    run_report
+}
+
 run_report() {
 #======================================#
 #  Browser/API Report Page Preparation #
@@ -994,7 +1056,8 @@ run_report() {
 # The generated page uses the browser's
 # already-authenticated primary-router WebUI session:
 #   /appGet.cgi
-#   /get_diag_latest_content_data.cgi
+#   /get_diag_latest_content_data.cgi   (3006/newer)
+#   /get_diag_content_data.cgi          (388 legacy diagnostic fallback)
 # All client/node refreshes happen in-page with same-origin fetch() calls.
 
 NODE_NICK_JS=""
@@ -1628,21 +1691,115 @@ async function wrAppGet(hook) {
     return r.json();
 }
 
-async function wrDiag(db, content, filter) {
+async function wrDiagLatest(db, content, filter) {
     var r = await fetch('/get_diag_latest_content_data.cgi', {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({ db: db, content: content, filter: filter || '' })
     });
-    if (!r.ok) throw new Error('diagnostic API HTTP ' + r.status);
+    if (!r.ok) throw new Error('latest diagnostic API HTTP ' + r.status);
     return r.json();
 }
 
-async function wrGetNodeDiag(mac) {
-    var cols = ['data_time', 'node_type', 'node_ip', 'node_mac', 'cpu_usage', 'mem_usage', 'cpu_temp'];
-    var data = await wrDiag('sys_detect', cols.join(';'), 'node_mac>txt>' + wrNormMac(mac) + '>0;');
-    var row = data && data.contents && data.contents[0];
+function wrDiagLegacyDuration(db) {
+    // stainfo is sampled frequently and can become large over a long window.
+    // Ten minutes is ample for current client telemetry while keeping 388
+    // responses bounded. sys_detect is much smaller, so retain a one-hour
+    // window for node CPU/memory/temperature reporting tolerance.
+    return db === 'stainfo' ? 600 : 3600;
+}
+
+async function wrDiag388(db, content, filter) {
+    var params = new URLSearchParams({
+        db: db,
+        content: content,
+        ts: Math.floor(Date.now() / 1000),
+        duration: wrDiagLegacyDuration(db),
+        filter: filter || ''
+    });
+    var r = await fetch('/get_diag_content_data.cgi?' + params.toString(), {
+        method: 'GET',
+        credentials: 'same-origin',
+        cache: 'no-store'
+    });
+    if (!r.ok) throw new Error('legacy diagnostic API HTTP ' + r.status);
+
+    var data = await r.json();
+    // The 388 endpoint returns historical rows. Keep them newest-first so
+    // callers that need one row see current data, while batch callers can
+    // still collapse the full result by station MAC.
+    if (data && Array.isArray(data.contents)) {
+        data.contents = data.contents.slice().sort(function(a, b) {
+            return Number((b && b[0]) || 0) - Number((a && a[0]) || 0);
+        });
+    }
+    return data;
+}
+
+// Diagnostic telemetry is exposed through different WebUI CGI endpoints by
+// firmware generation. Detect the working endpoint once per page session.
+// Promise sharing is important on 388 because several AiMesh node/station
+// requests are launched together during report refresh.
+var WR_DIAG_API = 'unknown'; // unknown | latest | legacy
+var WR_DIAG_PROBE_PROMISE = null;
+
+function wrDiagRequestKey(db, content, filter) {
+    return String(db) + '\n' + String(content) + '\n' + String(filter || '');
+}
+
+async function wrProbeDiagApi(db, content, filter) {
+    if (WR_DIAG_API !== 'unknown') {
+        return { api: WR_DIAG_API, key: '', result: null };
+    }
+
+    if (!WR_DIAG_PROBE_PROMISE) {
+        var probeKey = wrDiagRequestKey(db, content, filter);
+        WR_DIAG_PROBE_PROMISE = (async function() {
+            try {
+                var latestResult = await wrDiagLatest(db, content, filter);
+                WR_DIAG_API = 'latest';
+                return { api: 'latest', key: probeKey, result: latestResult };
+            } catch (latestError) {
+                try {
+                    var legacyResult = await wrDiag388(db, content, filter);
+                    WR_DIAG_API = 'legacy';
+                    console.info('Wireless Report: using 388 legacy diagnostic API.');
+                    return { api: 'legacy', key: probeKey, result: legacyResult };
+                } catch (legacyError) {
+                    var error = new Error('No supported diagnostic API responded');
+                    error.latestError = latestError;
+                    error.legacyError = legacyError;
+                    throw error;
+                }
+            }
+        })();
+    }
+
+    try {
+        return await WR_DIAG_PROBE_PROMISE;
+    } catch (e) {
+        // Permit a future refresh to retry after a transient httpd/network error.
+        WR_DIAG_API = 'unknown';
+        WR_DIAG_PROBE_PROMISE = null;
+        throw e;
+    }
+}
+
+async function wrDiag(db, content, filter) {
+    if (WR_DIAG_API === 'latest') return wrDiagLatest(db, content, filter);
+    if (WR_DIAG_API === 'legacy') return wrDiag388(db, content, filter);
+
+    var key = wrDiagRequestKey(db, content, filter);
+    var probe = await wrProbeDiagApi(db, content, filter);
+    if (probe.key === key) return probe.result;
+
+    return probe.api === 'legacy'
+        ? wrDiag388(db, content, filter)
+        : wrDiagLatest(db, content, filter);
+}
+
+function wrNodeDiagFromRow(row) {
     if (!row) return null;
     return {
         timestamp: Number(row[0]),
@@ -1653,6 +1810,23 @@ async function wrGetNodeDiag(mac) {
         memoryUsage: wrNumber(row[5]),
         cpuTemp: wrNumber(row[6])
     };
+}
+
+async function wrGetNodeDiag(mac) {
+    var cols = ['data_time', 'node_type', 'node_ip', 'node_mac', 'cpu_usage', 'mem_usage', 'cpu_temp'];
+    var targetMac = wrNormMac(mac);
+    var data = await wrDiag(
+        'sys_detect',
+        cols.join(';'),
+        'node_mac>txt>' + targetMac + '>0;'
+    );
+    var rows = data && Array.isArray(data.contents) ? data.contents : [];
+    var latest = null;
+    rows.forEach(function(row) {
+        if (!row || wrNormMac(row[3]) !== targetMac) return;
+        if (!latest || Number(row[0]) > Number(latest[0])) latest = row;
+    });
+    return wrNodeDiagFromRow(latest);
 }
 
 function wrCpuUsageBetween(first, second) {
@@ -1765,16 +1939,33 @@ function wrNodeIsExplicitlyOffline(node) {
     return false;
 }
 
+function wrStaFromRow(row) {
+    if (!row) return null;
+    var obj = {};
+    WR_STA_COLUMNS.forEach(function(name, i) { obj[name] = row[i]; });
+    return obj;
+}
+
 async function wrGetStaRows(nodeMac) {
     try {
-        var filter = 'node_mac>txt>' + wrNormMac(nodeMac) + '>0;sta_active>txt>1>0;';
+        var targetNode = wrNormMac(nodeMac);
+        var filter = 'node_mac>txt>' + targetNode + '>0;sta_active>txt>1>0;';
         var data = await wrDiag('stainfo', WR_STA_COLUMNS.join(';'), filter);
         var rows = data && Array.isArray(data.contents) ? data.contents : [];
-        return rows.map(function(row) {
-            var obj = {};
-            WR_STA_COLUMNS.forEach(function(name, i) { obj[name] = row[i]; });
-            return obj;
+        var latestBySta = new Map();
+
+        // 3006/latest may return only one latest broad-match row; 388/history
+        // may return many samples per station. In either case expose at most the
+        // newest active sample for each station to the rest of the report.
+        rows.forEach(function(row) {
+            var obj = wrStaFromRow(row);
+            if (!obj || wrNormMac(obj.node_mac) !== targetNode || String(obj.sta_active) !== '1') return;
+            var staMac = wrNormMac(obj.sta_mac);
+            if (!staMac) return;
+            var old = latestBySta.get(staMac);
+            if (!old || Number(obj.data_time) > Number(old.data_time)) latestBySta.set(staMac, obj);
         });
+        return Array.from(latestBySta.values());
     } catch (e) {
         console.warn('STAINFO batch query failed for ' + nodeMac, e);
         return [];
@@ -1783,16 +1974,23 @@ async function wrGetStaRows(nodeMac) {
 
 async function wrGetSta(nodeMac, staMac) {
     try {
+        var targetNode = wrNormMac(nodeMac);
+        var targetSta = wrNormMac(staMac);
         var filter =
-            'node_mac>txt>' + wrNormMac(nodeMac) + '>0;' +
-            'sta_mac>txt>' + wrNormMac(staMac) + '>0;' +
+            'node_mac>txt>' + targetNode + '>0;' +
+            'sta_mac>txt>' + targetSta + '>0;' +
             'sta_active>txt>1>0;';
         var data = await wrDiag('stainfo', WR_STA_COLUMNS.join(';'), filter);
-        var row = data && data.contents && data.contents[0];
-        if (!row) return null;
-        var obj = {};
-        WR_STA_COLUMNS.forEach(function(name, i) { obj[name] = row[i]; });
-        return obj;
+        var rows = data && Array.isArray(data.contents) ? data.contents : [];
+        var latest = null;
+
+        rows.forEach(function(row) {
+            var obj = wrStaFromRow(row);
+            if (!obj || wrNormMac(obj.node_mac) !== targetNode ||
+                wrNormMac(obj.sta_mac) !== targetSta || String(obj.sta_active) !== '1') return;
+            if (!latest || Number(obj.data_time) > Number(latest.data_time)) latest = obj;
+        });
+        return latest;
     } catch (_) {
         return null;
     }
@@ -2726,6 +2924,11 @@ case "$1" in
         # Install/Uninstall options
         startup
         install_menu
+        ;;
+    reload)
+        # Lightweight page regeneration for config/code changes. The existing
+        # addon registration and bind mounts are intentionally left untouched.
+        reload_report
         ;;
     inject|inject1|inject2|inject3)
         case "$1" in
