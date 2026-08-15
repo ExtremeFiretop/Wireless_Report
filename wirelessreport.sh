@@ -28,7 +28,7 @@
 #        shellcheck shell=sh disable=SC2086,SC2155,SC3043         #
 #=================================================================#
 
-SCRIPT_VERSION="3.0.1"
+SCRIPT_VERSION="3.0.2"
 INSTALL_DIR="/jffs/addons/wireless_report"
 REPORT_SCRIPT="$INSTALL_DIR/wirelessreport.sh"
 SYSTEM_MENU="/www/require/modules/menuTree.js"
@@ -212,11 +212,11 @@ do_install() {
             case "$update" in [yY]) break ;; [nN]) return ;; *) printf "\033[4A\033[J" ;; esac; done
     fi
     do_update || return 1
-    echo -e "\n${GR}[+] Downloading latest version (${NC}v$REMOTE_VERSION${GR})${NC}"
+    echo -e "\n${GR}[+] Installing Wireless Report (${NC}v${INSTALL_VERSION:-$REMOTE_VERSION}${GR})${NC}"
 	if [ "$is_update" = "1" ]; then
 		echo -e "\n${BL}[✓] Wireless Report successfully installed.${NC}"
 		printf "\nPress ${BL}[Enter]${NC} to apply changes & restart script..."; read -r discard
-		logger -p user.info -t "Wireless_Report" "(v$REMOTE_VERSION) successfully installed."
+		logger -p user.info -t "Wireless_Report" "(v${INSTALL_VERSION:-$REMOTE_VERSION}) successfully installed."
         exec "$REPORT_SCRIPT" install "$@"
 		echo -e "${RD}Error: Failed to restart script!${NC}" >&2
 		exit 1
@@ -231,8 +231,8 @@ do_install() {
     sed -i "\|$REPORT_SCRIPT|d" "$SS_FILE" 2>/dev/null
     echo "$REPORT_SCRIPT inject & # Inject Wireless Report" >> "$SS_FILE"
     chmod +x "$SS_FILE"
-    install=""; SCRIPT_VERSION="$REMOTE_VERSION"
-    logger -p user.info -t "Wireless_Report" "(v$REMOTE_VERSION) successfully installed."
+    install=""; SCRIPT_VERSION="${INSTALL_VERSION:-$REMOTE_VERSION}"
+    logger -p user.info -t "Wireless_Report" "(v$SCRIPT_VERSION) successfully installed."
     echo -e "${GR}[✓] SUCCESS: Installation complete!${NC}\n"
     echo -e "${YL}[i] To access Report, navigate to Advanced Settings > Wireless "
     echo -e "${YL}    in the ASUS WebGUI and select the Wireless Report tab on the far right.${NC}\n"
@@ -241,7 +241,30 @@ do_install() {
 
 do_update() {
     TEMP_SCRIPT="/tmp/wirelessreport.sh"
+    local CURRENT_PATH; local TARGET_PATH
+    CURRENT_PATH=$(readlink -f "$0" 2>/dev/null)
+    [ -z "$CURRENT_PATH" ] && CURRENT_PATH="$0"
+    TARGET_PATH=$(readlink -f "$REPORT_SCRIPT" 2>/dev/null)
+    [ -z "$TARGET_PATH" ] && TARGET_PATH="$REPORT_SCRIPT"
+
+    # When install is explicitly launched from a different local file (for
+    # example /tmp/wirelessreport.sh), install THAT supplied build. Previously
+    # do_update fetched GitHub first and silently replaced test/patched packages
+    # before they could ever be installed.
+    if [ "$CURRENT_PATH" != "$TARGET_PATH" ]; then
+        INSTALL_VERSION="$SCRIPT_VERSION"
+        echo -e "\n${YL}[i] Installing supplied local copy (v$SCRIPT_VERSION)...${NC}\n"
+        cp "$0" "$REPORT_SCRIPT" || return 1
+        chmod +x "$REPORT_SCRIPT" 2>/dev/null
+        SE_FILE="/jffs/scripts/service-event"; sed -i "/wireless_report/d" "$SE_FILE"
+        get_usb; inject_menu
+        case "$USB_PATH" in *wirelessreport*) rm -rf "$USB_PATH" 2>/dev/null ;; esac
+        return 0
+    fi
+
+    # Normal update initiated by the already-installed script: fetch upstream.
     if curl -sfL --retry 3 "$GITHUB" -o "$TEMP_SCRIPT" && [ -s "$TEMP_SCRIPT" ]; then
+        INSTALL_VERSION="$REMOTE_VERSION"
         mv "$TEMP_SCRIPT" "$REPORT_SCRIPT"
         chmod +x "$REPORT_SCRIPT" 2>/dev/null
         SE_FILE="/jffs/scripts/service-event"; sed -i "/wireless_report/d" "$SE_FILE"
@@ -250,24 +273,8 @@ do_update() {
         return 0
     else
         rm -f "$TEMP_SCRIPT"
-        if [ ! -f "$0" ]; then
-            echo -e "${RD}[!] Download failed. Aborting installation.${NC}"
-            return 1
-        fi
-        local CURRENT_PATH; local TARGET_PATH
-        CURRENT_PATH=$(readlink -f "$0" 2>/dev/null)
-        [ -z "$CURRENT_PATH" ] && CURRENT_PATH="$0"
-        TARGET_PATH=$(readlink -f "$REPORT_SCRIPT" 2>/dev/null)
-        [ -z "$TARGET_PATH" ] && TARGET_PATH="$REPORT_SCRIPT"
-        if [ "$CURRENT_PATH" != "$TARGET_PATH" ]; then
-            echo -e "\n${YL}[!] GitHub unreachable. Installing current local copy...${NC}\n"
-            cp "$0" "$REPORT_SCRIPT"
-            chmod +x "$REPORT_SCRIPT" 2>/dev/null
-            return 0
-        else
-            echo -e "${RD}[!] GitHub unreachable and script is already in place.${NC}"
-            return 1
-        fi
+        echo -e "${RD}[!] GitHub unreachable and script is already in place.${NC}"
+        return 1
     fi
 }
 
@@ -995,7 +1002,7 @@ run_report() {
 # already-authenticated primary-router WebUI session:
 #   /appGet.cgi
 #   /get_diag_latest_content_data.cgi   (3006/newer)
-#   /get_diag_content_data.cgi          (388 legacy node-health fallback)
+#   /get_diag_content_data.cgi          (388 legacy diagnostic fallback)
 # All client/node refreshes happen in-page with same-origin fetch() calls.
 
 NODE_NICK_JS=""
@@ -1628,24 +1635,113 @@ async function wrAppGet(hook) {
     return r.json();
 }
 
-async function wrDiag(db, content, filter) {
+async function wrDiagLatest(db, content, filter) {
     var r = await fetch('/get_diag_latest_content_data.cgi', {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({ db: db, content: content, filter: filter || '' })
     });
-    if (!r.ok) throw new Error('diagnostic API HTTP ' + r.status);
+    if (!r.ok) throw new Error('latest diagnostic API HTTP ' + r.status);
     return r.json();
 }
 
-// Node system-health telemetry uses different controller-side WebUI APIs
-// across ASUS firmware generations. 3006/newer exposes a latest-row POST
-// endpoint, while 388 exposes the same sys_detect database through the older
-// time-window GET endpoint. Detect the working API once per page session so a
-// 388 primary does not generate one failed latest-API request per AiMesh node.
-var WR_NODE_DIAG_API = 'unknown'; // unknown | latest | legacy
-var WR_NODE_DIAG_PROBE_PROMISE = null;
+function wrDiagLegacyDuration(db) {
+    // stainfo is sampled frequently and can become large over a long window.
+    // Ten minutes is ample for current client telemetry while keeping 388
+    // responses bounded. sys_detect is much smaller, so retain a one-hour
+    // window for node CPU/memory/temperature reporting tolerance.
+    return db === 'stainfo' ? 600 : 3600;
+}
+
+async function wrDiag388(db, content, filter) {
+    var params = new URLSearchParams({
+        db: db,
+        content: content,
+        ts: Math.floor(Date.now() / 1000),
+        duration: wrDiagLegacyDuration(db),
+        filter: filter || ''
+    });
+    var r = await fetch('/get_diag_content_data.cgi?' + params.toString(), {
+        method: 'GET',
+        credentials: 'same-origin',
+        cache: 'no-store'
+    });
+    if (!r.ok) throw new Error('legacy diagnostic API HTTP ' + r.status);
+
+    var data = await r.json();
+    // The 388 endpoint returns historical rows. Keep them newest-first so
+    // callers that need one row see current data, while batch callers can
+    // still collapse the full result by station MAC.
+    if (data && Array.isArray(data.contents)) {
+        data.contents = data.contents.slice().sort(function(a, b) {
+            return Number((b && b[0]) || 0) - Number((a && a[0]) || 0);
+        });
+    }
+    return data;
+}
+
+// Diagnostic telemetry is exposed through different WebUI CGI endpoints by
+// firmware generation. Detect the working endpoint once per page session.
+// Promise sharing is important on 388 because several AiMesh node/station
+// requests are launched together during report refresh.
+var WR_DIAG_API = 'unknown'; // unknown | latest | legacy
+var WR_DIAG_PROBE_PROMISE = null;
+
+function wrDiagRequestKey(db, content, filter) {
+    return String(db) + '\n' + String(content) + '\n' + String(filter || '');
+}
+
+async function wrProbeDiagApi(db, content, filter) {
+    if (WR_DIAG_API !== 'unknown') {
+        return { api: WR_DIAG_API, key: '', result: null };
+    }
+
+    if (!WR_DIAG_PROBE_PROMISE) {
+        var probeKey = wrDiagRequestKey(db, content, filter);
+        WR_DIAG_PROBE_PROMISE = (async function() {
+            try {
+                var latestResult = await wrDiagLatest(db, content, filter);
+                WR_DIAG_API = 'latest';
+                return { api: 'latest', key: probeKey, result: latestResult };
+            } catch (latestError) {
+                try {
+                    var legacyResult = await wrDiag388(db, content, filter);
+                    WR_DIAG_API = 'legacy';
+                    console.info('Wireless Report: using 388 legacy diagnostic API.');
+                    return { api: 'legacy', key: probeKey, result: legacyResult };
+                } catch (legacyError) {
+                    var error = new Error('No supported diagnostic API responded');
+                    error.latestError = latestError;
+                    error.legacyError = legacyError;
+                    throw error;
+                }
+            }
+        })();
+    }
+
+    try {
+        return await WR_DIAG_PROBE_PROMISE;
+    } catch (e) {
+        // Permit a future refresh to retry after a transient httpd/network error.
+        WR_DIAG_API = 'unknown';
+        WR_DIAG_PROBE_PROMISE = null;
+        throw e;
+    }
+}
+
+async function wrDiag(db, content, filter) {
+    if (WR_DIAG_API === 'latest') return wrDiagLatest(db, content, filter);
+    if (WR_DIAG_API === 'legacy') return wrDiag388(db, content, filter);
+
+    var key = wrDiagRequestKey(db, content, filter);
+    var probe = await wrProbeDiagApi(db, content, filter);
+    if (probe.key === key) return probe.result;
+
+    return probe.api === 'legacy'
+        ? wrDiag388(db, content, filter)
+        : wrDiagLatest(db, content, filter);
+}
 
 function wrNodeDiagFromRow(row) {
     if (!row) return null;
@@ -1660,104 +1756,21 @@ function wrNodeDiagFromRow(row) {
     };
 }
 
-async function wrGetNodeDiagLatest(mac) {
+async function wrGetNodeDiag(mac) {
     var cols = ['data_time', 'node_type', 'node_ip', 'node_mac', 'cpu_usage', 'mem_usage', 'cpu_temp'];
+    var targetMac = wrNormMac(mac);
     var data = await wrDiag(
         'sys_detect',
         cols.join(';'),
-        'node_mac>txt>' + wrNormMac(mac) + '>0;'
+        'node_mac>txt>' + targetMac + '>0;'
     );
-    var row = data && data.contents && data.contents[0];
-    return wrNodeDiagFromRow(row);
-}
-
-async function wrGetNodeDiag388(mac) {
-    var cols = ['data_time', 'node_type', 'node_ip', 'node_mac', 'cpu_usage', 'mem_usage', 'cpu_temp'];
-    var targetMac = wrNormMac(mac);
-    var params = new URLSearchParams({
-        db: 'sys_detect',
-        content: cols.join(';'),
-        ts: Math.floor(Date.now() / 1000),
-        // 388 requires a time window for non-dns_ping diagnostic databases.
-        // One hour gives ample clock/reporting tolerance while the MAC filter
-        // keeps the response small.
-        duration: 3600,
-        filter: 'node_mac>txt>' + targetMac + '>0;'
-    });
-
-    var r = await fetch('/get_diag_content_data.cgi?' + params.toString(), {
-        method: 'GET',
-        credentials: 'same-origin',
-        cache: 'no-store'
-    });
-    if (!r.ok) throw new Error('legacy diagnostic API HTTP ' + r.status);
-
-    var data = await r.json();
     var rows = data && Array.isArray(data.contents) ? data.contents : [];
     var latest = null;
-
     rows.forEach(function(row) {
         if (!row || wrNormMac(row[3]) !== targetMac) return;
         if (!latest || Number(row[0]) > Number(latest[0])) latest = row;
     });
-
     return wrNodeDiagFromRow(latest);
-}
-
-async function wrProbeNodeDiagApi(mac) {
-    if (WR_NODE_DIAG_API !== 'unknown') {
-        return { api: WR_NODE_DIAG_API, mac: '', result: null };
-    }
-
-    // Promise sharing prevents concurrent node-health requests from all probing
-    // the unsupported 3006 endpoint at once on a 388 primary.
-    if (!WR_NODE_DIAG_PROBE_PROMISE) {
-        var probeMac = wrNormMac(mac);
-        WR_NODE_DIAG_PROBE_PROMISE = (async function() {
-            try {
-                var latestResult = await wrGetNodeDiagLatest(probeMac);
-                WR_NODE_DIAG_API = 'latest';
-                return { api: 'latest', mac: probeMac, result: latestResult };
-            } catch (latestError) {
-                try {
-                    var legacyResult = await wrGetNodeDiag388(probeMac);
-                    WR_NODE_DIAG_API = 'legacy';
-                    console.info('Wireless Report: using 388 legacy node diagnostic API.');
-                    return { api: 'legacy', mac: probeMac, result: legacyResult };
-                } catch (legacyError) {
-                    var error = new Error('No supported node diagnostic API responded');
-                    error.latestError = latestError;
-                    error.legacyError = legacyError;
-                    throw error;
-                }
-            }
-        })();
-    }
-
-    try {
-        return await WR_NODE_DIAG_PROBE_PROMISE;
-    } catch (e) {
-        // Allow a later report refresh to retry after a transient failure.
-        WR_NODE_DIAG_API = 'unknown';
-        WR_NODE_DIAG_PROBE_PROMISE = null;
-        throw e;
-    }
-}
-
-async function wrGetNodeDiag(mac) {
-    var targetMac = wrNormMac(mac);
-
-    if (WR_NODE_DIAG_API === 'latest') return wrGetNodeDiagLatest(targetMac);
-    if (WR_NODE_DIAG_API === 'legacy') return wrGetNodeDiag388(targetMac);
-
-    var probe = await wrProbeNodeDiagApi(targetMac);
-    // Reuse the probe result for the node that performed detection. Other
-    // concurrent nodes wait on the same probe and then use the detected API.
-    if (probe.mac === targetMac) return probe.result;
-
-    return probe.api === 'legacy'
-        ? wrGetNodeDiag388(targetMac)
-        : wrGetNodeDiagLatest(targetMac);
 }
 
 function wrCpuUsageBetween(first, second) {
@@ -1870,16 +1883,33 @@ function wrNodeIsExplicitlyOffline(node) {
     return false;
 }
 
+function wrStaFromRow(row) {
+    if (!row) return null;
+    var obj = {};
+    WR_STA_COLUMNS.forEach(function(name, i) { obj[name] = row[i]; });
+    return obj;
+}
+
 async function wrGetStaRows(nodeMac) {
     try {
-        var filter = 'node_mac>txt>' + wrNormMac(nodeMac) + '>0;sta_active>txt>1>0;';
+        var targetNode = wrNormMac(nodeMac);
+        var filter = 'node_mac>txt>' + targetNode + '>0;sta_active>txt>1>0;';
         var data = await wrDiag('stainfo', WR_STA_COLUMNS.join(';'), filter);
         var rows = data && Array.isArray(data.contents) ? data.contents : [];
-        return rows.map(function(row) {
-            var obj = {};
-            WR_STA_COLUMNS.forEach(function(name, i) { obj[name] = row[i]; });
-            return obj;
+        var latestBySta = new Map();
+
+        // 3006/latest may return only one latest broad-match row; 388/history
+        // may return many samples per station. In either case expose at most the
+        // newest active sample for each station to the rest of the report.
+        rows.forEach(function(row) {
+            var obj = wrStaFromRow(row);
+            if (!obj || wrNormMac(obj.node_mac) !== targetNode || String(obj.sta_active) !== '1') return;
+            var staMac = wrNormMac(obj.sta_mac);
+            if (!staMac) return;
+            var old = latestBySta.get(staMac);
+            if (!old || Number(obj.data_time) > Number(old.data_time)) latestBySta.set(staMac, obj);
         });
+        return Array.from(latestBySta.values());
     } catch (e) {
         console.warn('STAINFO batch query failed for ' + nodeMac, e);
         return [];
@@ -1888,16 +1918,23 @@ async function wrGetStaRows(nodeMac) {
 
 async function wrGetSta(nodeMac, staMac) {
     try {
+        var targetNode = wrNormMac(nodeMac);
+        var targetSta = wrNormMac(staMac);
         var filter =
-            'node_mac>txt>' + wrNormMac(nodeMac) + '>0;' +
-            'sta_mac>txt>' + wrNormMac(staMac) + '>0;' +
+            'node_mac>txt>' + targetNode + '>0;' +
+            'sta_mac>txt>' + targetSta + '>0;' +
             'sta_active>txt>1>0;';
         var data = await wrDiag('stainfo', WR_STA_COLUMNS.join(';'), filter);
-        var row = data && data.contents && data.contents[0];
-        if (!row) return null;
-        var obj = {};
-        WR_STA_COLUMNS.forEach(function(name, i) { obj[name] = row[i]; });
-        return obj;
+        var rows = data && Array.isArray(data.contents) ? data.contents : [];
+        var latest = null;
+
+        rows.forEach(function(row) {
+            var obj = wrStaFromRow(row);
+            if (!obj || wrNormMac(obj.node_mac) !== targetNode ||
+                wrNormMac(obj.sta_mac) !== targetSta || String(obj.sta_active) !== '1') return;
+            if (!latest || Number(obj.data_time) > Number(latest.data_time)) latest = obj;
+        });
+        return latest;
     } catch (_) {
         return null;
     }
