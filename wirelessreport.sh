@@ -319,16 +319,29 @@ ScriptUpdateFromAMTM() {
 }
 
 check_github() {
-	GITHUB="https://raw.githubusercontent.com/JB1366/Wireless_Report/main/wirelessreport.sh"
-	LOCAL_HASH=$(sha256sum "$REPORT_SCRIPT" 2>/dev/null | awk '{print $1}')
-	REMOTE_TMP="/tmp/wr_remote.tmp"
-	if curl -sfL --retry 3 "$GITHUB" -o "$REMOTE_TMP" 2>/dev/null && [ -s "$REMOTE_TMP" ]; then
-		REMOTE_VERSION=$(grep "SCRIPT_VERSION=" "$REMOTE_TMP" | head -n 1 | cut -d'"' -f2 | tr -cd '0-9.')
-		REMOTE_HASH=$(sha256sum "$REMOTE_TMP" | awk '{print $1}')
-	else
-		REMOTE_VERSION=""; REMOTE_HASH=""
-	fi
-	rm -f "$REMOTE_TMP"
+    GITHUB="https://raw.githubusercontent.com/JB1366/Wireless_Report/main/wirelessreport.sh"
+    REMOTE_TMP="/tmp/wr_remote.tmp"
+    LOCAL_HASH=""
+    REMOTE_HASH=""
+
+    if curl -sfL --retry 3 "$GITHUB" -o "$REMOTE_TMP" 2>/dev/null && [ -s "$REMOTE_TMP" ]; then
+        REMOTE_VERSION=$(grep "SCRIPT_VERSION=" "$REMOTE_TMP" | head -n 1 | cut -d'"' -f2 | tr -cd '0-9.')
+
+        if [ -f "$REPORT_SCRIPT" ]; then
+            if cmp -s "$REPORT_SCRIPT" "$REMOTE_TMP"; then
+                LOCAL_HASH="same"
+                REMOTE_HASH="same"
+            else
+                LOCAL_HASH="local"
+                REMOTE_HASH="remote"
+            fi
+        fi
+    else
+        REMOTE_VERSION=""
+        REMOTE_HASH=""
+    fi
+
+    rm -f "$REMOTE_TMP"
 }
 
 get_usb() {
