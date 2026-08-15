@@ -2,6 +2,10 @@
 # Wireless Report - Changelog #
 #=============================#
 
+v3.0.4-fixed AiMesh node nickname/color inventory by merging asus_device_list and cfg_device_list.
+v3.0.3-added lightweight report reload for config/code changes without menu reinjection.
+v3.0.2-added 388-series diagnostic API fallback and local test-build install handling.
+v3.0.1-added 388-series primary-router node CPU/Memory API compatibility.
 v3.0.0-change data gathering from SSH to Browser/API
 v2.1.0-minor updates, refactoring, optimizations.
 v2.0.9-reverted node device counting mechanism.
