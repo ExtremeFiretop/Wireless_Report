@@ -28,7 +28,7 @@
 #        shellcheck shell=sh disable=SC2086,SC2155,SC3043         #
 #=================================================================#
 
-SCRIPT_VERSION="3.0.4"
+SCRIPT_VERSION="3.0.9"
 INSTALL_DIR="/jffs/addons/wireless_report"
 REPORT_SCRIPT="$INSTALL_DIR/wirelessreport.sh"
 SYSTEM_MENU="/www/require/modules/menuTree.js"
@@ -96,6 +96,11 @@ install_menu() {
 					esac
 					break ;;
 				e|E)
+                    # Saved configuration changes are regenerated immediately
+                    # and the open WebUI page watches for a new generation.
+                    clear; hasta; exit 0
+                    ;;
+				*) freeze2; continue ;;
                     if [ -x "$REPORT_SCRIPT" ]; then reload_report; fi
                     clear; hasta; exit 0 ;;
 				*)
@@ -251,6 +256,53 @@ do_install() {
 
 do_update() {
     TEMP_SCRIPT="/tmp/wirelessreport.sh"
+    local is_update="${1:-1}"
+    local CURRENT_PATH; local TARGET_PATH
+    CURRENT_PATH=$(readlink -f "$0" 2>/dev/null)
+    [ -z "$CURRENT_PATH" ] && CURRENT_PATH="$0"
+    TARGET_PATH=$(readlink -f "$REPORT_SCRIPT" 2>/dev/null)
+    [ -z "$TARGET_PATH" ] && TARGET_PATH="$REPORT_SCRIPT"
+
+    # Existing installs already have their WebUI page registered and bind
+    # mounted. Regenerate that page in-place with the newly installed script;
+    # only a first install needs the heavier inject_menu path.
+    apply_updated_report() {
+        local inject_rc=0
+        SE_FILE="/jffs/scripts/service-event"; sed -i "/wireless_report/d" "$SE_FILE"
+        get_usb
+        if [ "$is_update" = "1" ]; then
+            "$REPORT_SCRIPT" reload || return 1
+        else
+            # First install must not bind/restart httpd against the temporary
+            # placeholder and then generate the real ASP asynchronously.  That
+            # can leave the first opened addon page on stale/incomplete content
+            # until ASUS WebUI navigation tears it down and loads it again.
+            # Build the complete page first, then bind that finished inode into
+            # the allocated /www/user slot and restart httpd once.
+            "$REPORT_SCRIPT" live-reload || return 1
+            WR_PREGENERATED="1"
+            inject_menu
+            inject_rc=$?
+            WR_PREGENERATED=""
+            [ "$inject_rc" -eq 0 ] || return "$inject_rc"
+        fi
+        case "$USB_PATH" in *wirelessreport*) rm -rf "$USB_PATH" 2>/dev/null ;; esac
+    }
+
+    # When install is explicitly launched from a different local file (for
+    # example /tmp/wirelessreport.sh), install THAT supplied build. A fresh
+    # process then runs reload so the just-copied code, not the old in-memory
+    # functions, generates the report page.
+    if [ "$CURRENT_PATH" != "$TARGET_PATH" ]; then
+        INSTALL_VERSION="$SCRIPT_VERSION"
+        echo -e "\n${YL}[i] Installing supplied local copy (v$SCRIPT_VERSION)...${NC}\n"
+        cp "$0" "$REPORT_SCRIPT" || return 1
+        chmod +x "$REPORT_SCRIPT" 2>/dev/null
+        apply_updated_report || return 1
+        return 0
+    fi
+
+    # Normal update initiated by the already-installed script: fetch upstream.
     if curl -sfL --retry 3 "$GITHUB" -o "$TEMP_SCRIPT" && [ -s "$TEMP_SCRIPT" ]; then
         mv "$TEMP_SCRIPT" "$REPORT_SCRIPT"
         chmod +x "$REPORT_SCRIPT" 2>/dev/null
@@ -301,7 +353,57 @@ ScriptUpdateFromAMTM() {
     fi
 }
 
+wr_sha256() {
+    local file="$1" hash=""
+    [ -f "$file" ] || return 1
+
+    # sha256sum is not present on every ASUSWRT build. Prefer it when exposed,
+    # then try the BusyBox applet and OpenSSL before falling back to cmp in
+    # check_github(). This keeps true SHA-256 comparison without breaking
+    # legacy firmware that lacks the standalone utility.
+    if command -v sha256sum >/dev/null 2>&1; then
+        hash=$(sha256sum "$file" 2>/dev/null | awk '{print $1}')
+    elif command -v busybox >/dev/null 2>&1 && busybox sha256sum "$file" >/dev/null 2>&1; then
+        hash=$(busybox sha256sum "$file" 2>/dev/null | awk '{print $1}')
+    elif command -v openssl >/dev/null 2>&1; then
+        hash=$(openssl dgst -sha256 "$file" 2>/dev/null | awk '{print $NF}')
+    fi
+
+    [ "${#hash}" -eq 64 ] || return 1
+    printf '%s\n' "$hash"
+}
+
 check_github() {
+    GITHUB="https://raw.githubusercontent.com/JB1366/Wireless_Report/main/wirelessreport.sh"
+    REMOTE_TMP="/tmp/wr_remote.tmp"
+    LOCAL_HASH=""
+    REMOTE_HASH=""
+
+    if curl -sfL --retry 3 "$GITHUB" -o "$REMOTE_TMP" 2>/dev/null && [ -s "$REMOTE_TMP" ]; then
+        REMOTE_VERSION=$(grep "SCRIPT_VERSION=" "$REMOTE_TMP" | head -n 1 | cut -d'"' -f2 | tr -cd '0-9.')
+        LOCAL_HASH=$(wr_sha256 "$REPORT_SCRIPT" 2>/dev/null)
+        REMOTE_HASH=$(wr_sha256 "$REMOTE_TMP" 2>/dev/null)
+
+        # Some legacy builds expose neither sha256sum nor an OpenSSL/BusyBox
+        # SHA-256 implementation. Equality is all check_version needs, so keep
+        # cmp as a compatibility fallback rather than failing update detection.
+        if [ -z "$LOCAL_HASH" ] || [ -z "$REMOTE_HASH" ]; then
+            if [ -f "$REPORT_SCRIPT" ]; then
+                if cmp -s "$REPORT_SCRIPT" "$REMOTE_TMP"; then
+                    LOCAL_HASH="same"
+                    REMOTE_HASH="same"
+                else
+                    LOCAL_HASH="local"
+                    REMOTE_HASH="remote"
+                fi
+            fi
+        fi
+    else
+        REMOTE_VERSION=""
+        REMOTE_HASH=""
+    fi
+
+    rm -f "$REMOTE_TMP"
 	GITHUB="https://raw.githubusercontent.com/JB1366/Wireless_Report/main/wirelessreport.sh"
 	LOCAL_HASH=$(sha256sum "$REPORT_SCRIPT" 2>/dev/null | awk '{print $1}')
 	REMOTE_TMP="/tmp/wr_remote.tmp"
@@ -395,8 +497,15 @@ inject_menu() {
 	umount "/www/user/$am_webui_page" 2>/dev/null
 	mount -o bind "$WEB_PAGE" "/www/user/$am_webui_page"
 	flock -u "$FD"; restart_httpd
-    if [ "$NOLOADSCRIPT" = "1" ]; then exit 0
-    else "$REPORT_SCRIPT" & fi
+    if [ "$NOLOADSCRIPT" = "1" ]; then
+        exit 0
+    elif [ "$WR_PREGENERATED" = "1" ]; then
+        # First-install page was generated synchronously before injection.
+        # Do not immediately rewrite the newly bound page in a background job.
+        return 0
+    else
+        "$REPORT_SCRIPT" &
+    fi
 }
 
 do_uninstall() {
@@ -418,6 +527,9 @@ do_uninstall() {
 		umount -l "/www/user/$INSTALLED_PAGE" >/dev/null 2>&1
 		rm -f /www/user/"${INSTALLED_PAGE}" >/dev/null 2>&1
 	fi
+	sed -i "\|$REPORT_SCRIPT|d" "$SS_FILE"; sed -i "/wireless_report/d" "$SE_FILE"
+	restart_httpd
+    nvram unset wirelessreport_gen >/dev/null 2>&1
 	sed -i "\|$REPORT_SCRIPT|d" "$SS_FILE"
     sed -i "/wireless_report/d" "$SE_FILE" # delete after a couple weeks, only for transition.
 	case "$USB_PATH" in *wirelessreport*) rm -rf "$USB_PATH" 2>/dev/null ;; esac # delete after a couple weeks, only for transition.
@@ -460,6 +572,7 @@ set_date_time() {
             REPORT_UNIT="$NEW_UNIT"
             update_time; break
         done
+        apply_webui_changes
     done
 }
 
@@ -585,6 +698,7 @@ set_nicknames() {
                     freeze2; continue ;;
             esac
         done
+        apply_webui_changes
     done
 }
 
@@ -727,6 +841,7 @@ set_colors() {
     }
     update_config_var "MAIN_COLOR" "$m_color_hex"
     update_config_var "NODE_COLORS" "$working_colors"
+    apply_webui_changes
     echo -e "\n${BL}Device colors successfully saved to CONFIG.${NC}"
     pause
 }
@@ -810,6 +925,7 @@ set_options() {
                     freeze2; continue ;;
             esac
         done
+        apply_webui_changes
     done
 }
 
@@ -1004,6 +1120,35 @@ update_time() {
 
 startup() { mesh_init; check_github; update_time; hex_to_ansi; }
 
+reload_report() {
+    # Run in a fresh shell for normal callers so both webui.conf and any script
+    # replacement are picked up. run_report truncates /tmp/wireless.asp in
+    # place, so the existing bind mount remains valid and menu reinjection is
+    # unnecessary.
+    if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
+    startup
+    run_report
+}
+
+reload_report_live() {
+    # Fast path for settings changed from the shell menu. No GitHub/version
+    # lookup is needed; regenerate the bound page, then publish a new browser
+    # generation token when the file is complete.
+    if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
+    mesh_init
+    update_time
+    hex_to_ansi
+    run_report
+}
+
+apply_webui_changes() {
+    if [ -x "$REPORT_SCRIPT" ]; then
+        "$REPORT_SCRIPT" live-reload >/dev/null 2>&1
+    else
+        reload_report_live >/dev/null 2>&1
+    fi
+}
+
 run_report() {
 #======================================#
 #  Browser/API Report Page Preparation #
@@ -1014,6 +1159,13 @@ run_report() {
 #   /get_diag_latest_content_data.cgi   (3006/newer)
 #   /get_diag_content_data.cgi          (388 legacy diagnostic fallback)
 # All client/node refreshes happen in-page with same-origin fetch() calls.
+
+# Increment an ephemeral (non-committed) NVRAM generation. The new value is
+# published only after the generated ASP is complete, allowing an already-open
+# Wireless Report page to detect shell-menu changes and code updates safely.
+WR_GENERATION=$(nvram get wirelessreport_gen 2>/dev/null)
+case "$WR_GENERATION" in ""|*[!0-9]*) WR_GENERATION=0 ;; esac
+WR_GENERATION=$((WR_GENERATION + 1))
 
 NODE_NICK_JS=""
 if [ -f "$CONFIG" ]; then
@@ -1239,6 +1391,55 @@ var WR_CONFIG = {
     rssiHistoryDate: Number("${RS_HIST_DATE:-0}") || 0
 };
 
+var WR_PAGE_GENERATION = "$WR_GENERATION";
+var WR_LIVE_WATCH_TIMER = null;
+var WR_LIVE_CHECKING = false;
+var WR_LIVE_RELOADING = false;
+
+function wrNavigateToFreshGeneration(generation) {
+    if (WR_LIVE_RELOADING) return;
+    WR_LIVE_RELOADING = true;
+    try {
+        var url = new URL(window.location.href);
+        url.searchParams.set('wr_live', String(generation));
+        console.info('Wireless Report: applying WebUI generation ' + generation);
+        window.location.replace(url.toString());
+    } catch (e) {
+        window.location.href = window.location.pathname + '?wr_live=' + encodeURIComponent(String(generation));
+    }
+}
+
+async function wrCheckLiveGeneration() {
+    if (WR_LIVE_CHECKING || WR_LIVE_RELOADING) return;
+    WR_LIVE_CHECKING = true;
+    try {
+        var state = await wrAppGet('nvram_get(wirelessreport_gen);');
+        var generation = String((state && state.wirelessreport_gen) || '');
+        if (generation && generation !== String(WR_PAGE_GENERATION)) {
+            wrNavigateToFreshGeneration(generation);
+        }
+    } catch (_) {
+        // Ignore transient/session errors; normal report refresh handles them.
+    } finally {
+        WR_LIVE_CHECKING = false;
+    }
+}
+
+function wrStartLiveReloadWatcher() {
+    if (WR_LIVE_WATCH_TIMER) return;
+    setTimeout(wrCheckLiveGeneration, 750);
+    WR_LIVE_WATCH_TIMER = setInterval(wrCheckLiveGeneration, 2000);
+}
+
+function wrRemoveLiveCacheBuster() {
+    try {
+        var url = new URL(window.location.href);
+        if (!url.searchParams.has('wr_live')) return;
+        url.searchParams.delete('wr_live');
+        window.history.replaceState(null, document.title, url.pathname + url.search + url.hash);
+    } catch (_) {}
+}
+
 function update_time() {
     const now = new Date();
     const day = now.getDate();
@@ -1432,6 +1633,36 @@ function wrBandName(band) {
     return map[String(band || '')] || String(band || '');
 }
 
+function wrNormalizeBand(band) {
+    var value = String(band || '').trim().toUpperCase();
+    if (value === '2G' || value === '2.4G') return '2G';
+    if (value === '5G') return '5G';
+    if (value === '5G1' || value === '5G-2') return '5G1';
+    if (value === '5G2' || value === '5G-3') return '5G2';
+    if (value === '6G') return '6G';
+    if (value === '6G1' || value === '6G-2') return '6G1';
+    if (value === '6G2' || value === '6G-3') return '6G2';
+    return value;
+}
+
+function wrClientBandHint(client) {
+    if (!client) return '';
+
+    // On the affected 388 client list, isWL remains tied to the actual
+    // association while conn_diag/stainfo can intermittently surface a stale
+    // active sample from another radio. Only use the two values proven on this
+    // firmware family; leave unknown/tri-band values to stainfo unchanged.
+    var raw = client.isWL;
+    if (raw !== undefined && raw !== null && raw !== '') {
+        var value = String(raw).trim();
+        if (value === '1') return '2G';
+        if (value === '2') return '5G';
+    }
+
+    var named = wrNormalizeBand(wrFirst(client, ['band', 'wlBand']));
+    return named || '';
+}
+
 function wrWidth(code) {
     var map = { 0: '', 1: '20', 2: '40', 3: '80', 4: '160', 5: '320' };
     var n = Number(code);
@@ -1439,8 +1670,15 @@ function wrWidth(code) {
 }
 
 function wrBandHtml(sta, client) {
-    var band = sta ? wrBandName(sta.sta_band) : String(wrFirst(client, ['band', 'wlBand']) || '');
-    var width = sta ? wrWidth(sta.bw) : '';
+    var staBand = wrNormalizeBand(sta && sta.sta_band);
+    var clientBand = WR_DIAG_API === 'legacy' ? wrClientBandHint(client) : '';
+    var mismatch = Boolean(staBand && clientBand && staBand !== clientBand);
+    var selectedBand = mismatch ? clientBand : (staBand || clientBand);
+    var band = selectedBand ? wrBandName(selectedBand) : String(wrFirst(client, ['band', 'wlBand']) || '');
+
+    // A mismatched legacy stainfo sample can carry the other radio's channel
+    // width too. Do not display that width if the live client band disagrees.
+    var width = sta && !mismatch ? wrWidth(sta.bw) : '';
 
     // Fallback to '2.4G (20)' if both band and width evaluate to empty
     var label = (band + (width ? ' (' + width + ')' : '')).trim() || '2.4G (20)';
@@ -1609,6 +1847,87 @@ function wrClientName(mac, liveClient, savedClient) {
 
 function wrSavedClient(saved, macRaw, mac) {
     return saved[macRaw] || saved[mac] || saved[String(mac).toLowerCase()] || {};
+}
+
+function wrStaSsidNvramKey(sta) {
+    var iface = String(sta && sta.conn_if || '').trim();
+    if (!/^wl[0-9]+(?:\.[0-9]+)?$/i.test(iface)) return '';
+    return iface.toLowerCase() + '_ssid';
+}
+
+function wrNodeBandSsid(node, sta, client) {
+    if (!node) return '';
+    var band = WR_DIAG_API === 'legacy' ? wrClientBandHint(client) : '';
+    if (!band) band = wrNormalizeBand(sta && sta.sta_band);
+    if (band === '2G' || band === '2.4G') return wrFirst(node, ['ap2g_ssid']);
+    if (band === '5G') return wrFirst(node, ['ap5g_ssid']);
+    if (band === '5G1') return wrFirst(node, ['ap5g1_ssid']);
+    if (band === '5G2') return wrFirst(node, ['ap5g2_ssid', 'ap5g1_ssid']);
+    if (band === '6G') return wrFirst(node, ['ap6g_ssid']);
+    if (band === '6G1') return wrFirst(node, ['ap6g1_ssid']);
+    if (band === '6G2') return wrFirst(node, ['ap6g2_ssid', 'ap6g1_ssid']);
+    return '';
+}
+
+async function wrResolveClientSsids(items, allNodes, mainMac) {
+    // 3006 normally supplies get_clientlist().ssid directly, so preserve it.
+    // Affected 388 builds leave that field blank. For AiMesh-node clients,
+    // conn_if is NODE-local (for example wl1.1 on the node) and must never be
+    // resolved against the primary router's NVRAM; use the parent node's AP
+    // SSID for the reported stainfo band instead.
+    var mainNode = (allNodes || []).find(function(node) {
+        return wrNormMac(node && (node.mac || node.mac_addr)) === wrNormMac(mainMac);
+    }) || null;
+
+    var primaryMissing = [];
+    var primaryKeys = new Set();
+
+    items.forEach(function(item) {
+        var direct = wrFirst(item.client, ['ssid']) || wrFirst(item.saved, ['ssid']);
+        item.resolvedSsid = direct || '';
+        if (item.resolvedSsid) return;
+
+        if (item.node) {
+            item.resolvedSsid = wrNodeBandSsid(item.node, item.sta, item.client) || '';
+            return;
+        }
+
+        // Primary-router interface names belong to the primary, so an exact
+        // <conn_if>_ssid lookup is valid here and retains guest/virtual SSIDs.
+        primaryMissing.push(item);
+        var key = wrStaSsidNvramKey(item.sta);
+        if (key) primaryKeys.add(key);
+    });
+
+    var nvramSsids = {};
+    if (primaryKeys.size) {
+        var hook = Array.from(primaryKeys).map(function(key) {
+            return 'nvram_get(' + key + ');';
+        }).join('');
+        try {
+            nvramSsids = await wrAppGet(hook);
+        } catch (e) {
+            console.warn('Wireless Report primary SSID interface lookup failed', e);
+        }
+    }
+
+    primaryMissing.forEach(function(item) {
+        var sta = item.sta;
+        var key = wrStaSsidNvramKey(sta);
+        var fromIface = key ? String(nvramSsids[key] || '').trim() : '';
+        if (fromIface) {
+            item.resolvedSsid = fromIface;
+            return;
+        }
+
+        // Never replace a virtual-interface SSID with the main radio's SSID if
+        // the exact primary NVRAM lookup failed. For a non-virtual interface,
+        // the primary's advertised band SSID is a safe final fallback.
+        var iface = String(sta && sta.conn_if || '');
+        var vidx = wrNumber(sta && sta.conn_if_vidx);
+        var isVirtual = iface.indexOf('.') !== -1 || (Number.isFinite(vidx) && vidx > 0);
+        if (!isVirtual) item.resolvedSsid = wrNodeBandSsid(mainNode, sta, item.client) || '';
+    });
 }
 
 function wrGetMloCandidates(mac, liveClient, savedClient) {
@@ -1927,10 +2246,11 @@ async function wrGetStaRows(nodeMac) {
     }
 }
 
-async function wrGetSta(nodeMac, staMac) {
+async function wrGetSta(nodeMac, staMac, expectedBand) {
     try {
         var targetNode = wrNormMac(nodeMac);
         var targetSta = wrNormMac(staMac);
+        var targetBand = wrNormalizeBand(expectedBand);
         var filter =
             'node_mac>txt>' + targetNode + '>0;' +
             'sta_mac>txt>' + targetSta + '>0;' +
@@ -1938,14 +2258,19 @@ async function wrGetSta(nodeMac, staMac) {
         var data = await wrDiag('stainfo', WR_STA_COLUMNS.join(';'), filter);
         var rows = data && Array.isArray(data.contents) ? data.contents : [];
         var latest = null;
+        var latestBandMatch = null;
 
         rows.forEach(function(row) {
             var obj = wrStaFromRow(row);
             if (!obj || wrNormMac(obj.node_mac) !== targetNode ||
                 wrNormMac(obj.sta_mac) !== targetSta || String(obj.sta_active) !== '1') return;
             if (!latest || Number(obj.data_time) > Number(latest.data_time)) latest = obj;
+            if (targetBand && wrNormalizeBand(obj.sta_band) === targetBand &&
+                (!latestBandMatch || Number(obj.data_time) > Number(latestBandMatch.data_time))) {
+                latestBandMatch = obj;
+            }
         });
-        return latest;
+        return latestBandMatch || latest;
     } catch (_) {
         return null;
     }
@@ -1985,10 +2310,10 @@ function wrRenderRow(item, history, known, firstHistoryLoad) {
     var mac = item.mac;
     var rawIp = wrFirst(c, ['ip']) || '';
     var rawName = wrClientName(mac, c, saved);
-    var rawSsid = wrFirst(c, ['ssid']) || '';
+    var rawSsid = item.resolvedSsid || wrFirst(c, ['ssid']) || wrFirst(saved, ['ssid']) || '';
     var ip = rawIp.length > 15 ? rawIp.slice(0, 15) : rawIp;
     var name = rawName.length > 20 ? rawName.slice(0, 20) : rawName;
-    var ssid = rawSsid.length > 15 ? rawSsid.slice(0, 15) : rawSsid;
+    var ssid = rawSsid;
     var iface = sta ? (sta.conn_if || '') : wrFirst(c, ['ifname', 'interface']);
     var rssi = sta && sta.sta_rssi !== undefined ? wrNumber(sta.sta_rssi) : wrNumber(c.rssi);
     var rx = sta && sta.sta_rx !== undefined ? Math.round(wrNumber(sta.sta_rx)) : Math.round(wrNumber(c.curRx));
@@ -2114,6 +2439,7 @@ async function wrResolveSta(item, staMaps) {
     if (!nodeMac) return null;
     var map = staMaps.get(nodeMac);
     var candidates = wrGetMloCandidates(item.mac, item.client, item.saved);
+    var expectedBand = WR_DIAG_API === 'legacy' ? wrClientBandHint(item.client) : '';
     var best = null;
     if (map) {
         candidates.forEach(function(candidate) {
@@ -2121,18 +2447,29 @@ async function wrResolveSta(item, staMaps) {
             if (found && (!best || Number(found.data_time) > Number(best.data_time))) best = found;
         });
     }
-    if (best) return best;
+
+    // On some 388 AiMesh nodes conn_diag can leave more than one radio sample
+    // marked active for the same station. The broad node query then occasionally
+    // hands us the other radio (for example 2G while get_clientlist().isWL still
+    // identifies the client as 5G). Accept the batch fast-path only when its band
+    // agrees with that live-client hint; otherwise do the exact per-client query
+    // and prefer the newest row from the expected band.
+    if (best && (!expectedBand || wrNormalizeBand(best.sta_band) === expectedBand)) return best;
+
+    var fallback = best;
 
     // ASUS get_diag_latest_content_data.cgi returns only one/latest matching
     // stainfo row for a broad node_mac query on the tested GT-BE98 Pro.
     // Therefore the batch map is only a fast-path hint, not a complete station
     // inventory. Fall back to the proven per-client node_mac + sta_mac query
-    // for BOTH primary-router and AiMesh-node clients when the batch map misses.
+    // for BOTH primary-router and AiMesh-node clients when the batch map misses
+    // or a legacy batch row disagrees with the live-client band.
+    best = null;
     for (var i = 0; i < candidates.length; i++) {
-        var found = await wrGetSta(nodeMac, candidates[i]);
+        var found = await wrGetSta(nodeMac, candidates[i], expectedBand);
         if (found && (!best || Number(found.data_time) > Number(best.data_time))) best = found;
     }
-    return best;
+    return best || fallback;
 }
 
 async function loadWirelessReport() {
@@ -2211,6 +2548,13 @@ async function loadWirelessReport() {
     for (var itemIndex = 0; itemIndex < items.length; itemIndex++) {
         items[itemIndex].sta = await wrResolveSta(items[itemIndex], staMaps);
     }
+
+    // SSID compatibility: preserve the client-level SSID on 3006. On affected
+    // 388 builds, recover missing node-client SSIDs from the PARENT NODE's AP
+    // inventory by stainfo band. Only primary-router clients may resolve conn_if
+    // against primary NVRAM, because node interface names are node-local.
+    await wrResolveClientSsids(items, allNodes, mainMac);
+
     // Match v2.1.0's report-wide sample time so the Main, Node and All views show
     // the same timestamp for a given refresh and the persisted sample matches it.
     var historySampleTime = Date.now();
@@ -2356,6 +2700,8 @@ async function loadWirelessReport() {
 
 async function initial() {
     show_menu();
+    wrRemoveLiveCacheBuster();
+    wrStartLiveReloadWatcher();
     wrPrepareRssiHistoryStorage();
     var savedView = localStorage.getItem('wifiReportView') || 'split';
     switchTab(savedView);
@@ -2873,12 +3219,25 @@ document.addEventListener('mouseout', function(e) {
     </div>
 </body>
 HTML
+    # Publish last: open pages only navigate once the complete replacement ASP
+    # is on disk. This NVRAM value is intentionally not committed to flash.
+    nvram set wirelessreport_gen="$WR_GENERATION" >/dev/null 2>&1
 }
 case "$1" in
     install)
         # Install/Uninstall options
         startup
         install_menu
+        ;;
+    reload)
+        # Lightweight page regeneration for installed code changes. The existing
+        # addon registration and bind mounts are intentionally left untouched.
+        reload_report
+        ;;
+    live-reload)
+        # Fast regeneration used by shell-menu settings. Open v3.0.6+ pages
+        # notice the generation change and perform a cache-busted navigation.
+        reload_report_live
         ;;
     inject|inject1|inject2|inject3)
         case "$1" in

@@ -2,6 +2,11 @@
 # Wireless Report - Changelog #
 #=============================#
 
+v3.0.9-added portable SHA-256 local/remote update comparison with compatibility fallback for firmware lacking sha256sum.
+v3.0.8-stabilized 388-series AiMesh band/SSID reporting by rejecting mismatched legacy stainfo radio samples.
+v3.0.7-fixed first-install WebUI ordering by generating the complete report page before addon binding/httpd restart.
+v3.0.6-added live WebUI generation watching so installed updates and saved shell-menu changes reload the open report automatically.
+v3.0.5-fixed 388-series SSID reporting; node clients use parent-node band SSIDs instead of primary-router interface NVRAM.
 v3.0.4-fixed AiMesh node nickname/color inventory by merging asus_device_list and cfg_device_list.
 v3.0.3-added lightweight report reload for config/code changes without menu reinjection.
 v3.0.2-added 388-series diagnostic API fallback and local test-build install handling.
