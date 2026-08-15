@@ -2,6 +2,7 @@
 # Wireless Report - Changelog #
 #=============================#
 
+v3.0.5-fixed blank SSIDs on affected 388-series primaries using stainfo interface/NVRAM fallback while preserving 3006 client SSIDs.
 v3.0.4-fixed AiMesh node nickname/color inventory by merging asus_device_list and cfg_device_list.
 v3.0.3-added lightweight report reload for config/code changes without menu reinjection.
 v3.0.2-added 388-series diagnostic API fallback and local test-build install handling.
