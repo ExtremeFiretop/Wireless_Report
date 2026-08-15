@@ -101,6 +101,10 @@ install_menu() {
                     clear; hasta; exit 0
                     ;;
 				*) freeze2; continue ;;
+                    if [ -x "$REPORT_SCRIPT" ]; then reload_report; fi
+                    clear; hasta; exit 0 ;;
+				*)
+                    freeze2; continue ;;
 			esac
 		done
 	done
@@ -204,6 +208,12 @@ menu_vars() {
 	else HN_STAT="${GR}Numbered${NC}"; fi
 }
 
+reload_report() {
+    if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
+    startup
+    run_report
+}
+
 do_install() {
 	mkdir -p "$INSTALL_DIR" 2>/dev/null
     if [ ! -f "$CONFIG" ]; then touch "$CONFIG"; fi
@@ -220,7 +230,8 @@ do_install() {
 	if [ "$is_update" = "1" ]; then
 		echo -e "\n${BL}[✓] Wireless Report successfully installed.${NC}"
 		printf "\nPress ${BL}[Enter]${NC} to apply changes & restart script..."; read -r discard
-		logger -p user.info -t "Wireless_Report" "(v${INSTALL_VERSION:-$REMOTE_VERSION}) successfully installed."
+		reload_report
+        logger -p user.info -t "Wireless_Report" "(v${INSTALL_VERSION:-$REMOTE_VERSION}) successfully installed."
         exec "$REPORT_SCRIPT" install "$@"
 		echo -e "${RD}Error: Failed to restart script!${NC}" >&2
 		exit 1
@@ -293,15 +304,34 @@ do_update() {
 
     # Normal update initiated by the already-installed script: fetch upstream.
     if curl -sfL --retry 3 "$GITHUB" -o "$TEMP_SCRIPT" && [ -s "$TEMP_SCRIPT" ]; then
-        INSTALL_VERSION="$REMOTE_VERSION"
         mv "$TEMP_SCRIPT" "$REPORT_SCRIPT"
         chmod +x "$REPORT_SCRIPT" 2>/dev/null
-        apply_updated_report || return 1
+        reload_report
+        # the following 3-lines get deleted after a couple weeks, only for transition.
+        SE_FILE="/jffs/scripts/service-event"; sed -i "/wireless_report/d" "$SE_FILE"
+        get_usb
+        case "$USB_PATH" in *wirelessreport*) rm -rf "$USB_PATH" 2>/dev/null ;; esac
         return 0
     else
         rm -f "$TEMP_SCRIPT"
-        echo -e "${RD}[!] GitHub unreachable and script is already in place.${NC}"
-        return 1
+        if [ ! -f "$0" ]; then
+            echo -e "${RD}[!] Download failed. Aborting installation.${NC}"
+            return 1
+        fi
+        local CURRENT_PATH; local TARGET_PATH
+        CURRENT_PATH=$(readlink -f "$0" 2>/dev/null)
+        [ -z "$CURRENT_PATH" ] && CURRENT_PATH="$0"
+        TARGET_PATH=$(readlink -f "$REPORT_SCRIPT" 2>/dev/null)
+        [ -z "$TARGET_PATH" ] && TARGET_PATH="$REPORT_SCRIPT"
+        if [ "$CURRENT_PATH" != "$TARGET_PATH" ]; then
+            echo -e "\n${YL}[!] GitHub unreachable. Installing current local copy...${NC}\n"
+            cp "$0" "$REPORT_SCRIPT"
+            chmod +x "$REPORT_SCRIPT" 2>/dev/null
+            return 0
+        else
+            echo -e "${RD}[!] GitHub unreachable and script is already in place.${NC}"
+            return 1
+        fi
     fi
 }
 
@@ -374,8 +404,18 @@ check_github() {
     fi
 
     rm -f "$REMOTE_TMP"
+	GITHUB="https://raw.githubusercontent.com/JB1366/Wireless_Report/main/wirelessreport.sh"
+	LOCAL_HASH=$(sha256sum "$REPORT_SCRIPT" 2>/dev/null | awk '{print $1}')
+	REMOTE_TMP="/tmp/wr_remote.tmp"
+	if curl -sfL --retry 3 "$GITHUB" -o "$REMOTE_TMP" 2>/dev/null && [ -s "$REMOTE_TMP" ]; then
+		REMOTE_VERSION=$(grep "SCRIPT_VERSION=" "$REMOTE_TMP" | head -n 1 | cut -d'"' -f2 | tr -cd '0-9.')
+		REMOTE_HASH=$(sha256sum "$REMOTE_TMP" | awk '{print $1}')
+	else
+		REMOTE_VERSION=""; REMOTE_HASH=""
+	fi
+	rm -f "$REMOTE_TMP"
 }
-
+# this function gets deleted after a couple weeks, only for transition.
 get_usb() {
 	if [ -n "$USB_PATH" ]; then return; fi
 	read -r uptime_val _ < /proc/uptime
@@ -415,14 +455,8 @@ mesh_init() {
 	VALID_NODES=""
 	local ASUS_NODES CFG_NODES MAIN_IP
 	MAIN_IP=$(nvram get lan_ipaddr)
-
-	# AiMesh inventory differs between firmware/node combinations.  Some mixed
-	# networks (notably stock-firmware nodes behind a Merlin primary) can be
-	# missing from asus_device_list while still being present in cfg_device_list.
-	# Merge both sources instead of treating cfg_device_list as fallback-only.
 	ASUS_NODES=$(nvram get asus_device_list | sed 's/</\n/g' | grep '>2$' | awk -F '>' '{print $2 "|" $3}')
 	CFG_NODES=$(nvram get cfg_device_list | sed 's/</\n/g' | grep '>0$' | awk -F '>' '{print $1 "|" $2}')
-
 	MESH_NODES=$(printf '%s\n%s\n' "$ASUS_NODES" "$CFG_NODES" | \
 		awk -F '|' -v main_ip="$MAIN_IP" '
 			NF >= 2 && $1 != "" && $2 != "" && $2 != main_ip && !seen[$2]++ { print $1 "|" $2 }
@@ -496,12 +530,15 @@ do_uninstall() {
 	sed -i "\|$REPORT_SCRIPT|d" "$SS_FILE"; sed -i "/wireless_report/d" "$SE_FILE"
 	restart_httpd
     nvram unset wirelessreport_gen >/dev/null 2>&1
+	sed -i "\|$REPORT_SCRIPT|d" "$SS_FILE"
+    sed -i "/wireless_report/d" "$SE_FILE" # delete after a couple weeks, only for transition.
+	case "$USB_PATH" in *wirelessreport*) rm -rf "$USB_PATH" 2>/dev/null ;; esac # delete after a couple weeks, only for transition.
+    restart_httpd
 	rm -rf "$INSTALL_DIR" "$WEB_PAGE" 2>/dev/null
-    case "$USB_PATH" in *wirelessreport*) rm -rf "$USB_PATH" 2>/dev/null ;; esac
 	logger -p user.info -t "Wireless_Report" "(v$SCRIPT_VERSION) successfully uninstalled."
     unset RTIME CUR_DATE RS_HIST_DATE RS_HIST CUR_RS_HIST CUR_ENTRIES
     unset THEME IPPAD PULSE_MINS DISPLAY_UNIT HOST_COLOR MAIN_COLOR NODE_COLORS
-	echo -e "${GR}[+] Success: Wireless Report uninstalled.${NC}"
+	echo -e "${GR}[+] Success: Wireless Report uninstalled.${NC}\n"
 	exit 0
 }
 
