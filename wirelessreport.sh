@@ -28,7 +28,7 @@
 #        shellcheck shell=sh disable=SC2086,SC2155,SC3043         #
 #=================================================================#
 
-SCRIPT_VERSION="3.0.2"
+SCRIPT_VERSION="3.0.3"
 INSTALL_DIR="/jffs/addons/wireless_report"
 REPORT_SCRIPT="$INSTALL_DIR/wirelessreport.sh"
 SYSTEM_MENU="/www/require/modules/menuTree.js"
@@ -95,7 +95,18 @@ install_menu() {
 						6) set_options ;;
 					esac
 					break ;;
-				e|E) inject_menu; clear; hasta; exit 0 ;;
+				e|E)
+                    # Config-only changes do not require rebuilding/remounting
+                    # the addon menu. Regenerate the bound report page using a
+                    # fresh process so webui.conf and any newly installed code
+                    # are re-read before the next browser refresh.
+                    if [ -x "$REPORT_SCRIPT" ]; then
+                        "$REPORT_SCRIPT" reload
+                    else
+                        reload_report
+                    fi
+                    clear; hasta; exit 0
+                    ;;
 				*) freeze2; continue ;;
 			esac
 		done
@@ -211,7 +222,7 @@ do_install() {
             printf "Do you want to $UP (y/n): "; read -r update
             case "$update" in [yY]) break ;; [nN]) return ;; *) printf "\033[4A\033[J" ;; esac; done
     fi
-    do_update || return 1
+    do_update "$is_update" || return 1
     echo -e "\n${GR}[+] Installing Wireless Report (${NC}v${INSTALL_VERSION:-$REMOTE_VERSION}${GR})${NC}"
 	if [ "$is_update" = "1" ]; then
 		echo -e "\n${BL}[✓] Wireless Report successfully installed.${NC}"
@@ -241,24 +252,37 @@ do_install() {
 
 do_update() {
     TEMP_SCRIPT="/tmp/wirelessreport.sh"
+    local is_update="${1:-1}"
     local CURRENT_PATH; local TARGET_PATH
     CURRENT_PATH=$(readlink -f "$0" 2>/dev/null)
     [ -z "$CURRENT_PATH" ] && CURRENT_PATH="$0"
     TARGET_PATH=$(readlink -f "$REPORT_SCRIPT" 2>/dev/null)
     [ -z "$TARGET_PATH" ] && TARGET_PATH="$REPORT_SCRIPT"
 
+    # Existing installs already have their WebUI page registered and bind
+    # mounted. Regenerate that page in-place with the newly installed script;
+    # only a first install needs the heavier inject_menu path.
+    apply_updated_report() {
+        SE_FILE="/jffs/scripts/service-event"; sed -i "/wireless_report/d" "$SE_FILE"
+        get_usb
+        if [ "$is_update" = "1" ]; then
+            "$REPORT_SCRIPT" reload || return 1
+        else
+            inject_menu
+        fi
+        case "$USB_PATH" in *wirelessreport*) rm -rf "$USB_PATH" 2>/dev/null ;; esac
+    }
+
     # When install is explicitly launched from a different local file (for
-    # example /tmp/wirelessreport.sh), install THAT supplied build. Previously
-    # do_update fetched GitHub first and silently replaced test/patched packages
-    # before they could ever be installed.
+    # example /tmp/wirelessreport.sh), install THAT supplied build. A fresh
+    # process then runs reload so the just-copied code, not the old in-memory
+    # functions, generates the report page.
     if [ "$CURRENT_PATH" != "$TARGET_PATH" ]; then
         INSTALL_VERSION="$SCRIPT_VERSION"
         echo -e "\n${YL}[i] Installing supplied local copy (v$SCRIPT_VERSION)...${NC}\n"
         cp "$0" "$REPORT_SCRIPT" || return 1
         chmod +x "$REPORT_SCRIPT" 2>/dev/null
-        SE_FILE="/jffs/scripts/service-event"; sed -i "/wireless_report/d" "$SE_FILE"
-        get_usb; inject_menu
-        case "$USB_PATH" in *wirelessreport*) rm -rf "$USB_PATH" 2>/dev/null ;; esac
+        apply_updated_report || return 1
         return 0
     fi
 
@@ -267,9 +291,7 @@ do_update() {
         INSTALL_VERSION="$REMOTE_VERSION"
         mv "$TEMP_SCRIPT" "$REPORT_SCRIPT"
         chmod +x "$REPORT_SCRIPT" 2>/dev/null
-        SE_FILE="/jffs/scripts/service-event"; sed -i "/wireless_report/d" "$SE_FILE"
-        get_usb; inject_menu
-        case "$USB_PATH" in *wirelessreport*) rm -rf "$USB_PATH" 2>/dev/null ;; esac
+        apply_updated_report || return 1
         return 0
     else
         rm -f "$TEMP_SCRIPT"
@@ -286,7 +308,7 @@ ScriptUpdateFromAMTM() {
     fi
     if [ "$1" = "check" ]; then return 0; fi
 	check_github
-    if do_update; then
+    if do_update 1; then
         echo -e "\n  [+] Downloading latest version (v$REMOTE_VERSION)\n"
         echo -e "\n  [✓] Wireless Report successfully updated.\n"
 		logger -p user.info -t "Wireless_Report" "AMTM Update: (v$REMOTE_VERSION) successfully installed."
@@ -993,6 +1015,16 @@ update_time() {
 }
 
 startup() { mesh_init; check_github; update_time; hex_to_ansi; }
+
+reload_report() {
+    # Run in a fresh shell for normal callers so both webui.conf and any script
+    # replacement are picked up. run_report truncates /tmp/wireless.asp in
+    # place, so the existing bind mount remains valid and menu reinjection is
+    # unnecessary.
+    if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
+    startup
+    run_report
+}
 
 run_report() {
 #======================================#
@@ -2868,6 +2900,11 @@ case "$1" in
         # Install/Uninstall options
         startup
         install_menu
+        ;;
+    reload)
+        # Lightweight page regeneration for config/code changes. The existing
+        # addon registration and bind mounts are intentionally left untouched.
+        reload_report
         ;;
     inject|inject1|inject2|inject3)
         case "$1" in
