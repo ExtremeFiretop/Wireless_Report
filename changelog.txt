@@ -2,6 +2,7 @@
 # Wireless Report - Changelog #
 #=============================#
 
+v3.0.9-added portable SHA-256 local/remote update comparison with compatibility fallback for firmware lacking sha256sum.
 v3.0.8-stabilized 388-series AiMesh band/SSID reporting by rejecting mismatched legacy stainfo radio samples.
 v3.0.7-fixed first-install WebUI ordering by generating the complete report page before addon binding/httpd restart.
 v3.0.6-added live WebUI generation watching so installed updates and saved shell-menu changes reload the open report automatically.

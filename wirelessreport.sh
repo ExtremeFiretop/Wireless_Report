@@ -28,7 +28,7 @@
 #        shellcheck shell=sh disable=SC2086,SC2155,SC3043         #
 #=================================================================#
 
-SCRIPT_VERSION="3.0.8"
+SCRIPT_VERSION="3.0.9"
 INSTALL_DIR="/jffs/addons/wireless_report"
 REPORT_SCRIPT="$INSTALL_DIR/wirelessreport.sh"
 SYSTEM_MENU="/www/require/modules/menuTree.js"
@@ -323,6 +323,26 @@ ScriptUpdateFromAMTM() {
     fi
 }
 
+wr_sha256() {
+    local file="$1" hash=""
+    [ -f "$file" ] || return 1
+
+    # sha256sum is not present on every ASUSWRT build. Prefer it when exposed,
+    # then try the BusyBox applet and OpenSSL before falling back to cmp in
+    # check_github(). This keeps true SHA-256 comparison without breaking
+    # legacy firmware that lacks the standalone utility.
+    if command -v sha256sum >/dev/null 2>&1; then
+        hash=$(sha256sum "$file" 2>/dev/null | awk '{print $1}')
+    elif command -v busybox >/dev/null 2>&1 && busybox sha256sum "$file" >/dev/null 2>&1; then
+        hash=$(busybox sha256sum "$file" 2>/dev/null | awk '{print $1}')
+    elif command -v openssl >/dev/null 2>&1; then
+        hash=$(openssl dgst -sha256 "$file" 2>/dev/null | awk '{print $NF}')
+    fi
+
+    [ "${#hash}" -eq 64 ] || return 1
+    printf '%s\n' "$hash"
+}
+
 check_github() {
     GITHUB="https://raw.githubusercontent.com/JB1366/Wireless_Report/main/wirelessreport.sh"
     REMOTE_TMP="/tmp/wr_remote.tmp"
@@ -331,14 +351,21 @@ check_github() {
 
     if curl -sfL --retry 3 "$GITHUB" -o "$REMOTE_TMP" 2>/dev/null && [ -s "$REMOTE_TMP" ]; then
         REMOTE_VERSION=$(grep "SCRIPT_VERSION=" "$REMOTE_TMP" | head -n 1 | cut -d'"' -f2 | tr -cd '0-9.')
+        LOCAL_HASH=$(wr_sha256 "$REPORT_SCRIPT" 2>/dev/null)
+        REMOTE_HASH=$(wr_sha256 "$REMOTE_TMP" 2>/dev/null)
 
-        if [ -f "$REPORT_SCRIPT" ]; then
-            if cmp -s "$REPORT_SCRIPT" "$REMOTE_TMP"; then
-                LOCAL_HASH="same"
-                REMOTE_HASH="same"
-            else
-                LOCAL_HASH="local"
-                REMOTE_HASH="remote"
+        # Some legacy builds expose neither sha256sum nor an OpenSSL/BusyBox
+        # SHA-256 implementation. Equality is all check_version needs, so keep
+        # cmp as a compatibility fallback rather than failing update detection.
+        if [ -z "$LOCAL_HASH" ] || [ -z "$REMOTE_HASH" ]; then
+            if [ -f "$REPORT_SCRIPT" ]; then
+                if cmp -s "$REPORT_SCRIPT" "$REMOTE_TMP"; then
+                    LOCAL_HASH="same"
+                    REMOTE_HASH="same"
+                else
+                    LOCAL_HASH="local"
+                    REMOTE_HASH="remote"
+                fi
             fi
         fi
     else
