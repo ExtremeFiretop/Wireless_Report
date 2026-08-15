@@ -28,7 +28,7 @@
 #        shellcheck shell=sh disable=SC2086,SC2155,SC3043         #
 #=================================================================#
 
-SCRIPT_VERSION="3.0.5"
+SCRIPT_VERSION="3.0.6"
 INSTALL_DIR="/jffs/addons/wireless_report"
 REPORT_SCRIPT="$INSTALL_DIR/wirelessreport.sh"
 SYSTEM_MENU="/www/require/modules/menuTree.js"
@@ -96,15 +96,8 @@ install_menu() {
 					esac
 					break ;;
 				e|E)
-                    # Config-only changes do not require rebuilding/remounting
-                    # the addon menu. Regenerate the bound report page using a
-                    # fresh process so webui.conf and any newly installed code
-                    # are re-read before the next browser refresh.
-                    if [ -x "$REPORT_SCRIPT" ]; then
-                        "$REPORT_SCRIPT" reload
-                    else
-                        reload_report
-                    fi
+                    # Saved configuration changes are regenerated immediately
+                    # and the open WebUI page watches for a new generation.
                     clear; hasta; exit 0
                     ;;
 				*) freeze2; continue ;;
@@ -456,6 +449,7 @@ do_uninstall() {
 	fi
 	sed -i "\|$REPORT_SCRIPT|d" "$SS_FILE"; sed -i "/wireless_report/d" "$SE_FILE"
 	restart_httpd
+    nvram unset wirelessreport_gen >/dev/null 2>&1
 	rm -rf "$INSTALL_DIR" "$WEB_PAGE" 2>/dev/null
     case "$USB_PATH" in *wirelessreport*) rm -rf "$USB_PATH" 2>/dev/null ;; esac
 	logger -p user.info -t "Wireless_Report" "(v$SCRIPT_VERSION) successfully uninstalled."
@@ -495,6 +489,7 @@ set_date_time() {
             REPORT_UNIT="$NEW_UNIT"
             update_time; break
         done
+        apply_webui_changes
     done
 }
 
@@ -620,6 +615,7 @@ set_nicknames() {
                     freeze2; continue ;;
             esac
         done
+        apply_webui_changes
     done
 }
 
@@ -762,6 +758,7 @@ set_colors() {
     }
     update_config_var "MAIN_COLOR" "$m_color_hex"
     update_config_var "NODE_COLORS" "$working_colors"
+    apply_webui_changes
     echo -e "\n${BL}Device colors successfully saved to CONFIG.${NC}"
     pause
 }
@@ -845,6 +842,7 @@ set_options() {
                     freeze2; continue ;;
             esac
         done
+        apply_webui_changes
     done
 }
 
@@ -1049,6 +1047,25 @@ reload_report() {
     run_report
 }
 
+reload_report_live() {
+    # Fast path for settings changed from the shell menu. No GitHub/version
+    # lookup is needed; regenerate the bound page, then publish a new browser
+    # generation token when the file is complete.
+    if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
+    mesh_init
+    update_time
+    hex_to_ansi
+    run_report
+}
+
+apply_webui_changes() {
+    if [ -x "$REPORT_SCRIPT" ]; then
+        "$REPORT_SCRIPT" live-reload >/dev/null 2>&1
+    else
+        reload_report_live >/dev/null 2>&1
+    fi
+}
+
 run_report() {
 #======================================#
 #  Browser/API Report Page Preparation #
@@ -1059,6 +1076,13 @@ run_report() {
 #   /get_diag_latest_content_data.cgi   (3006/newer)
 #   /get_diag_content_data.cgi          (388 legacy diagnostic fallback)
 # All client/node refreshes happen in-page with same-origin fetch() calls.
+
+# Increment an ephemeral (non-committed) NVRAM generation. The new value is
+# published only after the generated ASP is complete, allowing an already-open
+# Wireless Report page to detect shell-menu changes and code updates safely.
+WR_GENERATION=$(nvram get wirelessreport_gen 2>/dev/null)
+case "$WR_GENERATION" in ""|*[!0-9]*) WR_GENERATION=0 ;; esac
+WR_GENERATION=$((WR_GENERATION + 1))
 
 NODE_NICK_JS=""
 if [ -f "$CONFIG" ]; then
@@ -1282,6 +1306,55 @@ var WR_CONFIG = {
     rssiHistoryEntries: Number("${RS_HIST_ENTRIES:-5}") || 5,
     rssiHistoryDate: Number("${RS_HIST_DATE:-0}") || 0
 };
+
+var WR_PAGE_GENERATION = "$WR_GENERATION";
+var WR_LIVE_WATCH_TIMER = null;
+var WR_LIVE_CHECKING = false;
+var WR_LIVE_RELOADING = false;
+
+function wrNavigateToFreshGeneration(generation) {
+    if (WR_LIVE_RELOADING) return;
+    WR_LIVE_RELOADING = true;
+    try {
+        var url = new URL(window.location.href);
+        url.searchParams.set('wr_live', String(generation));
+        console.info('Wireless Report: applying WebUI generation ' + generation);
+        window.location.replace(url.toString());
+    } catch (e) {
+        window.location.href = window.location.pathname + '?wr_live=' + encodeURIComponent(String(generation));
+    }
+}
+
+async function wrCheckLiveGeneration() {
+    if (WR_LIVE_CHECKING || WR_LIVE_RELOADING) return;
+    WR_LIVE_CHECKING = true;
+    try {
+        var state = await wrAppGet('nvram_get(wirelessreport_gen);');
+        var generation = String((state && state.wirelessreport_gen) || '');
+        if (generation && generation !== String(WR_PAGE_GENERATION)) {
+            wrNavigateToFreshGeneration(generation);
+        }
+    } catch (_) {
+        // Ignore transient/session errors; normal report refresh handles them.
+    } finally {
+        WR_LIVE_CHECKING = false;
+    }
+}
+
+function wrStartLiveReloadWatcher() {
+    if (WR_LIVE_WATCH_TIMER) return;
+    setTimeout(wrCheckLiveGeneration, 750);
+    WR_LIVE_WATCH_TIMER = setInterval(wrCheckLiveGeneration, 2000);
+}
+
+function wrRemoveLiveCacheBuster() {
+    try {
+        var url = new URL(window.location.href);
+        if (!url.searchParams.has('wr_live')) return;
+        url.searchParams.delete('wr_live');
+        window.history.replaceState(null, document.title, url.pathname + url.search + url.hash);
+    } catch (_) {}
+}
 
 function update_time() {
     const now = new Date();
@@ -2487,6 +2560,8 @@ async function loadWirelessReport() {
 
 async function initial() {
     show_menu();
+    wrRemoveLiveCacheBuster();
+    wrStartLiveReloadWatcher();
     wrPrepareRssiHistoryStorage();
     var savedView = localStorage.getItem('wifiReportView') || 'split';
     switchTab(savedView);
@@ -3004,6 +3079,9 @@ document.addEventListener('mouseout', function(e) {
     </div>
 </body>
 HTML
+    # Publish last: open pages only navigate once the complete replacement ASP
+    # is on disk. This NVRAM value is intentionally not committed to flash.
+    nvram set wirelessreport_gen="$WR_GENERATION" >/dev/null 2>&1
 }
 case "$1" in
     install)
@@ -3012,9 +3090,14 @@ case "$1" in
         install_menu
         ;;
     reload)
-        # Lightweight page regeneration for config/code changes. The existing
+        # Lightweight page regeneration for installed code changes. The existing
         # addon registration and bind mounts are intentionally left untouched.
         reload_report
+        ;;
+    live-reload)
+        # Fast regeneration used by shell-menu settings. Open v3.0.6+ pages
+        # notice the generation change and perform a cache-busted navigation.
+        reload_report_live
         ;;
     inject|inject1|inject2|inject3)
         case "$1" in
