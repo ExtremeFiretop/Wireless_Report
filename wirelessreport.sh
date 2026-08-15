@@ -1153,6 +1153,7 @@ cat <<HTML >> "$WEB_PAGE"
     .band-24g { color: #0096ff !important; font-weight: bold; }
 	.band-5g { color: #30d158 !important; font-weight: bold; }
 	.band-6g { color: #bf40bf !important; font-weight: bold; }
+    .footer { font-size: 13px; }
     .hidden-node-number { position:absolute; width:0; height:0; overflow:hidden; opacity:0; pointer-events:none; }
     .separator-line { margin: 8px -12px; width: calc(100% + 24px); display: block; }
     sup { font-size: 0.6em; margin-left: 2px; }
@@ -2627,8 +2628,8 @@ document.addEventListener('mouseout', function(e) {
                                     <tfoot>
                                         <tr>
                                             <td colspan="7">
-                                                <span>Uptime: $MAIN_UPTIME</span>
-                                                <span>Reboot: $MAIN_BOOTTIME</span>
+                                                <span class="footer">Uptime: $MAIN_UPTIME</span>
+                                                <span class="footer">Reboot: $MAIN_BOOTTIME</span>
                                             </td>
                                         </tr>
                                     </tfoot>
@@ -2662,7 +2663,7 @@ document.addEventListener('mouseout', function(e) {
                                     <tfoot>
                                         <tr>
                                             <td colspan="7">
-                                                $NODE_UPTIMES
+                                                <span class="footer">$NODE_UPTIMES</span>
                                             </td>
                                         </tr>
                                     </tfoot>
@@ -2694,7 +2695,7 @@ document.addEventListener('mouseout', function(e) {
                                 <tfoot>
                                     <tr>
                                         <td colspan="7" style="$UPTIME_STYLE">
-                                            $ALL_UPTIME
+                                            <span class="footer">$ALL_UPTIME</span>
                                         </td>
                                     </tr>
                                 </tfoot>
