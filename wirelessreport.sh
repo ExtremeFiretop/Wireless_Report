@@ -28,7 +28,7 @@
 #        shellcheck shell=sh disable=SC2086,SC2155,SC3043         #
 #=================================================================#
 
-SCRIPT_VERSION="3.0.5"
+SCRIPT_VERSION="3.0.4"
 INSTALL_DIR="/jffs/addons/wireless_report"
 REPORT_SCRIPT="$INSTALL_DIR/wirelessreport.sh"
 SYSTEM_MENU="/www/require/modules/menuTree.js"
@@ -1655,85 +1655,6 @@ function wrSavedClient(saved, macRaw, mac) {
     return saved[macRaw] || saved[mac] || saved[String(mac).toLowerCase()] || {};
 }
 
-function wrStaSsidNvramKey(sta) {
-    // On affected 388 builds get_clientlist().ssid is blank, while stainfo still
-    // reports the real wireless interface (for example wl1.1). ASUS exposes the
-    // configured SSID for that interface as <ifname>_ssid through appGet/NVRAM.
-    var iface = String(sta && sta.conn_if || '').trim();
-    if (!/^wl[0-9]+(?:\.[0-9]+)?$/i.test(iface)) return '';
-    return iface.toLowerCase() + '_ssid';
-}
-
-function wrNodeBandSsid(node, sta) {
-    if (!node || !sta) return '';
-    var band = String(sta.sta_band || '').trim().toUpperCase();
-    if (band === '2G' || band === '2.4G') return wrFirst(node, ['ap2g_ssid']);
-    if (band === '5G') return wrFirst(node, ['ap5g_ssid']);
-    if (band === '5G1') return wrFirst(node, ['ap5g1_ssid']);
-    if (band === '5G2') return wrFirst(node, ['ap5g2_ssid', 'ap5g1_ssid']);
-    if (band === '6G') return wrFirst(node, ['ap6g_ssid']);
-    if (band === '6G1') return wrFirst(node, ['ap6g1_ssid']);
-    if (band === '6G2') return wrFirst(node, ['ap6g2_ssid', 'ap6g1_ssid']);
-    return '';
-}
-
-async function wrResolveClientSsids(items, allNodes, mainMac) {
-    // 3006 normally supplies c.ssid directly, so this function becomes a no-op
-    // there. 388 may leave both live/saved client SSID fields blank even though
-    // stainfo contains RSSI, connection time and conn_if. Resolve only missing
-    // SSIDs so newer-firmware behavior is never overridden.
-    var mainNode = (allNodes || []).find(function(node) {
-        return wrNormMac(node && (node.mac || node.mac_addr)) === wrNormMac(mainMac);
-    }) || null;
-
-    var missing = [];
-    var keys = new Set();
-
-    items.forEach(function(item) {
-        var direct = wrFirst(item.client, ['ssid']) || wrFirst(item.saved, ['ssid']);
-        item.resolvedSsid = direct || '';
-        if (item.resolvedSsid) return;
-
-        missing.push(item);
-        var key = wrStaSsidNvramKey(item.sta);
-        if (key) keys.add(key);
-    });
-
-    var nvramSsids = {};
-    if (keys.size) {
-        var hook = Array.from(keys).map(function(key) {
-            return 'nvram_get(' + key + ');';
-        }).join('');
-        try {
-            nvramSsids = await wrAppGet(hook);
-        } catch (e) {
-            console.warn('Wireless Report SSID interface lookup failed', e);
-        }
-    }
-
-    missing.forEach(function(item) {
-        var sta = item.sta;
-        var key = wrStaSsidNvramKey(sta);
-        var fromIface = key ? String(nvramSsids[key] || '').trim() : '';
-        if (fromIface) {
-            item.resolvedSsid = fromIface;
-            return;
-        }
-
-        // Do not substitute a main-radio SSID for a guest/virtual interface if
-        // its exact NVRAM lookup failed. That would silently mislabel the client.
-        var iface = String(sta && sta.conn_if || '');
-        var vidx = wrNumber(sta && sta.conn_if_vidx);
-        var isVirtual = iface.indexOf('.') !== -1 || (Number.isFinite(vidx) && vidx > 0);
-        if (isVirtual) return;
-
-        // Last-resort main-radio fallback. get_cfg_clientlist() carries these
-        // per-node AP SSIDs on both firmware families and is safe for non-virtual
-        // interfaces only.
-        item.resolvedSsid = wrNodeBandSsid(item.node || mainNode, sta) || '';
-    });
-}
-
 function wrGetMloCandidates(mac, liveClient, savedClient) {
     var candidates = new Set();
     function add(value) {
@@ -2108,7 +2029,7 @@ function wrRenderRow(item, history, known, firstHistoryLoad) {
     var mac = item.mac;
     var rawIp = wrFirst(c, ['ip']) || '';
     var rawName = wrClientName(mac, c, saved);
-    var rawSsid = item.resolvedSsid || wrFirst(c, ['ssid']) || wrFirst(saved, ['ssid']) || '';
+    var rawSsid = wrFirst(c, ['ssid']) || '';
     var ip = rawIp.length > 15 ? rawIp.slice(0, 15) : rawIp;
     var name = rawName.length > 20 ? rawName.slice(0, 20) : rawName;
     var ssid = rawSsid.length > 15 ? rawSsid.slice(0, 15) : rawSsid;
@@ -2334,13 +2255,6 @@ async function loadWirelessReport() {
     for (var itemIndex = 0; itemIndex < items.length; itemIndex++) {
         items[itemIndex].sta = await wrResolveSta(items[itemIndex], staMaps);
     }
-
-    // SSID compatibility: 3006 uses the normal client-level SSID. Affected 388
-    // builds leave that field blank, so recover it from the resolved stainfo
-    // interface (including virtual interfaces such as wl1.1) without changing
-    // RSSI/connection-time handling, which is already supplied by the same row.
-    await wrResolveClientSsids(items, allNodes, mainMac);
-
     // Match v2.1.0's report-wide sample time so the Main, Node and All views show
     // the same timestamp for a given refresh and the persisted sample matches it.
     var historySampleTime = Date.now();
