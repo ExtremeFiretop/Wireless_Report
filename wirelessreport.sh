@@ -1823,7 +1823,58 @@ function wrSavedClient(saved, macRaw, mac) {
     return saved[macRaw] || saved[mac] || saved[String(mac).toLowerCase()] || {};
 }
 
-function wrStaIface(sta, client) {
+function wrNodeClientIfaceFallback(node, client) {
+    // Legacy 388 AiMesh can keep a client in get_clientlist() while omitting the
+    // node from stainfo entirely. In that case use the node's own band_info map
+    // to translate the client's isWL value to the node-local wl unit, then append
+    // the live guest-network slot from isGN. Do not use this on 3006/latest.
+    if (WR_DIAG_API !== 'legacy' || !node || !client) return '';
+
+    var bandInfo = node.band_info;
+    if (!bandInfo || typeof bandInfo !== 'object') return '';
+
+    var wlRaw = client.isWL;
+    var wl = Number(wlRaw);
+    var wlValid = wlRaw !== undefined && wlRaw !== null && String(wlRaw).trim() !== '' &&
+        Number.isFinite(wl) && Math.floor(wl) === wl && wl >= 1;
+    if (!wlValid) return '';
+
+    // Prefer ASUS' exact band_info key. Some legacy nodes index 2.4 GHz as key
+    // "0" while get_clientlist() reports isWL="1", so if there is no exact key,
+    // match by the node's zero-based radio unit instead of assuming the key.
+    var band = bandInfo[String(wl)] || null;
+    if (!band) {
+        var expectedUnit = wl - 1;
+        Object.keys(bandInfo).some(function(key) {
+            var candidate = bandInfo[key];
+            var candidateUnit = Number(candidate && candidate.unit);
+            if (Number.isFinite(candidateUnit) && Math.floor(candidateUnit) === candidateUnit &&
+                candidateUnit === expectedUnit) {
+                band = candidate;
+                return true;
+            }
+            return false;
+        });
+    }
+    if (!band) return '';
+
+    var unitRaw = band.unit;
+    var unit = Number(unitRaw);
+    var unitValid = unitRaw !== undefined && unitRaw !== null && String(unitRaw).trim() !== '' &&
+        Number.isFinite(unit) && Math.floor(unit) === unit && unit >= 0;
+    if (!unitValid) return '';
+
+    var iface = 'wl' + unit;
+    var guestRaw = client.isGN === true ? 1 : client.isGN;
+    if (guestRaw !== undefined && guestRaw !== null && String(guestRaw).trim() !== '') {
+        var guest = Number(guestRaw);
+        if (!Number.isFinite(guest) || Math.floor(guest) !== guest || guest < 0) return '';
+        if (guest > 0) iface += '.' + guest;
+    }
+    return iface;
+}
+
+function wrStaIface(sta, client, node) {
     // Prefer ASUS' explicit interface string whenever stainfo supplies it.
     var direct = String(sta && sta.conn_if || '').trim();
     if (direct) return direct;
@@ -1845,6 +1896,11 @@ function wrStaIface(sta, client) {
         if (idxValid) return 'wl' + idx + (vidxValid && vidx > 0 ? '.' + vidx : '');
     }
 
+    // If legacy stainfo has no usable interface data for an AiMesh-node client,
+    // derive the node-local wlX[.Y] from that node's band_info + live isWL/isGN.
+    var nodeFallback = wrNodeClientIfaceFallback(node, client);
+    if (nodeFallback) return nodeFallback;
+
     // Last resort for either API family: use the live client interface if ASUS
     // exposes one there. Importantly, do this even when a sta object exists.
     return String(wrFirst(client, ['ifname', 'interface']) || '').trim();
@@ -1854,6 +1910,25 @@ function wrStaSsidNvramKey(sta, client) {
     var iface = wrStaIface(sta, client);
     if (!/^wl[0-9]+(?:\.[0-9]+)?$/i.test(iface)) return '';
     return iface.toLowerCase() + '_ssid';
+}
+
+function wrLegacyGuestSsidNvramKey(client) {
+    // On affected 388 builds get_clientlist().ssid can be blank for AiMesh-node
+    // guest clients even though isWL/isGN still identify the radio and guest slot.
+    // ASUS numbers isWL radios from 1 while NVRAM wl units start at 0.
+    if (WR_DIAG_API !== 'legacy' || !client) return '';
+
+    var radioRaw = client.isWL;
+    var guestRaw = client.isGN === true ? 1 : client.isGN;
+    var radio = Number(radioRaw);
+    var guest = Number(guestRaw);
+    var radioValid = radioRaw !== undefined && radioRaw !== null && String(radioRaw).trim() !== '' &&
+        Number.isFinite(radio) && Math.floor(radio) === radio && radio >= 1 && radio <= 4;
+    var guestValid = guestRaw !== undefined && guestRaw !== null && String(guestRaw).trim() !== '' &&
+        Number.isFinite(guest) && Math.floor(guest) === guest && guest >= 1 && guest <= 9;
+
+    if (!radioValid || !guestValid) return '';
+    return 'wl' + (radio - 1) + '.' + guest + '_ssid';
 }
 
 function wrNodeBandSsid(node, sta, client) {
@@ -1874,13 +1949,17 @@ async function wrResolveClientSsids(items, allNodes, mainMac) {
     // 3006 normally supplies get_clientlist().ssid directly, so preserve it.
     // Affected 388 builds leave that field blank. For AiMesh-node clients,
     // conn_if is NODE-local (for example wl1.1 on the node) and must never be
-    // resolved against the primary router's NVRAM; use the parent node's AP
-    // SSID for the reported stainfo band instead.
+    // blindly resolved against the primary router's NVRAM. For legacy guest
+    // clients, however, get_clientlist() exposes isWL/isGN even when stainfo is
+    // absent; use those live fields to address the synchronized primary guest
+    // SSID key (for example isWL=2,isGN=1 -> wl1.1_ssid). Non-guest node clients
+    // retain the existing parent-node band SSID fallback.
     var mainNode = (allNodes || []).find(function(node) {
         return wrNormMac(node && (node.mac || node.mac_addr)) === wrNormMac(mainMac);
     }) || null;
 
     var primaryMissing = [];
+    var nodeGuestMissing = [];
     var primaryKeys = new Set();
 
     items.forEach(function(item) {
@@ -1889,6 +1968,16 @@ async function wrResolveClientSsids(items, allNodes, mainMac) {
         if (item.resolvedSsid) return;
 
         if (item.node) {
+            var guestKey = wrLegacyGuestSsidNvramKey(item.client);
+            if (guestKey) {
+                // AiMesh propagates the configured guest SSID from the primary.
+                // Use live isWL/isGN to select that exact guest slot without
+                // depending on intermittent node stainfo/conn_if data.
+                item.guestSsidKey = guestKey;
+                nodeGuestMissing.push(item);
+                primaryKeys.add(guestKey);
+                return;
+            }
             item.resolvedSsid = wrNodeBandSsid(item.node, item.sta, item.client) || '';
             return;
         }
@@ -1911,6 +2000,13 @@ async function wrResolveClientSsids(items, allNodes, mainMac) {
             console.warn('Wireless Report primary SSID interface lookup failed', e);
         }
     }
+
+    nodeGuestMissing.forEach(function(item) {
+        var key = item.guestSsidKey || '';
+        var fromGuest = key ? String(nvramSsids[key] || '').trim() : '';
+        if (fromGuest) item.resolvedSsid = fromGuest;
+        delete item.guestSsidKey;
+    });
 
     primaryMissing.forEach(function(item) {
         var sta = item.sta;
@@ -2315,7 +2411,7 @@ function wrRenderRow(item, history, known, firstHistoryLoad) {
     var ip = rawIp.length > 15 ? rawIp.slice(0, 15) : rawIp;
     var name = rawName.length > 20 ? rawName.slice(0, 20) : rawName;
     var ssid = rawSsid;
-    var iface = wrStaIface(sta, c);
+    var iface = wrStaIface(sta, c, item.node);
     var rssi = sta && sta.sta_rssi !== undefined ? wrNumber(sta.sta_rssi) : wrNumber(c.rssi);
     var rx = sta && sta.sta_rx !== undefined ? Math.round(wrNumber(sta.sta_rx)) : Math.round(wrNumber(c.curRx));
     var tx = sta && sta.sta_tx !== undefined ? Math.round(wrNumber(sta.sta_tx)) : Math.round(wrNumber(c.curTx));

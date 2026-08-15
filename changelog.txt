@@ -2,7 +2,7 @@
 # Wireless Report - Changelog #
 #=============================#
 
-v3.1.3-added wide-view option to webgui view button row.
+v3.1.3-added wide-view option to webgui view button row. fixed AiMesh node Guest network SSIDs and interfaces. Uptime does not populate for Guest networks on AX series routers (388 F/W)
 v3.1.2-fixed AiMesh WebUI node order/color mismatch by matching shell IP order and keying configured node colors by IP.
 v3.1.1-fixed intermittent/missing IFACE on 388-series firmware by reconstructing wlX[.Y] from stainfo interface indexes when conn_if is blank.
 v3.1.0-fixed legacy firmware sha256sum errors and reset terminal ANSI colors when the interactive menu is interrupted.
