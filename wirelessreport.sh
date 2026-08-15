@@ -28,7 +28,7 @@
 #        shellcheck shell=sh disable=SC2086,SC2155,SC3043         #
 #=================================================================#
 
-SCRIPT_VERSION="3.0.10"
+SCRIPT_VERSION="3.0.11"
 INSTALL_DIR="/jffs/addons/wireless_report"
 REPORT_SCRIPT="$INSTALL_DIR/wirelessreport.sh"
 SYSTEM_MENU="/www/require/modules/menuTree.js"
@@ -1835,8 +1835,35 @@ function wrSavedClient(saved, macRaw, mac) {
     return saved[macRaw] || saved[mac] || saved[String(mac).toLowerCase()] || {};
 }
 
-function wrStaSsidNvramKey(sta) {
-    var iface = String(sta && sta.conn_if || '').trim();
+function wrStaIface(sta, client) {
+    // Prefer ASUS' explicit interface string whenever stainfo supplies it.
+    var direct = String(sta && sta.conn_if || '').trim();
+    if (direct) return direct;
+
+    // 388-series conn_diag can return a valid station sample (RSSI/rates/uptime)
+    // with conn_if blank while still supplying the radio/virtual-interface
+    // indexes. Reconstruct the same ASUS wlX[.Y] form from that row instead of
+    // showing an empty IFACE. Keep this compatibility reconstruction legacy-only
+    // so the working 3006/latest path is unchanged.
+    if (WR_DIAG_API === 'legacy' && sta) {
+        var idxRaw = sta.conn_if_idx;
+        var vidxRaw = sta.conn_if_vidx;
+        var idx = Number(idxRaw);
+        var vidx = Number(vidxRaw);
+        var idxValid = idxRaw !== undefined && idxRaw !== null && String(idxRaw).trim() !== '' &&
+            Number.isFinite(idx) && Math.floor(idx) === idx && idx >= 0;
+        var vidxValid = vidxRaw !== undefined && vidxRaw !== null && String(vidxRaw).trim() !== '' &&
+            Number.isFinite(vidx) && Math.floor(vidx) === vidx && vidx >= 0;
+        if (idxValid) return 'wl' + idx + (vidxValid && vidx > 0 ? '.' + vidx : '');
+    }
+
+    // Last resort for either API family: use the live client interface if ASUS
+    // exposes one there. Importantly, do this even when a sta object exists.
+    return String(wrFirst(client, ['ifname', 'interface']) || '').trim();
+}
+
+function wrStaSsidNvramKey(sta, client) {
+    var iface = wrStaIface(sta, client);
     if (!/^wl[0-9]+(?:\.[0-9]+)?$/i.test(iface)) return '';
     return iface.toLowerCase() + '_ssid';
 }
@@ -1881,7 +1908,7 @@ async function wrResolveClientSsids(items, allNodes, mainMac) {
         // Primary-router interface names belong to the primary, so an exact
         // <conn_if>_ssid lookup is valid here and retains guest/virtual SSIDs.
         primaryMissing.push(item);
-        var key = wrStaSsidNvramKey(item.sta);
+        var key = wrStaSsidNvramKey(item.sta, item.client);
         if (key) primaryKeys.add(key);
     });
 
@@ -1909,7 +1936,7 @@ async function wrResolveClientSsids(items, allNodes, mainMac) {
         // Never replace a virtual-interface SSID with the main radio's SSID if
         // the exact primary NVRAM lookup failed. For a non-virtual interface,
         // the primary's advertised band SSID is a safe final fallback.
-        var iface = String(sta && sta.conn_if || '');
+        var iface = wrStaIface(sta, item.client);
         var vidx = wrNumber(sta && sta.conn_if_vidx);
         var isVirtual = iface.indexOf('.') !== -1 || (Number.isFinite(vidx) && vidx > 0);
         if (!isVirtual) item.resolvedSsid = wrNodeBandSsid(mainNode, sta, item.client) || '';
@@ -2300,7 +2327,7 @@ function wrRenderRow(item, history, known, firstHistoryLoad) {
     var ip = rawIp.length > 15 ? rawIp.slice(0, 15) : rawIp;
     var name = rawName.length > 20 ? rawName.slice(0, 20) : rawName;
     var ssid = rawSsid;
-    var iface = sta ? (sta.conn_if || '') : wrFirst(c, ['ifname', 'interface']);
+    var iface = wrStaIface(sta, c);
     var rssi = sta && sta.sta_rssi !== undefined ? wrNumber(sta.sta_rssi) : wrNumber(c.rssi);
     var rx = sta && sta.sta_rx !== undefined ? Math.round(wrNumber(sta.sta_rx)) : Math.round(wrNumber(c.curRx));
     var tx = sta && sta.sta_tx !== undefined ? Math.round(wrNumber(sta.sta_tx)) : Math.round(wrNumber(c.curTx));
