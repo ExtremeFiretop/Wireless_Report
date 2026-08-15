@@ -2,6 +2,7 @@
 # Wireless Report - Changelog #
 #=============================#
 
+v3.0.7-fixed first-install WebUI ordering by generating the complete report page before addon binding/httpd restart.
 v3.0.6-added live WebUI generation watching so installed updates and saved shell-menu changes reload the open report automatically.
 v3.0.5-fixed 388-series SSID reporting; node clients use parent-node band SSIDs instead of primary-router interface NVRAM.
 v3.0.4-fixed AiMesh node nickname/color inventory by merging asus_device_list and cfg_device_list.

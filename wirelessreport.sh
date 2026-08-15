@@ -28,7 +28,7 @@
 #        shellcheck shell=sh disable=SC2086,SC2155,SC3043         #
 #=================================================================#
 
-SCRIPT_VERSION="3.0.6"
+SCRIPT_VERSION="3.0.7"
 INSTALL_DIR="/jffs/addons/wireless_report"
 REPORT_SCRIPT="$INSTALL_DIR/wirelessreport.sh"
 SYSTEM_MENU="/www/require/modules/menuTree.js"
@@ -256,12 +256,24 @@ do_update() {
     # mounted. Regenerate that page in-place with the newly installed script;
     # only a first install needs the heavier inject_menu path.
     apply_updated_report() {
+        local inject_rc=0
         SE_FILE="/jffs/scripts/service-event"; sed -i "/wireless_report/d" "$SE_FILE"
         get_usb
         if [ "$is_update" = "1" ]; then
             "$REPORT_SCRIPT" reload || return 1
         else
+            # First install must not bind/restart httpd against the temporary
+            # placeholder and then generate the real ASP asynchronously.  That
+            # can leave the first opened addon page on stale/incomplete content
+            # until ASUS WebUI navigation tears it down and loads it again.
+            # Build the complete page first, then bind that finished inode into
+            # the allocated /www/user slot and restart httpd once.
+            "$REPORT_SCRIPT" live-reload || return 1
+            WR_PREGENERATED="1"
             inject_menu
+            inject_rc=$?
+            WR_PREGENERATED=""
+            [ "$inject_rc" -eq 0 ] || return "$inject_rc"
         fi
         case "$USB_PATH" in *wirelessreport*) rm -rf "$USB_PATH" 2>/dev/null ;; esac
     }
@@ -424,8 +436,15 @@ inject_menu() {
 	umount "/www/user/$am_webui_page" 2>/dev/null
 	mount -o bind "$WEB_PAGE" "/www/user/$am_webui_page"
 	flock -u "$FD"; restart_httpd
-    if [ "$NOLOADSCRIPT" = "1" ]; then exit 0
-    else "$REPORT_SCRIPT" & fi
+    if [ "$NOLOADSCRIPT" = "1" ]; then
+        exit 0
+    elif [ "$WR_PREGENERATED" = "1" ]; then
+        # First-install page was generated synchronously before injection.
+        # Do not immediately rewrite the newly bound page in a background job.
+        return 0
+    else
+        "$REPORT_SCRIPT" &
+    fi
 }
 
 do_uninstall() {
