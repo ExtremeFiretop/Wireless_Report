@@ -120,12 +120,6 @@ $\color{blue}{\Large\text{SIDE-BY-SIDE VIEW - COLORED HOSTNAMES - DARK MODE}}$<b
 
 \
 \
-$\color{blue}{\Large\text{ROUTER ONLY VIEW - ORIGINAL MODE}}$
-
-![Instructions9](https://raw.githubusercontent.com/JB1366/Wireless_Report/main/images/Instructions9.png)
-
-\
-\
 $\color{blue}{\Large\text{ADVANCED VIEWING + INTERACTIVE FEATURES}}$<br>
 Wireless Report is designed to be more than just a static table. Use these interactive elements to manage your network:
   * $\color{green}{\text{Version, Hash + Update Alerts:}}$ Hover your mouse over the "Wireless Report" header to instantly check your current script version and view file hash updates—when an update or hash change is available, the header text softly pulses twice to catch your eye. Additionally, the browser tab title displays the active Wireless Report version, dynamically appending an alert whenever a new version or hash update is detected.
