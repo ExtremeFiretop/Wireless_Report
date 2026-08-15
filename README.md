@@ -168,7 +168,7 @@ Once configured, simply typing wr from any location in the SSH terminal will lau
 \
 \
 $\color{blue}{\Large\text{UNINSTALL}}$<br>
-If you need to remove Wireless Report AiMesh, you can do so through the installer menu. Both methods below will strip the script files and remove the WebGUI tab.
+If you need to remove Wireless Report, you can do so through the installer menu. Both methods below will strip the script files and remove the WebGUI tab.
 
 $\color{green}{\text{Method A:}}$ Via amtm<br>
    * Open the amtm menu and type wr.<br>
@@ -186,13 +186,13 @@ sh /jffs/addons/wireless_report/wirelessreport.sh install
 
 \
 \
-Wireless Report AiMesh is free to use under the [GNU General Public License version GPL 3.0](LICENSE)<br>
+Wireless Report is free to use under the [GNU General Public License version GPL 3.0](LICENSE)<br>
 \
 \
 If you have any questions, please feel free to post in this thread [Wireless Report @ SNB Forums](https://www.snbforums.com/threads/96861/latest)<br>
 \
 \
-[![Donate](https://img.shields.io/badge/Donate-PayPal-blue.svg)](https://www.paypal.com/paypalme/JB1366) [Support the development of Wireless Report AiMesh](https://www.paypal.com/paypalme/JB1366) [![Donate](https://img.shields.io/badge/Donate-PayPal-blue.svg)](https://www.paypal.com/paypalme/JB1366)<br>
+[![Donate](https://img.shields.io/badge/Donate-PayPal-blue.svg)](https://www.paypal.com/paypalme/JB1366) [Support the development of Wireless Report](https://www.paypal.com/paypalme/JB1366) [![Donate](https://img.shields.io/badge/Donate-PayPal-blue.svg)](https://www.paypal.com/paypalme/JB1366)<br>
 \
 \
 [View Changelog](changelog.txt)
