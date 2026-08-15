@@ -708,6 +708,21 @@ hex_to_ansi() {
     esac
 }
 
+get_node_nick() {
+    local node_ip="$1" key
+    key="NODE_NICK_$(printf '%s' "$node_ip" | tr '.' '_')"
+
+    [ -f "$CONFIG" ] || return 0
+    awk -v key="$key" '
+        index($0, key "=\"") == 1 {
+            value = substr($0, length(key) + 3)
+            sub(/\"$/, "", value)
+            print value
+            exit
+        }
+    ' "$CONFIG" 2>/dev/null
+}
+
 set_colors() {
     local main_name=$(nvram get productid); local main_ip=$(nvram get lan_ipaddr)
     local m_color_hex="" current_colors=""
@@ -741,9 +756,7 @@ set_colors() {
             local node_ip="${node#*|}"
             local default_nick="${node%%|*}"
             local active_color=$(echo "$working_colors" | awk -v col="$idx" '{print $col}')
-            local ip_underscores="${node_ip//./_}"
-            local nick_var_name="NODE_NICK_${ip_underscores}"
-            local node_display_name=$(eval echo \"\${$nick_var_name}\")
+            local node_display_name=$(get_node_nick "$node_ip")
             node_display_name="${node_display_name:-$default_nick}"
             local display_color=$(hex_to_ansi "$active_color")
             local formatted_ip=$(printf "(%s)" "$node_ip")
@@ -765,12 +778,14 @@ set_colors() {
                 target_name="${MAIN_NICK:-$main_name}"
                 target_hex="$m_color_hex"
             else
-                local target_node=$(echo "$MESH_NODES" | awk -v n="$node_choice" '{print $n}')
-                local target_ip=$(echo "$target_node" | cut -d'|' -f2)
-                local target_ip_underscores=$(echo "$target_ip" | tr '.' '_')
-                local target_nick_var="NODE_NICK_${target_ip_underscores}"
-                target_name=$(eval echo \"\${$target_nick_var}\")
-                target_name="${target_name:-$(echo "$target_node" | cut -d'|' -f1)}"
+                # MESH_NODES is one node per line. Select by record number, not
+                # by awk field number; '$n' returned every line for choice 1 and
+                # produced a multi-line variable name that made eval fail with
+                # "bad substitution" on multi-node systems.
+                local target_node=$(printf '%s\n' "$MESH_NODES" | awk -v n="$node_choice" 'NR == n { print; exit }')
+                local target_ip=$(printf '%s\n' "$target_node" | cut -d'|' -f2)
+                target_name=$(get_node_nick "$target_ip")
+                target_name="${target_name:-$(printf '%s\n' "$target_node" | cut -d'|' -f1)}"
                 target_hex=$(echo "$working_colors" | awk -v col="$node_choice" '{print $col}')
             fi
             local target_prompt_color=$(hex_to_ansi "$target_hex")
