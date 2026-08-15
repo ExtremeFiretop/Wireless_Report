@@ -96,18 +96,10 @@ install_menu() {
 					esac
 					break ;;
 				e|E)
-                    # Config-only changes do not require rebuilding/remounting
-                    # the addon menu. Regenerate the bound report page using a
-                    # fresh process so webui.conf and any newly installed code
-                    # are re-read before the next browser refresh.
-                    if [ -x "$REPORT_SCRIPT" ]; then
-                        "$REPORT_SCRIPT" reload
-                    else
-                        reload_report
-                    fi
-                    clear; hasta; exit 0
-                    ;;
-				*) freeze2; continue ;;
+                    if [ -x "$REPORT_SCRIPT" ]; then reload_report; fi
+                    clear; hasta; exit 0 ;;
+				*)
+                    freeze2; continue ;;
 			esac
 		done
 	done
@@ -211,6 +203,12 @@ menu_vars() {
 	else HN_STAT="${GR}Numbered${NC}"; fi
 }
 
+reload_report() {
+    if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
+    startup
+    run_report
+}
+
 do_install() {
 	mkdir -p "$INSTALL_DIR" 2>/dev/null
     if [ ! -f "$CONFIG" ]; then touch "$CONFIG"; fi
@@ -227,7 +225,8 @@ do_install() {
 	if [ "$is_update" = "1" ]; then
 		echo -e "\n${BL}[✓] Wireless Report successfully installed.${NC}"
 		printf "\nPress ${BL}[Enter]${NC} to apply changes & restart script..."; read -r discard
-		logger -p user.info -t "Wireless_Report" "(v${INSTALL_VERSION:-$REMOTE_VERSION}) successfully installed."
+		reload_report
+        logger -p user.info -t "Wireless_Report" "(v${INSTALL_VERSION:-$REMOTE_VERSION}) successfully installed."
         exec "$REPORT_SCRIPT" install "$@"
 		echo -e "${RD}Error: Failed to restart script!${NC}" >&2
 		exit 1
@@ -252,51 +251,35 @@ do_install() {
 
 do_update() {
     TEMP_SCRIPT="/tmp/wirelessreport.sh"
-    local is_update="${1:-1}"
-    local CURRENT_PATH; local TARGET_PATH
-    CURRENT_PATH=$(readlink -f "$0" 2>/dev/null)
-    [ -z "$CURRENT_PATH" ] && CURRENT_PATH="$0"
-    TARGET_PATH=$(readlink -f "$REPORT_SCRIPT" 2>/dev/null)
-    [ -z "$TARGET_PATH" ] && TARGET_PATH="$REPORT_SCRIPT"
-
-    # Existing installs already have their WebUI page registered and bind
-    # mounted. Regenerate that page in-place with the newly installed script;
-    # only a first install needs the heavier inject_menu path.
-    apply_updated_report() {
-        SE_FILE="/jffs/scripts/service-event"; sed -i "/wireless_report/d" "$SE_FILE"
-        get_usb
-        if [ "$is_update" = "1" ]; then
-            "$REPORT_SCRIPT" reload || return 1
-        else
-            inject_menu
-        fi
-        case "$USB_PATH" in *wirelessreport*) rm -rf "$USB_PATH" 2>/dev/null ;; esac
-    }
-
-    # When install is explicitly launched from a different local file (for
-    # example /tmp/wirelessreport.sh), install THAT supplied build. A fresh
-    # process then runs reload so the just-copied code, not the old in-memory
-    # functions, generates the report page.
-    if [ "$CURRENT_PATH" != "$TARGET_PATH" ]; then
-        INSTALL_VERSION="$SCRIPT_VERSION"
-        echo -e "\n${YL}[i] Installing supplied local copy (v$SCRIPT_VERSION)...${NC}\n"
-        cp "$0" "$REPORT_SCRIPT" || return 1
-        chmod +x "$REPORT_SCRIPT" 2>/dev/null
-        apply_updated_report || return 1
-        return 0
-    fi
-
-    # Normal update initiated by the already-installed script: fetch upstream.
     if curl -sfL --retry 3 "$GITHUB" -o "$TEMP_SCRIPT" && [ -s "$TEMP_SCRIPT" ]; then
-        INSTALL_VERSION="$REMOTE_VERSION"
         mv "$TEMP_SCRIPT" "$REPORT_SCRIPT"
         chmod +x "$REPORT_SCRIPT" 2>/dev/null
-        apply_updated_report || return 1
+        reload_report
+        # the following 3-lines get deleted after a couple weeks, only for transition.
+        SE_FILE="/jffs/scripts/service-event"; sed -i "/wireless_report/d" "$SE_FILE"
+        get_usb
+        case "$USB_PATH" in *wirelessreport*) rm -rf "$USB_PATH" 2>/dev/null ;; esac
         return 0
     else
         rm -f "$TEMP_SCRIPT"
-        echo -e "${RD}[!] GitHub unreachable and script is already in place.${NC}"
-        return 1
+        if [ ! -f "$0" ]; then
+            echo -e "${RD}[!] Download failed. Aborting installation.${NC}"
+            return 1
+        fi
+        local CURRENT_PATH; local TARGET_PATH
+        CURRENT_PATH=$(readlink -f "$0" 2>/dev/null)
+        [ -z "$CURRENT_PATH" ] && CURRENT_PATH="$0"
+        TARGET_PATH=$(readlink -f "$REPORT_SCRIPT" 2>/dev/null)
+        [ -z "$TARGET_PATH" ] && TARGET_PATH="$REPORT_SCRIPT"
+        if [ "$CURRENT_PATH" != "$TARGET_PATH" ]; then
+            echo -e "\n${YL}[!] GitHub unreachable. Installing current local copy...${NC}\n"
+            cp "$0" "$REPORT_SCRIPT"
+            chmod +x "$REPORT_SCRIPT" 2>/dev/null
+            return 0
+        else
+            echo -e "${RD}[!] GitHub unreachable and script is already in place.${NC}"
+            return 1
+        fi
     fi
 }
 
@@ -319,31 +302,18 @@ ScriptUpdateFromAMTM() {
 }
 
 check_github() {
-    GITHUB="https://raw.githubusercontent.com/JB1366/Wireless_Report/main/wirelessreport.sh"
-    REMOTE_TMP="/tmp/wr_remote.tmp"
-    LOCAL_HASH=""
-    REMOTE_HASH=""
-
-    if curl -sfL --retry 3 "$GITHUB" -o "$REMOTE_TMP" 2>/dev/null && [ -s "$REMOTE_TMP" ]; then
-        REMOTE_VERSION=$(grep "SCRIPT_VERSION=" "$REMOTE_TMP" | head -n 1 | cut -d'"' -f2 | tr -cd '0-9.')
-
-        if [ -f "$REPORT_SCRIPT" ]; then
-            if cmp -s "$REPORT_SCRIPT" "$REMOTE_TMP"; then
-                LOCAL_HASH="same"
-                REMOTE_HASH="same"
-            else
-                LOCAL_HASH="local"
-                REMOTE_HASH="remote"
-            fi
-        fi
-    else
-        REMOTE_VERSION=""
-        REMOTE_HASH=""
-    fi
-
-    rm -f "$REMOTE_TMP"
+	GITHUB="https://raw.githubusercontent.com/JB1366/Wireless_Report/main/wirelessreport.sh"
+	LOCAL_HASH=$(sha256sum "$REPORT_SCRIPT" 2>/dev/null | awk '{print $1}')
+	REMOTE_TMP="/tmp/wr_remote.tmp"
+	if curl -sfL --retry 3 "$GITHUB" -o "$REMOTE_TMP" 2>/dev/null && [ -s "$REMOTE_TMP" ]; then
+		REMOTE_VERSION=$(grep "SCRIPT_VERSION=" "$REMOTE_TMP" | head -n 1 | cut -d'"' -f2 | tr -cd '0-9.')
+		REMOTE_HASH=$(sha256sum "$REMOTE_TMP" | awk '{print $1}')
+	else
+		REMOTE_VERSION=""; REMOTE_HASH=""
+	fi
+	rm -f "$REMOTE_TMP"
 }
-
+# this function gets deleted after a couple weeks, only for transition.
 get_usb() {
 	if [ -n "$USB_PATH" ]; then return; fi
 	read -r uptime_val _ < /proc/uptime
@@ -383,14 +353,8 @@ mesh_init() {
 	VALID_NODES=""
 	local ASUS_NODES CFG_NODES MAIN_IP
 	MAIN_IP=$(nvram get lan_ipaddr)
-
-	# AiMesh inventory differs between firmware/node combinations.  Some mixed
-	# networks (notably stock-firmware nodes behind a Merlin primary) can be
-	# missing from asus_device_list while still being present in cfg_device_list.
-	# Merge both sources instead of treating cfg_device_list as fallback-only.
 	ASUS_NODES=$(nvram get asus_device_list | sed 's/</\n/g' | grep '>2$' | awk -F '>' '{print $2 "|" $3}')
 	CFG_NODES=$(nvram get cfg_device_list | sed 's/</\n/g' | grep '>0$' | awk -F '>' '{print $1 "|" $2}')
-
 	MESH_NODES=$(printf '%s\n%s\n' "$ASUS_NODES" "$CFG_NODES" | \
 		awk -F '|' -v main_ip="$MAIN_IP" '
 			NF >= 2 && $1 != "" && $2 != "" && $2 != main_ip && !seen[$2]++ { print $1 "|" $2 }
@@ -454,14 +418,15 @@ do_uninstall() {
 		umount -l "/www/user/$INSTALLED_PAGE" >/dev/null 2>&1
 		rm -f /www/user/"${INSTALLED_PAGE}" >/dev/null 2>&1
 	fi
-	sed -i "\|$REPORT_SCRIPT|d" "$SS_FILE"; sed -i "/wireless_report/d" "$SE_FILE"
-	restart_httpd
+	sed -i "\|$REPORT_SCRIPT|d" "$SS_FILE"
+    sed -i "/wireless_report/d" "$SE_FILE" # delete after a couple weeks, only for transition.
+	case "$USB_PATH" in *wirelessreport*) rm -rf "$USB_PATH" 2>/dev/null ;; esac # delete after a couple weeks, only for transition.
+    restart_httpd
 	rm -rf "$INSTALL_DIR" "$WEB_PAGE" 2>/dev/null
-    case "$USB_PATH" in *wirelessreport*) rm -rf "$USB_PATH" 2>/dev/null ;; esac
 	logger -p user.info -t "Wireless_Report" "(v$SCRIPT_VERSION) successfully uninstalled."
     unset RTIME CUR_DATE RS_HIST_DATE RS_HIST CUR_RS_HIST CUR_ENTRIES
     unset THEME IPPAD PULSE_MINS DISPLAY_UNIT HOST_COLOR MAIN_COLOR NODE_COLORS
-	echo -e "${GR}[+] Success: Wireless Report uninstalled.${NC}"
+	echo -e "${GR}[+] Success: Wireless Report uninstalled.${NC}\n"
 	exit 0
 }
 
@@ -1038,16 +1003,6 @@ update_time() {
 }
 
 startup() { mesh_init; check_github; update_time; hex_to_ansi; }
-
-reload_report() {
-    # Run in a fresh shell for normal callers so both webui.conf and any script
-    # replacement are picked up. run_report truncates /tmp/wireless.asp in
-    # place, so the existing bind mount remains valid and menu reinjection is
-    # unnecessary.
-    if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
-    startup
-    run_report
-}
 
 run_report() {
 #======================================#
@@ -2924,11 +2879,6 @@ case "$1" in
         # Install/Uninstall options
         startup
         install_menu
-        ;;
-    reload)
-        # Lightweight page regeneration for config/code changes. The existing
-        # addon registration and bind mounts are intentionally left untouched.
-        reload_report
         ;;
     inject|inject1|inject2|inject3)
         case "$1" in
