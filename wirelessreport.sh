@@ -28,7 +28,7 @@
 #        shellcheck shell=sh disable=SC2086,SC2155,SC3043         #
 #=================================================================#
 
-SCRIPT_VERSION="3.0.11"
+SCRIPT_VERSION="3.0.12"
 INSTALL_DIR="/jffs/addons/wireless_report"
 REPORT_SCRIPT="$INSTALL_DIR/wirelessreport.sh"
 SYSTEM_MENU="/www/require/modules/menuTree.js"
@@ -1169,6 +1169,23 @@ set_theme; check_version header_box; update_time
 IPPAD=${IPPAD:-1}; HOST_COLOR=${HOST_COLOR:-0}; PULSE_MINS=${PULSE_MINS:-15}
 : "${MAIN_COLOR:=#0096ff}"
 : "${NODE_COLORS:=#30d158 #bf40bf #ffd60a #64d2ff #ff9500 #ff453a #ffffff #ff70a6 #64ffda}"
+
+# NODE_COLORS is configured positionally by the shell menu, whose MESH_NODES
+# inventory is sorted by node IP. Publish an IP-keyed map into the generated
+# page so browser API ordering (and omitted/offline nodes) cannot shift colors.
+NODE_COLOR_JS=""
+node_color_idx=1
+for node in $MESH_NODES; do
+    node_ip=${node#*|}
+    node_hex=$(printf '%s\n' "$NODE_COLORS" | awk -v i="$node_color_idx" '{print $i}')
+    [ -z "$node_hex" ] && node_hex="#30d158"
+    case "$node_ip" in
+        *[!0-9.]*|'') ;;
+        *) NODE_COLOR_JS="${NODE_COLOR_JS}WR_NODE_COLOR_BY_IP['${node_ip}']='${node_hex}';" ;;
+    esac
+    node_color_idx=$((node_color_idx + 1))
+done
+
 TEMP_STYLE="text-align: center; justify-content: center;"
 UPTIME_STYLE="text-align: center; justify-content: center;"
 if [ "$HOST_COLOR" = "1" ]; then IP_COLOR=""; MAC_COLOR="color: #64d2ff;"
@@ -1363,6 +1380,8 @@ cat <<HTML >> "$WEB_PAGE"
 <script>
 var WR_CUSTOM_NODE_NAMES = {};
 $NODE_NICK_JS
+var WR_NODE_COLOR_BY_IP = {};
+$NODE_COLOR_JS
 
 var WR_CONFIG = {
     mainColor: "$MAIN_COLOR",
@@ -1489,7 +1508,13 @@ function wrFirst(obj, keys) {
     return '';
 }
 
-function wrNodeColor(index) {
+function wrNodeColor(index, node) {
+    // Shell color choices are tied to the IP-sorted node inventory. ASUS'
+    // get_cfg_clientlist() does not guarantee that same order, so resolve the
+    // configured color by node IP first. Positional lookup remains a fallback
+    // for older/generated pages without the keyed map.
+    var ip = String(wrFirst(node, ['ip', 'ip_addr', 'ipAddr']) || '').trim();
+    if (ip && WR_NODE_COLOR_BY_IP[ip]) return WR_NODE_COLOR_BY_IP[ip];
     if (!WR_CONFIG.nodeColors.length) return '#30d158';
     return WR_CONFIG.nodeColors[index % WR_CONFIG.nodeColors.length] || '#30d158';
 }
@@ -2337,7 +2362,7 @@ function wrRenderRow(item, history, known, firstHistoryLoad) {
     var isNew = !firstHistoryLoad && !known[mac] ? 'new-device-row' : '';
     var nodeMarker = '';
     if (item.node) {
-        var markerColor = wrNodeColor(item.nodeIndex);
+        var markerColor = wrNodeColor(item.nodeIndex, item.node);
         var hiddenNodeNum = "<span class='hidden-node-number' style='display:none;'>" + (item.nodeIndex + 1) + "</span>";
         var nodeMarker = "<sup style='color:" + markerColor + ";'>" + (item.nodeIndex + 1) + "</sup>";
         if (WR_CONFIG.hostColor) {
@@ -2521,6 +2546,18 @@ async function loadWirelessReport() {
         if (mac) offlineNodeMacs.add(mac);
         return false;
     });
+
+    // Match the shell menus' deterministic IP order. get_cfg_clientlist() can
+    // return AiMesh nodes in a different order, which previously juxtaposed
+    // node names, numeric markers and positional colors in the WebUI.
+    nodes.sort(function(a, b) {
+        var aip = String(wrFirst(a, ['ip', 'ip_addr', 'ipAddr']) || '');
+        var bip = String(wrFirst(b, ['ip', 'ip_addr', 'ipAddr']) || '');
+        var cmp = wrIpSort(aip).localeCompare(wrIpSort(bip));
+        if (cmp) return cmp;
+        return wrNormMac(a.mac || a.mac_addr).localeCompare(wrNormMac(b.mac || b.mac_addr));
+    });
+
     var nodeByMac = new Map();
     nodes.forEach(function(node, index) {
         var mac = wrNormMac(node.mac || node.mac_addr);
@@ -2630,7 +2667,7 @@ async function loadWirelessReport() {
         var mac = wrNormMac(node.mac || node.mac_addr);
         var ip = String(wrFirst(node, ['ip', 'ip_addr', 'ipAddr']) || '');
         var name = wrNodeDisplayName(node);
-        var color = wrNodeColor(index);
+        var color = wrNodeColor(index, node);
         var marker = (WR_CONFIG.hostColor === 0 && nodes.length > 1) ? '<sup>' + (index + 1) + '</sup>' : '';
         // var marker = '';
         var diag = diagByMac.get(mac);
