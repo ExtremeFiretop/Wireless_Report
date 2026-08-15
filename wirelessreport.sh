@@ -2248,7 +2248,7 @@ function wrRenderRow(item, history, known, firstHistoryLoad) {
     var rawSsid = item.resolvedSsid || wrFirst(c, ['ssid']) || wrFirst(saved, ['ssid']) || '';
     var ip = rawIp.length > 15 ? rawIp.slice(0, 15) : rawIp;
     var name = rawName.length > 20 ? rawName.slice(0, 20) : rawName;
-    var ssid = rawSsid.length > 15 ? rawSsid.slice(0, 15) : rawSsid;
+    var ssid = rawSsid;
     var iface = sta ? (sta.conn_if || '') : wrFirst(c, ['ifname', 'interface']);
     var rssi = sta && sta.sta_rssi !== undefined ? wrNumber(sta.sta_rssi) : wrNumber(c.rssi);
     var rx = sta && sta.sta_rx !== undefined ? Math.round(wrNumber(sta.sta_rx)) : Math.round(wrNumber(c.curRx));
