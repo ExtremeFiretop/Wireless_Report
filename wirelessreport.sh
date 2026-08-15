@@ -28,7 +28,7 @@
 #        shellcheck shell=sh disable=SC2086,SC2155,SC3043         #
 #=================================================================#
 
-SCRIPT_VERSION="3.0.0"
+SCRIPT_VERSION="3.0.1"
 INSTALL_DIR="/jffs/addons/wireless_report"
 REPORT_SCRIPT="$INSTALL_DIR/wirelessreport.sh"
 SYSTEM_MENU="/www/require/modules/menuTree.js"
@@ -994,7 +994,8 @@ run_report() {
 # The generated page uses the browser's
 # already-authenticated primary-router WebUI session:
 #   /appGet.cgi
-#   /get_diag_latest_content_data.cgi
+#   /get_diag_latest_content_data.cgi   (3006/newer)
+#   /get_diag_content_data.cgi          (388 legacy node-health fallback)
 # All client/node refreshes happen in-page with same-origin fetch() calls.
 
 NODE_NICK_JS=""
@@ -1638,10 +1639,15 @@ async function wrDiag(db, content, filter) {
     return r.json();
 }
 
-async function wrGetNodeDiag(mac) {
-    var cols = ['data_time', 'node_type', 'node_ip', 'node_mac', 'cpu_usage', 'mem_usage', 'cpu_temp'];
-    var data = await wrDiag('sys_detect', cols.join(';'), 'node_mac>txt>' + wrNormMac(mac) + '>0;');
-    var row = data && data.contents && data.contents[0];
+// Node system-health telemetry uses different controller-side WebUI APIs
+// across ASUS firmware generations. 3006/newer exposes a latest-row POST
+// endpoint, while 388 exposes the same sys_detect database through the older
+// time-window GET endpoint. Detect the working API once per page session so a
+// 388 primary does not generate one failed latest-API request per AiMesh node.
+var WR_NODE_DIAG_API = 'unknown'; // unknown | latest | legacy
+var WR_NODE_DIAG_PROBE_PROMISE = null;
+
+function wrNodeDiagFromRow(row) {
     if (!row) return null;
     return {
         timestamp: Number(row[0]),
@@ -1652,6 +1658,106 @@ async function wrGetNodeDiag(mac) {
         memoryUsage: wrNumber(row[5]),
         cpuTemp: wrNumber(row[6])
     };
+}
+
+async function wrGetNodeDiagLatest(mac) {
+    var cols = ['data_time', 'node_type', 'node_ip', 'node_mac', 'cpu_usage', 'mem_usage', 'cpu_temp'];
+    var data = await wrDiag(
+        'sys_detect',
+        cols.join(';'),
+        'node_mac>txt>' + wrNormMac(mac) + '>0;'
+    );
+    var row = data && data.contents && data.contents[0];
+    return wrNodeDiagFromRow(row);
+}
+
+async function wrGetNodeDiag388(mac) {
+    var cols = ['data_time', 'node_type', 'node_ip', 'node_mac', 'cpu_usage', 'mem_usage', 'cpu_temp'];
+    var targetMac = wrNormMac(mac);
+    var params = new URLSearchParams({
+        db: 'sys_detect',
+        content: cols.join(';'),
+        ts: Math.floor(Date.now() / 1000),
+        // 388 requires a time window for non-dns_ping diagnostic databases.
+        // One hour gives ample clock/reporting tolerance while the MAC filter
+        // keeps the response small.
+        duration: 3600,
+        filter: 'node_mac>txt>' + targetMac + '>0;'
+    });
+
+    var r = await fetch('/get_diag_content_data.cgi?' + params.toString(), {
+        method: 'GET',
+        credentials: 'same-origin',
+        cache: 'no-store'
+    });
+    if (!r.ok) throw new Error('legacy diagnostic API HTTP ' + r.status);
+
+    var data = await r.json();
+    var rows = data && Array.isArray(data.contents) ? data.contents : [];
+    var latest = null;
+
+    rows.forEach(function(row) {
+        if (!row || wrNormMac(row[3]) !== targetMac) return;
+        if (!latest || Number(row[0]) > Number(latest[0])) latest = row;
+    });
+
+    return wrNodeDiagFromRow(latest);
+}
+
+async function wrProbeNodeDiagApi(mac) {
+    if (WR_NODE_DIAG_API !== 'unknown') {
+        return { api: WR_NODE_DIAG_API, mac: '', result: null };
+    }
+
+    // Promise sharing prevents concurrent node-health requests from all probing
+    // the unsupported 3006 endpoint at once on a 388 primary.
+    if (!WR_NODE_DIAG_PROBE_PROMISE) {
+        var probeMac = wrNormMac(mac);
+        WR_NODE_DIAG_PROBE_PROMISE = (async function() {
+            try {
+                var latestResult = await wrGetNodeDiagLatest(probeMac);
+                WR_NODE_DIAG_API = 'latest';
+                return { api: 'latest', mac: probeMac, result: latestResult };
+            } catch (latestError) {
+                try {
+                    var legacyResult = await wrGetNodeDiag388(probeMac);
+                    WR_NODE_DIAG_API = 'legacy';
+                    console.info('Wireless Report: using 388 legacy node diagnostic API.');
+                    return { api: 'legacy', mac: probeMac, result: legacyResult };
+                } catch (legacyError) {
+                    var error = new Error('No supported node diagnostic API responded');
+                    error.latestError = latestError;
+                    error.legacyError = legacyError;
+                    throw error;
+                }
+            }
+        })();
+    }
+
+    try {
+        return await WR_NODE_DIAG_PROBE_PROMISE;
+    } catch (e) {
+        // Allow a later report refresh to retry after a transient failure.
+        WR_NODE_DIAG_API = 'unknown';
+        WR_NODE_DIAG_PROBE_PROMISE = null;
+        throw e;
+    }
+}
+
+async function wrGetNodeDiag(mac) {
+    var targetMac = wrNormMac(mac);
+
+    if (WR_NODE_DIAG_API === 'latest') return wrGetNodeDiagLatest(targetMac);
+    if (WR_NODE_DIAG_API === 'legacy') return wrGetNodeDiag388(targetMac);
+
+    var probe = await wrProbeNodeDiagApi(targetMac);
+    // Reuse the probe result for the node that performed detection. Other
+    // concurrent nodes wait on the same probe and then use the detected API.
+    if (probe.mac === targetMac) return probe.result;
+
+    return probe.api === 'legacy'
+        ? wrGetNodeDiag388(targetMac)
+        : wrGetNodeDiagLatest(targetMac);
 }
 
 function wrCpuUsageBetween(first, second) {

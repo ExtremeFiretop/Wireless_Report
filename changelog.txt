@@ -2,6 +2,7 @@
 # Wireless Report - Changelog #
 #=============================#
 
+v3.0.1-added 388-series primary-router node CPU/Memory API compatibility.
 v3.0.0-change data gathering from SSH to Browser/API
 v2.1.0-minor updates, refactoring, optimizations.
 v2.0.9-reverted node device counting mechanism.
