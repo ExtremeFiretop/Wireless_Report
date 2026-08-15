@@ -1363,13 +1363,29 @@ cat <<HTML >> "$WEB_PAGE"
     .button-refresh .button-trigger:not([style*="--highlow-text"]):after { display: none !important; }
     .button-refresh:not([style*="--avg-text"]):before,
     .button-refresh:not([style*="--avg-text"]):after { display: block !important; visibility: hidden !important; opacity: 0 !important; content: "" !important; }
-    #popoutModal table.report_table th:nth-child(1) { min-width: 100px; }
-    #popoutModal table.report_table th:nth-child(2) { min-width: 100px; }
-    #popoutModal table.report_table th:nth-child(3) { min-width: 75px; }
-    #popoutModal table.report_table th:nth-child(4) { min-width: 75px; }
-    #popoutModal table.report_table th:nth-child(5) { min-width: 75px; }
-    #popoutModal table.report_table th:nth-child(6) { min-width: 75px; }
-    #popoutModal table.report_table th:nth-child(7) { min-width: 75px; }
+
+    /* Wide View keeps the normal ASUS page available, but lets the report itself use
+    the complete browser viewport when more horizontal room is useful. */
+    body.wr-wide-mode { overflow: hidden !important; }
+    body.wr-wide-mode #wifiReportContainer { position: fixed !important; inset: 0 !important; z-index: 9000 !important; width: 100vw !important; height: 100vh !important; max-width: none !important; margin: 0 !important; padding: 4px 18px 24px 18px !important; box-sizing: border-box !important; overflow: auto !important; background: rgba(0,0,0,0.98); }
+    body.wr-wide-mode #wifiReportContainer .grid-container,
+    body.wr-wide-mode #wifiReportContainer #splitView,
+    body.wr-wide-mode #wifiReportContainer #allCol { width: 100% !important; max-width: none !important; }
+    body.wr-wide-mode #wifiReportContainer table.report_table { min-width: 900px; }
+    body.wr-wide-mode #wifiReportContainer table.report_table tbody td { font-size: 13px; }
+    body.wr-wide-mode #wifiReportContainer table.report_table thead th { font-size: 13px; }
+    body.wr-wide-mode #wifiReportContainer .router-style { font-size: 22px; }
+    body.wr-wide-mode #btnWide { color: #0096ff; border-color: #0096ff; box-shadow: 0 0 25px rgba(0,150,255,0.6); background: rgba(0,150,255,0.15); }
+    /* Roomier column hints for Wide View and Side-by-Side.  These are minimums,
+       not fixed widths, so larger displays can continue to expand naturally. */
+    body.wr-wide-mode table.report_table th:nth-child(1), #popoutModal table.report_table th:nth-child(1) { min-width: 100px; }
+    body.wr-wide-mode table.report_table th:nth-child(2), #popoutModal table.report_table th:nth-child(2) { min-width: 100px; }
+    body.wr-wide-mode table.report_table th:nth-child(3), #popoutModal table.report_table th:nth-child(3) { min-width: 75px; }
+    body.wr-wide-mode table.report_table th:nth-child(4), #popoutModal table.report_table th:nth-child(4) { min-width: 75px; }
+    body.wr-wide-mode table.report_table th:nth-child(5), #popoutModal table.report_table th:nth-child(5) { min-width: 75px; }
+    body.wr-wide-mode table.report_table th:nth-child(6), #popoutModal table.report_table th:nth-child(6) { min-width: 75px; }
+    body.wr-wide-mode table.report_table th:nth-child(7), #popoutModal table.report_table th:nth-child(7) { min-width: 75px; }
+
     .popout-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:9999; align-items: center; justify-content: center; backdrop-filter: blur(8px); }
     .popout-content { background: rgba(0, 0, 0, 0.2); width: calc(100vw - 24px); max-width: none; height: calc(100vh - 24px); max-height: none; margin: 12px; padding:12px; box-sizing: border-box; border-radius:15px; border:1px solid rgba(0, 150, 255, 0.4); position: relative; overflow-y: auto; box-shadow: 0 0 40px rgba(0,0,0,0.6); backdrop-filter: blur(20px); overflow-x: hidden !important; }
     .popout-close-x { position: absolute; top: 8px; right: 20px; color: #fff; font-size: 30px; font-weight: bold; }
@@ -3020,6 +3036,25 @@ function sortTable(n, tId, keepDir, forceDesc) {
     });
 }
 
+function setWideButtonState(active) {
+    var button = document.getElementById('btnWide');
+    if (!button) return;
+    button.textContent = active ? 'Exit Wide ⛶' : 'Wide View ⛶';
+    button.classList.toggle('active', !!active);
+}
+
+function toggleWideView(forceState) {
+    var active = document.body.classList.contains('wr-wide-mode');
+    var next = (typeof forceState === 'boolean') ? forceState : !active;
+    document.body.classList.toggle('wr-wide-mode', next);
+    setWideButtonState(next);
+
+    /* Starting Wide View at the top makes the transition predictable.  Leaving
+       it restores the ordinary ASUS page without navigating or reloading. */
+    var container = document.getElementById('wifiReportContainer');
+    if (next && container) container.scrollTop = 0;
+}
+
 function openPopout() {
     localStorage.setItem('wifiReportPopoutOpen', 'true');
     var body = document.getElementById('popoutBody'); body.innerHTML = "";
@@ -3073,6 +3108,9 @@ document.addEventListener('keydown', function(e) {
     if (modal && modal.style.display === 'flex') {
         closePopout();
         return;
+    }
+    if (document.body.classList.contains('wr-wide-mode')) {
+        toggleWideView(false);
     }
 });
 
@@ -3163,6 +3201,7 @@ document.addEventListener('mouseout', function(e) {
                             <button id="btnMain" class="button-tables active" onclick="switchTab('split')">Main</button>
                             <button id="btnAll" class="button-tables" onclick="switchTab('all')">All Devices</button>
                             <button class="button-tables" onclick="openPopout()" style="">Side by Side ⇗</button>
+                            <button id="btnWide" class="button-tables" onclick="toggleWideView()">Wide View ⛶</button>
                         </div>
                     </div>
                     <div class="grid-container">
