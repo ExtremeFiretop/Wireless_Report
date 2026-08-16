@@ -1312,7 +1312,7 @@ var WR_CONFIG = {
     nodeColors: String("$NODE_COLORS").trim().split(/\s+/).filter(Boolean),
     hostColor: Number("$HOST_COLOR") || 0,
     pulseMins: Number("$PULSE_MINS"),
-    reportUnit: String("${REPORT_UNIT:-F}"),
+    reportUnit: String("${REPORT_UNIT:-ISO}"),
     runtimeTracking: Number("${RTIME:-1}") || 0,
     ipPad: Number("${IPPAD:-1}") || 0,
     rssiHistory: Number("${RS_HIST:-0}") || 0,
@@ -1379,7 +1379,6 @@ function update_time() {
     const minutes = String(now.getMinutes()).padStart(2, '0');
     const seconds = String(now.getSeconds()).padStart(2, '0');
     let formattedTime = '';
-
     if (WR_CONFIG.reportUnit === 'ISO') {
         const mm = String(now.getMonth() + 1).padStart(2, '0');
         const dd = String(day).padStart(2, '0');
@@ -1389,15 +1388,12 @@ function update_time() {
     } else {
         formattedTime = month + '-' + day + ' ' + hours + ':' + minutes + ':' + seconds;
     }
-
     document.querySelectorAll('.wr-updated-time').forEach(function(el) {
         el.textContent = 'Updated: ' + formattedTime;
     });
-
     // Handle boot time calculation dynamically using the uptime span value
     const uptimeEl = document.getElementById('wr-main-uptime');
     const bootEl = document.getElementById('wr-main-reboot');
-
     if (bootEl && uptimeEl) {
         const uptimeText = uptimeEl.textContent.trim();
         // Parse "1d 04h", "04h 15m", or "00h 15m" from wrFormatSeconds output
@@ -1405,11 +1401,9 @@ function update_time() {
         const dMatch = uptimeText.match(/(\d+)d/);
         const hMatch = uptimeText.match(/(\d+)h/);
         const mMatch = uptimeText.match(/(\d+)m/);
-
         if (dMatch) totalSeconds += parseInt(dMatch[1], 10) * 86400;
         if (hMatch) totalSeconds += parseInt(hMatch[1], 10) * 3600;
         if (mMatch) totalSeconds += parseInt(mMatch[1], 10) * 60;
-
         if (totalSeconds > 0) {
             const bootDate = new Date(now.getTime() - (totalSeconds * 1000));
             const bDay = bootDate.getDate();
@@ -1417,7 +1411,6 @@ function update_time() {
             const bYear = bootDate.getFullYear();
             const bHours = bootDate.getHours();
             const bMinutes = String(bootDate.getMinutes()).padStart(2, '0');
-
             let formattedBoot = '';
             if (WR_CONFIG.reportUnit === 'ISO') {
                 const bMm = String(bootDate.getMonth() + 1).padStart(2, '0');
