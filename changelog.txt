@@ -2,7 +2,7 @@
 # Wireless Report - Changelog #
 #=============================#
 
-v3.1.6-fixed inflated primary-router CPU reporting by using sys_detect telemetry like AiMesh nodes, with a short counter-sample fallback.
+v3.1.6-added node/all-devices footer telemetry. fixed inflated primary-router CPU reporting by using sys_detect telemetry like AiMesh nodes, with a short counter-sample fallback.
 v3.1.5-fixed missing 388-series primary-router IFACEs/SSIDs and aligned AiMesh node IFACE radio mapping with one-based isWL semantics.
 v3.1.4-fixed AiMesh node-self/backhaul rows to use re_path-selected band/RSSI and report unknown band data as -- instead of 2.4G (20).
 v3.1.3-added wide-view option to webgui view button row. fixed AiMesh node Guest network SSIDs and interfaces. Uptime does not populate for Guest networks on AX series routers (388 F/W)

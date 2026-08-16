@@ -172,11 +172,11 @@ menu_vars() {
 	NE="${BL}(e)${NC}"; NQ="${BL}(c)${NC}"; ON="${GR}ON${NC}"; OFF="${RD}OFF${NC}"
 	STATUS=" ${BL}STATUS:${NC}"; CURRENT="${GR}Current: v$SCRIPT_VERSION${NC}"
     SS_FILE="/jffs/scripts/services-start"; SE_FILE="/jffs/scripts/service-event"
-    DU="${REPORT_UNIT:-USA}"; CT="${GR}$CUR_TIME${NC}"
-    if [ "$REPORT_UNIT" = "ISO" ]; then DU="${GR}ISO${NC}"
-    elif [ "$REPORT_UNIT" = "INTL" ]; then DU="${GR}INTL${NC}"
-    else DU="${GR}USA${NC}"; fi
-	DATE_USA="${GR}$(date +"%b-%d")${NC}"; DATE_INTL="${GR}$(date +"%d-%b")${NC}"; DATE_ISO="${GR}$(date +"%Y-%m-%d")${NC}"
+    DU="${REPORT_UNIT:-USA}"; DATE_USA="${GR}$(date +"%b-%-d %-H:%M:%S")${NC}"
+    DATE_INTL="${GR}$(date +"%-d-%b %-H:%M:%S")${NC}"; DATE_ISO="${GR}$(date +"%Y-%m-%d %H:%M:%S")${NC}"
+    if [ "$REPORT_UNIT" = "ISO" ]; then DU="${GR}ISO${NC}"; CT="$DATE_ISO"
+    elif [ "$REPORT_UNIT" = "INTL" ]; then DU="${GR}INTL${NC}"; CT="$DATE_INTL"
+    else DU="${GR}USA${NC}"; CT="$DATE_USA"; fi
     RTIME=${RTIME:-1}; if [ "$RTIME" = "0" ]; then RT_STAT="$OFF"; else RT_STAT="$ON"; fi
     PULSE_MINS=${PULSE_MINS:-15}
     if [ "$PULSE_MINS" = "0" ]; then UP_STAT="$OFF"; else UP_STAT="${GR}${PULSE_MINS} Mins${NC}"; fi
@@ -212,13 +212,12 @@ do_install() {
             printf "Do you want to $UP (y/n): "; read -r update
             case "$update" in [yY]) break ;; [nN]) return ;; *) printf "\033[4A\033[J" ;; esac; done
     fi
-    do_update "$is_update" || return 1
-    echo -e "\n${GR}[+] Installing Wireless Report (${NC}v${INSTALL_VERSION:-$REMOTE_VERSION}${GR})${NC}"
+    do_update || return 1
+    echo -e "\n${GR}[+] Downloading latest version (${NC}v$REMOTE_VERSION${GR})${NC}"
 	if [ "$is_update" = "1" ]; then
 		echo -e "\n${BL}[✓] Wireless Report successfully installed.${NC}"
 		printf "\nPress ${BL}[Enter]${NC} to apply changes & restart script..."; read -r discard
-		reload_report
-        logger -p user.info -t "Wireless_Report" "(v${INSTALL_VERSION:-$REMOTE_VERSION}) successfully installed."
+        logger -p user.info -t "Wireless_Report" "(v$REMOTE_VERSION) successfully installed."
         exec "$REPORT_SCRIPT" install "$@"
 		echo -e "${RD}Error: Failed to restart script!${NC}" >&2
 		exit 1
@@ -233,7 +232,7 @@ do_install() {
     sed -i "\|$REPORT_SCRIPT|d" "$SS_FILE" 2>/dev/null
     echo "$REPORT_SCRIPT inject & # Inject Wireless Report" >> "$SS_FILE"
     chmod +x "$SS_FILE"
-    install=""; SCRIPT_VERSION="${INSTALL_VERSION:-$REMOTE_VERSION}"
+    install=""; SCRIPT_VERSION="$REMOTE_VERSION"
     logger -p user.info -t "Wireless_Report" "(v$SCRIPT_VERSION) successfully installed."
     echo -e "${GR}[✓] SUCCESS: Installation complete!${NC}\n"
     echo -e "${YL}[i] To access Report, navigate to Advanced Settings > Wireless "
@@ -243,43 +242,10 @@ do_install() {
 
 do_update() {
     TEMP_SCRIPT="/tmp/wirelessreport.sh"
-    local is_update="${1:-1}"
-    local CURRENT_PATH; local TARGET_PATH
-    CURRENT_PATH=$(readlink -f "$0" 2>/dev/null)
-    [ -z "$CURRENT_PATH" ] && CURRENT_PATH="$0"
-    TARGET_PATH=$(readlink -f "$REPORT_SCRIPT" 2>/dev/null)
-    [ -z "$TARGET_PATH" ] && TARGET_PATH="$REPORT_SCRIPT"
-    apply_updated_report() {
-        local inject_rc=0
-
-        # the following 2-lines get deleted after a couple weeks, only for transition.
-        SE_FILE="/jffs/scripts/service-event"; sed -i "/wireless_report/d" "$SE_FILE"
-        get_usb
-
-        if [ "$is_update" = "1" ]; then
-            "$REPORT_SCRIPT" reload || return 1
-        else
-            "$REPORT_SCRIPT" live-reload || return 1
-            WR_PREGENERATED="1"
-            inject_menu
-            inject_rc=$?
-            WR_PREGENERATED=""
-            [ "$inject_rc" -eq 0 ] || return "$inject_rc"
-        fi
-        case "$USB_PATH" in *wirelessreport*) rm -rf "$USB_PATH" 2>/dev/null ;; esac
-    }
-    if [ "$CURRENT_PATH" != "$TARGET_PATH" ]; then
-        INSTALL_VERSION="$SCRIPT_VERSION"
-        echo -e "\n${YL}[i] Installing supplied local copy (v$SCRIPT_VERSION)...${NC}\n"
-        cp "$0" "$REPORT_SCRIPT" || return 1
-        chmod +x "$REPORT_SCRIPT" 2>/dev/null
-        apply_updated_report || return 1
-        return 0
-    fi
     if curl -sfL --retry 3 "$GITHUB" -o "$TEMP_SCRIPT" && [ -s "$TEMP_SCRIPT" ]; then
         mv "$TEMP_SCRIPT" "$REPORT_SCRIPT"
         chmod +x "$REPORT_SCRIPT" 2>/dev/null
-        reload_report
+        inject_menu
 
         # the following 3-lines get deleted after a couple weeks, only for transition.
         SE_FILE="/jffs/scripts/service-event"; sed -i "/wireless_report/d" "$SE_FILE"
@@ -318,7 +284,7 @@ ScriptUpdateFromAMTM() {
     fi
     if [ "$1" = "check" ]; then return 0; fi
 	check_github
-    if do_update 1; then
+    if do_update; then
         echo -e "\n  [+] Downloading latest version (v$REMOTE_VERSION)\n"
         echo -e "\n  [✓] Wireless Report successfully updated.\n"
 		logger -p user.info -t "Wireless_Report" "AMTM Update: (v$REMOTE_VERSION) successfully installed."
@@ -449,13 +415,11 @@ inject_menu() {
 	mount -o bind "$WEB_PAGE" "/www/user/$am_webui_page"
 	flock -u "$FD"; restart_httpd
     if [ "$NOLOADSCRIPT" = "1" ]; then exit 0
-    elif [ "$WR_PREGENERATED" = "1" ]; then return 0
     else "$REPORT_SCRIPT" & fi
 }
 
 do_uninstall() {
     echo -e "\n${RD}[!] WARNING: Removing Wireless Report...${NC}\n"
-    get_usb
     while true; do
         printf "Are you sure? (y/n): "; read -r confirm
         case "$confirm" in [yY]) break ;; [nN]) return ;; *) printf "\033[1A\033[J" ;; esac; done
@@ -477,9 +441,10 @@ do_uninstall() {
     nvram unset wirelessreport_gen >/dev/null 2>&1
 	sed -i "\|$REPORT_SCRIPT|d" "$SS_FILE"
 
-    # delete 2-lines below, only for transition.
+    # the following 3-lines get deleted after a couple weeks, only for transition.
     sed -i "/wireless_report/d" "$SE_FILE"
-	case "$USB_PATH" in *wirelessreport*) rm -rf "$USB_PATH" 2>/dev/null ;; esac
+	get_usb
+    case "$USB_PATH" in *wirelessreport*) rm -rf "$USB_PATH" 2>/dev/null ;; esac
 
     restart_httpd
 	rm -rf "$INSTALL_DIR" "$WEB_PAGE" 2>/dev/null
@@ -494,14 +459,14 @@ set_date_time() {
     while true; do
         show_header
         echo -e "${BL}=================================================="
-        echo -e "${NC}                 Set Date/Time                    "
+        echo -e "${NC}                  Set Date/Time                   "
         echo -e "${BL}=================================================="
-        echo -e "${NC}  Format: $DU            Date: $CT                "
+        echo -e "${NC}       $DU     (Current)    $CT                   "
         echo -e "${BL}=================================================="
         echo -e "                                                       "
-        echo -e "  $N1  USA                          ($DATE_USA)        "
-        echo -e "  $N2  INTERNATIONAL                ($DATE_INTL)       "
-        echo -e "  $N3  ISO                          ($DATE_ISO)        "
+        echo -e "  $N1  USA                 ($DATE_USA)                 "
+        echo -e "  $N2  INTERNATIONAL       ($DATE_INTL)                "
+        echo -e "  $N3  ISO                 ($DATE_ISO)                 "
         echo -e "                                                       "
         echo -e "  $NE  Back to main menu                               "
         echo -e "                                                       "
@@ -518,7 +483,7 @@ set_date_time() {
             sed -i '/REPORT_UNIT=/d' "$CONFIG"
             echo "REPORT_UNIT=\"$NEW_UNIT\"" >> "$CONFIG"
             REPORT_UNIT="$NEW_UNIT"
-            update_time; break
+            break
         done
         apply_webui_changes
     done
@@ -953,7 +918,7 @@ theme_submenu() {
     while true; do
         show_header
         echo -e "${BL}=================================================="
-        echo -e "${NC} Set Theme                    Current: $TM_STAT   "
+        echo -e "${NC}  Set Theme                    Current: $TM_STAT  "
         echo -e "${BL}=================================================="
         echo -e "                                                       "
         echo -e "  $N1 Original Theme                                   "
@@ -1059,26 +1024,16 @@ echo -e "                                                                       
 echo -e "${NC}\n\n\n" #===========================================================================================================
 }
 
-update_time() {
-    if [ "$REPORT_UNIT" = "ISO" ]; then T_FMT="+%Y-%m-%d %H:%M:%S"; D_FMT="+%Y-%m-%d %H:%M"
-    elif [ "$REPORT_UNIT" = "INTL" ]; then T_FMT="+%-d-%b %-H:%M:%S"; D_FMT="+%-d-%b %-H:%M"
-    else T_FMT="+%b-%-d %-H:%M:%S"; D_FMT="+%b-%-d %-H:%M"; fi
-    CUR_TIME=$(date "$T_FMT")
+get_hostcolor() {
+    if [ "$HOST_COLOR" = "1" ]; then IP_COLOR=""; MAC_COLOR="color: #64d2ff;"
+    else IP_COLOR="color: #64d2ff; "MAC_COLOR=""; fi
 }
 
-startup() { mesh_init; check_github; update_time; hex_to_ansi; }
-
-reload_report() {
-    if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
-    startup
-    run_report
-}
+startup() { mesh_init; check_github; hex_to_ansi; }
 
 reload_report_live() {
     if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
-    mesh_init
-    update_time
-    hex_to_ansi
+    startup
     run_report
 }
 
@@ -1129,36 +1084,34 @@ for node in $MESH_NODES; do
     node_color_idx=$((node_color_idx + 1))
 done
 
-set_theme; check_version header_box; update_time
+set_theme; check_version header_box; get_hostcolor
+
 IPPAD=${IPPAD:-1}; HOST_COLOR=${HOST_COLOR:-0}; PULSE_MINS=${PULSE_MINS:-15}
 : "${MAIN_COLOR:=#0096ff}"
 : "${NODE_COLORS:=#30d158 #bf40bf #ffd60a #64d2ff #ff9500 #ff453a #ffffff #ff70a6 #64ffda}"
 TEMP_STYLE="text-align: center; justify-content: center;"
 UPTIME_STYLE="text-align: center; justify-content: center;"
-if [ "$HOST_COLOR" = "1" ]; then IP_COLOR=""; MAC_COLOR="color: #64d2ff;"
-else IP_COLOR="color: #64d2ff; "MAC_COLOR=""; fi
+
 ROUTER=$(nvram get productid); MAIN_NAME="${MAIN_NICK:-${ROUTER:-Main Router}}"
 MAIN_NAME="<span id='wr-main-name' class='router-style'>${MAIN_NAME}</span>"
 MAIN_TEMP="<span id='wr-main-cpu' class='stat-cool'>--</span>"
 MAIN_LOAD="<span id='wr-main-memory' class='stat-cool'>--</span>"
 MAIN_DEVICE_TOTAL="<span id='wr-main-count' class='main-color'>0</span>"
-MAIN_UPTIME="<span id='wr-main-uptime' class='main-color'>--</span>"
-read -r s _ < /proc/uptime; s=${s%.*}; M_TIME=$(( $(date +%s) - s ))
-M_BOOT=$(date -d "@$M_TIME" "$D_FMT") 2>/dev/null
-MAIN_BOOTTIME="<span class='main-color' id='wr-main-reboot'>${M_BOOT}</span>"
+MAIN_UPTIME="<span id='wr-main-uptime' class='stat-cool'>--</span>"
+MAIN_BOOTTIME="<span id='wr-main-reboot' class='stat-cool'>--</span>"
 
 NODE_NAMES="<span id='wr-node-names' class='router-style'>AiMesh nodes</span>"
 NODE_TEMPS="<span id='wr-node-cpu' class='stat-cool'>--</span>"
 NODE_LOADS="<span id='wr-node-memory' class='stat-cool'>--</span>"
 NODE_DEVICE_TOTAL="<span id='wr-node-count' class='stat-cool'>0</span>"
-NODE_UPTIMES="<span id='wr-all-api-note'>Primary-router WebUI APIs • no direct node authentication</span>"
+NODE_UPTIMES="<span id='wr-node-diag'>Controller telemetry pending...</span>"
 NODE_BOOTTIMES=""
 
 ALL_NAMES="<span id='wr-all-names' class='router-style'>Loading...</span>"
 ALL_TEMP="<span id='wr-all-main-cpu'>--</span>"
 ALL_LOAD="<span id='wr-all-main-memory'>--</span>"
 ALL_DEVICES="Devices: <span id='wr-all-count' class='stat-cool'>0</span>"
-ALL_UPTIME="<span id='wr-all-api-note'>Primary-router WebUI APIs • no direct node authentication</span>"
+ALL_UPTIME="<span id='wr-all-uptime' class='main-color'>Controller telemetry pending...</span>"
 
 GRAND_TOTAL_DEVICES="<span id='wr-grand-total' class='count-highlight'>0</span>"
 UPDATED_TIME="<span class='wr-updated-time total-count'>Loading controller data...</span>"
@@ -1351,7 +1304,7 @@ var WR_CONFIG = {
     nodeColors: String("$NODE_COLORS").trim().split(/\s+/).filter(Boolean),
     hostColor: Number("$HOST_COLOR") || 0,
     pulseMins: Number("$PULSE_MINS"),
-    reportUnit: String("${REPORT_UNIT:-F}"),
+    reportUnit: String("${REPORT_UNIT:-ISO}"),
     runtimeTracking: Number("${RTIME:-1}") || 0,
     ipPad: Number("${IPPAD:-1}") || 0,
     rssiHistory: Number("${RS_HIST:-0}") || 0,
@@ -1430,6 +1383,39 @@ function update_time() {
     document.querySelectorAll('.wr-updated-time').forEach(function(el) {
         el.textContent = 'Updated: ' + formattedTime;
     });
+    // Handle boot time calculation dynamically using the uptime span value
+    const uptimeEl = document.getElementById('wr-main-uptime');
+    const bootEl = document.getElementById('wr-main-reboot');
+    if (bootEl && uptimeEl) {
+        const uptimeText = uptimeEl.textContent.trim();
+        // Parse "1d 04h", "04h 15m", or "00h 15m" from wrFormatSeconds output
+        let totalSeconds = 0;
+        const dMatch = uptimeText.match(/(\d+)d/);
+        const hMatch = uptimeText.match(/(\d+)h/);
+        const mMatch = uptimeText.match(/(\d+)m/);
+        if (dMatch) totalSeconds += parseInt(dMatch[1], 10) * 86400;
+        if (hMatch) totalSeconds += parseInt(hMatch[1], 10) * 3600;
+        if (mMatch) totalSeconds += parseInt(mMatch[1], 10) * 60;
+        if (totalSeconds > 0) {
+            const bootDate = new Date(now.getTime() - (totalSeconds * 1000));
+            const bDay = bootDate.getDate();
+            const bMonth = months[bootDate.getMonth()];
+            const bYear = bootDate.getFullYear();
+            const bHours = bootDate.getHours();
+            const bMinutes = String(bootDate.getMinutes()).padStart(2, '0');
+            let formattedBoot = '';
+            if (WR_CONFIG.reportUnit === 'ISO') {
+                const bMm = String(bootDate.getMonth() + 1).padStart(2, '0');
+                const bDd = String(bDay).padStart(2, '0');
+                formattedBoot = bYear + '-' + bMm + '-' + bDd + ' ' + String(bHours).padStart(2, '0') + ':' + bMinutes;
+            } else if (WR_CONFIG.reportUnit === 'INTL') {
+                formattedBoot = bDay + '-' + bMonth + ' ' + bHours + ':' + bMinutes;
+            } else {
+                formattedBoot = bMonth + '-' + bDay + ' ' + bHours + ':' + bMinutes;
+            }
+            bootEl.textContent = formattedBoot;
+        }
+    }
 }
 
 var WR_STA_COLUMNS = [
@@ -2803,21 +2789,37 @@ async function loadWirelessReport() {
 
     // Comment out or remove this line in your JS so it doesn't overwrite your shell output:
     // wrSetText('wr-main-reboot', Number.isFinite(uptimeSecs) ? wrFormatDateTime(new Date(Date.now() - uptimeSecs * 1000)) : '--');
-
     var mainNameEl = document.getElementById('wr-main-name');
     if (mainNameEl && !mainNameEl.textContent.trim()) mainNameEl.textContent = base.productid || 'Main Router';
+
+    // Set Main Router specific metrics only here
+    wrSetMetric('wr-main-cpu', mainHealth.cpuUsage, '%');
+    wrSetMetric('wr-main-memory', mainHealth.memoryUsage, '%');
+    var uptimeSecs = wrParseUptime(base.uptime);
+    wrSetText('wr-main-uptime', wrFormatRouterUptime(uptimeSecs));
     var nodeNamesHtml = [];
     var cpuHtml = [];
     var memHtml = [];
     var nodeCountParts = [];
     var nodeDiagParts = [];
+
+    // --- BUILD MAIN ROUTER DIAGNOSTIC DETAILS ---
+    var mainNameText = mainNameEl ? mainNameEl.textContent.trim() : (base.productid || 'Main Router');
+    var mainIp = String(wrFirst(base, ['lan_ipaddr', 'lan_ip', 'ip']) || window.location.hostname || '');
+
+    // Check all possible firmware/version properties on base or window scope
+    var mainFw = wrFirst(base, ['firmware', 'fwver', 'firmwarever', 'webs_state_info', 'buildno', 'extendno', 'version']) || window.firmware || window.webs_state_info || '';
+    var mainDiag = "<span class='main-color'>" + wrEscape(mainNameText) + "</span>";
+    if (mainIp) mainDiag += " <span style='color:white;'>•</span> <span style='color:white;'>" + wrEscape(mainIp) + "</span>";
+    if (mainFw) mainDiag += " <span style='color:white;'>•</span> <span class='main-color'>FW</span> <span style='color:white;'>" + wrEscape(mainFw) + "</span>";
+    // ------------------------------------------
+
     nodes.forEach(function(node, index) {
         var mac = wrNormMac(node.mac || node.mac_addr);
         var ip = String(wrFirst(node, ['ip', 'ip_addr', 'ipAddr']) || '');
         var name = wrNodeDisplayName(node);
         var color = wrNodeColor(index, node);
         var marker = (WR_CONFIG.hostColor === 0 && nodes.length > 1) ? '<sup>' + (index + 1) + '</sup>' : '';
-        // var marker = '';
         var diag = diagByMac.get(mac);
         var nodeClientCount = nodeItems.filter(function(item) { return item.nodeIndex === index; }).length;
         nodeNamesHtml.push("<span style='color:" + color + ";'>" + wrEscape(name) + marker + "</span>");
@@ -2832,16 +2834,15 @@ async function loadWirelessReport() {
         } else {
             memHtml.push("<span style='color:" + color + ";'>--" + "</span>");
         }
-        var model = wrFirst(node, ['model_name', 'product_id']) || '';
         var firmware = wrFirst(node, ['firmware', 'fwver', 'fw_version', 'version']);
         var details = "<span style='color:" + color + ";'>" + wrEscape(name) + "</span>";
-        if (model) details += ' ' + wrEscape(model);
-        if (ip) details += ' • ' + wrEscape(ip);
-        if (firmware) details += ' • FW ' + wrEscape(firmware);
-        if (diag && Number.isFinite(diag.timestamp)) details += ' • Telemetry ' + new Date(diag.timestamp * 1000).toLocaleTimeString();
+        if (ip) details += " <span style='color:white;'>•</span> <span style='color:white;'>" + wrEscape(ip) + "</span>";
+        if (firmware) details += " <span style='color:white;'>•</span> <span style='color:" + color + ";'>FW</span> <span style='color:white;'>" + wrEscape(firmware) + "</span>";
         nodeDiagParts.push(details);
     });
     var bullet = " <span style='color:white;'>•</span> ";
+
+    // 1. Set the Node-only footer
     wrSetHtml('wr-node-names', nodeNamesHtml.length ? nodeNamesHtml.join(bullet) : 'No AiMesh nodes detected');
     wrSetHtml('wr-node-cpu', cpuHtml.length ? cpuHtml.join(bullet) : '--');
     wrSetHtml('wr-node-memory', memHtml.length ? memHtml.join(bullet) : '--');
@@ -2853,23 +2854,31 @@ async function loadWirelessReport() {
         "<span class='" + wrMetricClass(mainHealth.cpuUsage) + "'>" + (mainHealth.cpuUsage !== null ? mainHealth.cpuUsage + "%" : "--") + "</span>"
     ].concat(cpuHtml);
     wrSetHtml('wr-all-main-cpu', allCpuCombined.join(bullet));
+
     var allMemCombined = [
         "<span class='" + wrMetricClass(mainHealth.memoryUsage) + "'>" + (mainHealth.memoryUsage !== null ? mainHealth.memoryUsage + "%" : "--") + "</span>"
     ].concat(memHtml);
     wrSetHtml('wr-all-main-memory', allMemCombined.join(bullet));
-    var allDeviceParts = [mainItems.length].concat(nodeCountParts);
+
+    var mainColoredCount = "<span class='main-color'>" + mainItems.length + "</span>";
+    var allDeviceParts = [mainColoredCount].concat(nodeCountParts);
     wrSetHtml('wr-all-count', nodes.length > 1 && nodeCountParts.length ? items.length + " <span class='right-arrow'>—›</span> " + allDeviceParts.join(bullet) : items.length);
-    // ----------------------------------------------
 
     var allNames = ["<span style='color:" + WR_CONFIG.mainColor + ";'>" + wrEscape(document.getElementById('wr-main-name').textContent) + "</span>"];
     allNames = allNames.concat(nodeNamesHtml);
     wrSetHtml('wr-all-names', allNames.join(bullet));
+
+    // 2. Set the All-Devices footer diagnostics (reuses the exact node diagnostic output with main on top)
+    var allDiagParts = [mainDiag].concat(nodeDiagParts.slice());
+    wrSetHtml('wr-all-uptime', allDiagParts.length ? allDiagParts.join('<br>') : 'No diagnostic telemetry available.');
+    // ----------------------------------------------
+
     var nodeCol = document.getElementById('nodeCol');
     if (nodeCol) nodeCol.style.display = nodes.length ? 'flex' : 'none';
 
-    /* document.querySelectorAll('.wr-updated-time').forEach(function(el) {
-        el.textContent = 'Updated: ' + new Date().toLocaleString();
-    }); */
+    // document.querySelectorAll('.wr-updated-time').forEach(function(el) {
+    //     el.textContent = 'Updated: ' + new Date().toLocaleString();
+    // });
 
     // Apply dynamic font sizing and alignment based on node count (TEMP_STYLE logic)
     var nodeCount = nodes.length;
@@ -2881,7 +2890,6 @@ async function loadWirelessReport() {
     } else {
         tempStyle = "text-align: center; justify-content: center;";
     }
-
     // Apply it dynamically to your metric elements
     ['wr-all-main-cpu', 'wr-all-main-memory', 'wr-node-cpu', 'wr-node-memory'].forEach(function(id) {
         var el = document.getElementById(id);
@@ -3449,11 +3457,6 @@ case "$1" in
         # Install/Uninstall options
         startup
         install_menu
-        ;;
-    reload)
-        # Lightweight page regeneration for installed code changes. The existing
-        # addon registration and bind mounts are intentionally left untouched.
-        reload_report
         ;;
     live-reload)
         # Fast regeneration used by shell-menu settings. Open v3.0.6+ pages
