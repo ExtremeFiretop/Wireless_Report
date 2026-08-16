@@ -1104,7 +1104,7 @@ NODE_NAMES="<span id='wr-node-names' class='router-style'>AiMesh nodes</span>"
 NODE_TEMPS="<span id='wr-node-cpu' class='stat-cool'>--</span>"
 NODE_LOADS="<span id='wr-node-memory' class='stat-cool'>--</span>"
 NODE_DEVICE_TOTAL="<span id='wr-node-count' class='stat-cool'>0</span>"
-NODE_UPTIMES="<span id='wr-all-api-note'>Primary-router WebUI APIs • no direct node authentication</span>"
+NODE_UPTIMES="<span id='wr-node-diag'>Controller telemetry pending...</span>"
 NODE_BOOTTIMES=""
 
 ALL_NAMES="<span id='wr-all-names' class='router-style'>Loading...</span>"
@@ -2636,10 +2636,10 @@ async function loadWirelessReport() {
         var model = wrFirst(node, ['model_name', 'product_id']) || '';
         var firmware = wrFirst(node, ['firmware', 'fwver', 'fw_version', 'version']);
         var details = "<span style='color:" + color + ";'>" + wrEscape(name) + "</span>";
-        if (model) details += ' ' + wrEscape(model);
+        // if (model) details += ' ' + wrEscape(model);
         if (ip) details += ' • ' + wrEscape(ip);
-        if (firmware) details += ' • FW ' + wrEscape(firmware);
-        if (diag && Number.isFinite(diag.timestamp)) details += ' • Telemetry ' + new Date(diag.timestamp * 1000).toLocaleTimeString();
+        if (firmware) details += " • <span style='color:" + color + ";'>FW</span> " + wrEscape(firmware);
+        // if (diag && Number.isFinite(diag.timestamp)) details += ' • Telemetry ' + new Date(diag.timestamp * 1000).toLocaleTimeString();
         nodeDiagParts.push(details);
     });
     var bullet = " <span style='color:white;'>•</span> ";
