@@ -284,7 +284,7 @@ ScriptUpdateFromAMTM() {
     fi
     if [ "$1" = "check" ]; then return 0; fi
 	check_github
-    if do_update 1; then
+    if do_update; then
         echo -e "\n  [+] Downloading latest version (v$REMOTE_VERSION)\n"
         echo -e "\n  [✓] Wireless Report successfully updated.\n"
 		logger -p user.info -t "Wireless_Report" "AMTM Update: (v$REMOTE_VERSION) successfully installed."
@@ -1030,7 +1030,7 @@ update_time() {
     else D_FMT="+%b-%-d %-H:%M"; fi
 }
 
-startup() { mesh_init; check_github; update_time; hex_to_ansi; }
+startup() { mesh_init; check_github; hex_to_ansi; }
 
 reload_report() {
     if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
