@@ -217,7 +217,6 @@ do_install() {
 	if [ "$is_update" = "1" ]; then
 		echo -e "\n${BL}[✓] Wireless Report successfully installed.${NC}"
 		printf "\nPress ${BL}[Enter]${NC} to apply changes & restart script..."; read -r discard
-		reload_report
         logger -p user.info -t "Wireless_Report" "(v${INSTALL_VERSION:-$REMOTE_VERSION}) successfully installed."
         exec "$REPORT_SCRIPT" install "$@"
 		echo -e "${RD}Error: Failed to restart script!${NC}" >&2
@@ -243,43 +242,10 @@ do_install() {
 
 do_update() {
     TEMP_SCRIPT="/tmp/wirelessreport.sh"
-    local is_update="${1:-1}"
-    local CURRENT_PATH; local TARGET_PATH
-    CURRENT_PATH=$(readlink -f "$0" 2>/dev/null)
-    [ -z "$CURRENT_PATH" ] && CURRENT_PATH="$0"
-    TARGET_PATH=$(readlink -f "$REPORT_SCRIPT" 2>/dev/null)
-    [ -z "$TARGET_PATH" ] && TARGET_PATH="$REPORT_SCRIPT"
-    apply_updated_report() {
-        local inject_rc=0
-
-        # the following 2-lines get deleted after a couple weeks, only for transition.
-        SE_FILE="/jffs/scripts/service-event"; sed -i "/wireless_report/d" "$SE_FILE"
-        get_usb
-
-        if [ "$is_update" = "1" ]; then
-            "$REPORT_SCRIPT" reload || return 1
-        else
-            "$REPORT_SCRIPT" live-reload || return 1
-            WR_PREGENERATED="1"
-            inject_menu
-            inject_rc=$?
-            WR_PREGENERATED=""
-            [ "$inject_rc" -eq 0 ] || return "$inject_rc"
-        fi
-        case "$USB_PATH" in *wirelessreport*) rm -rf "$USB_PATH" 2>/dev/null ;; esac
-    }
-    if [ "$CURRENT_PATH" != "$TARGET_PATH" ]; then
-        INSTALL_VERSION="$SCRIPT_VERSION"
-        echo -e "\n${YL}[i] Installing supplied local copy (v$SCRIPT_VERSION)...${NC}\n"
-        cp "$0" "$REPORT_SCRIPT" || return 1
-        chmod +x "$REPORT_SCRIPT" 2>/dev/null
-        apply_updated_report || return 1
-        return 0
-    fi
     if curl -sfL --retry 3 "$GITHUB" -o "$TEMP_SCRIPT" && [ -s "$TEMP_SCRIPT" ]; then
         mv "$TEMP_SCRIPT" "$REPORT_SCRIPT"
         chmod +x "$REPORT_SCRIPT" 2>/dev/null
-        reload_report
+        inject_menu
 
         # the following 3-lines get deleted after a couple weeks, only for transition.
         SE_FILE="/jffs/scripts/service-event"; sed -i "/wireless_report/d" "$SE_FILE"
@@ -449,7 +415,6 @@ inject_menu() {
 	mount -o bind "$WEB_PAGE" "/www/user/$am_webui_page"
 	flock -u "$FD"; restart_httpd
     if [ "$NOLOADSCRIPT" = "1" ]; then exit 0
-    elif [ "$WR_PREGENERATED" = "1" ]; then return 0
     else "$REPORT_SCRIPT" & fi
 }
 
