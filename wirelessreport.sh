@@ -28,7 +28,7 @@
 #        shellcheck shell=sh disable=SC2086,SC2155,SC3043         #
 #=================================================================#
 
-SCRIPT_VERSION="3.1.3"
+SCRIPT_VERSION="3.1.6"
 INSTALL_DIR="/jffs/addons/wireless_report"
 REPORT_SCRIPT="$INSTALL_DIR/wirelessreport.sh"
 SYSTEM_MENU="/www/require/modules/menuTree.js"
@@ -1643,26 +1643,74 @@ function wrWidth(code) {
     return Object.prototype.hasOwnProperty.call(map, n) ? map[n] : '';
 }
 
-function wrBandHtml(sta, client) {
-    var staBand = wrNormalizeBand(sta && sta.sta_band);
-    var clientBand = WR_DIAG_API === 'legacy' ? wrClientBandHint(client) : '';
-    var mismatch = Boolean(staBand && clientBand && staBand !== clientBand);
-    var selectedBand = mismatch ? clientBand : (staBand || clientBand);
-    var band = selectedBand ? wrBandName(selectedBand) : String(wrFirst(client, ['band', 'wlBand']) || '');
+function wrMeshUplinkBand(node) {
+    // AiMesh node-self rows in get_clientlist() are backhaul pseudo-clients,
+    // not ordinary station associations. ASUS' AiMesh WebUI determines the
+    // selected uplink from get_cfg_clientlist().re_path instead of isWL/stainfo.
+    var path = Number(node && node.re_path);
+    if (!Number.isFinite(path) || path <= 0) return '';
 
-    // A mismatched legacy stainfo sample can carry the other radio's channel
-    // width too. Do not display that width if the live client band disagrees.
-    var width = sta && !mismatch ? wrWidth(sta.bw) : '';
+    // ASUS uses these re_path values for wired/alternate wired paths.
+    if (path === 1 || path === 16 || path === 32 || path === 64) return '';
+    if (path === 2) return '2G';
+    if (path === 128) return '6G';
+    if (path === 512) return 'MLO';
 
-    // Fallback to '2.4G (20)' if both band and width evaluate to empty
-    var label = (band + (width ? ' (' + width + ')' : '')).trim() || '2.4G (20)';
+    // Remaining positive wireless re_path values are the 5 GHz uplink path.
+    return '5G';
+}
 
-    var cls = 'band-24g'; // Default to 2.4G styling so fallbacks automatically get it
-    var sort = '2.4';
+function wrMeshUplinkRssi(node) {
+    var path = Number(node && node.re_path);
+    if (!Number.isFinite(path) || path <= 0) return null;
+    if (path === 1 || path === 16 || path === 32 || path === 64 || path === 512) return null;
+    if (path === 2) return wrNumber(node.rssi2g);
+    if (path === 128) return wrNumber(node.rssi6g);
+    return wrNumber(node.rssi5g);
+}
+
+function wrItemRssi(item) {
+    if (!item) return null;
+
+    // A node-self pseudo-client can expose RSSI/isWL for a different radio than
+    // its active backhaul. Keep all row/history/count consumers on the same
+    // re_path-selected AiMesh RSSI source instead of falling back to client.rssi.
+    if (item.meshLinkNode) return wrMeshUplinkRssi(item.meshLinkNode);
+
+    if (item.sta && item.sta.sta_rssi !== undefined) return wrNumber(item.sta.sta_rssi);
+    return wrNumber(item.client && item.client.rssi);
+}
+
+function wrBandHtml(sta, client, meshLinkNode) {
+    var band = '';
+    var width = '';
+
+    if (meshLinkNode) {
+        // Do not infer an AiMesh node's active backhaul from its pseudo-client
+        // isWL/band/stainfo fields. re_path is the source ASUS uses for uplink.
+        var meshBand = wrMeshUplinkBand(meshLinkNode);
+        band = meshBand ? wrBandName(meshBand) : '';
+    } else {
+        var staBand = wrNormalizeBand(sta && sta.sta_band);
+        var clientBand = WR_DIAG_API === 'legacy' ? wrClientBandHint(client) : '';
+        var mismatch = Boolean(staBand && clientBand && staBand !== clientBand);
+        var selectedBand = mismatch ? clientBand : (staBand || clientBand);
+        band = selectedBand ? wrBandName(selectedBand) : String(wrFirst(client, ['band', 'wlBand']) || '');
+
+        // A mismatched legacy stainfo sample can carry the other radio's channel
+        // width too. Do not display that width if the live client band disagrees.
+        width = sta && !mismatch ? wrWidth(sta.bw) : '';
+    }
+
+    // Unknown telemetry is unknown; never manufacture a 2.4 GHz/20 MHz result.
+    var label = (band + (width ? ' (' + width + ')' : '')).trim() || '--';
+
+    var cls = '';
+    var sort = '0';
     if (/2\.4|2G/i.test(band)) { cls = 'band-24g'; sort = '2.4'; }
     else if (/5/.test(band)) { cls = 'band-5g'; sort = '5'; }
     else if (/6/.test(band)) { cls = 'band-6g'; sort = '6'; }
-    return "<td data-sort='" + sort + "' style='text-align:center;'><span class='" + cls + "'>" + wrEscape(label || '--') + "</span></td>";
+    return "<td data-sort='" + sort + "' style='text-align:center;'><span class='" + cls + "'>" + wrEscape(label) + "</span></td>";
 }
 
 function wrQuality(rssi) {
@@ -1727,6 +1775,10 @@ function wrPrepareRssiHistoryStorage() {
 }
 
 function wrRssiHistoryBand(item) {
+    if (item && item.meshLinkNode) {
+        var meshBand = wrMeshUplinkBand(item.meshLinkNode);
+        return meshBand ? wrBandName(meshBand) : '';
+    }
     if (item && item.sta && item.sta.sta_band !== undefined) {
         return wrBandName(item.sta.sta_band);
     }
@@ -1734,6 +1786,7 @@ function wrRssiHistoryBand(item) {
 }
 
 function wrRssiHistoryLocation(item) {
+    if (item && item.meshLinkNode) return wrNodeDisplayName(item.meshLinkNode);
     if (item && item.node) return wrNodeDisplayName(item.node);
     var el = document.getElementById('wr-main-name');
     return el && el.textContent.trim() ? el.textContent.trim() : 'Main Router';
@@ -1823,7 +1876,70 @@ function wrSavedClient(saved, macRaw, mac) {
     return saved[macRaw] || saved[mac] || saved[String(mac).toLowerCase()] || {};
 }
 
-function wrStaIface(sta, client) {
+function wrLegacyClientRadioUnit(client) {
+    // Legacy get_clientlist().isWL numbers radios from 1 while ASUS wl units are
+    // zero-based. Keep this conversion in one place so IFACE and SSID fallbacks
+    // cannot disagree about which radio a client belongs to.
+    if (WR_DIAG_API !== 'legacy' || !client) return null;
+
+    var wlRaw = client.isWL;
+    var wl = Number(wlRaw);
+    var wlValid = wlRaw !== undefined && wlRaw !== null && String(wlRaw).trim() !== '' &&
+        Number.isFinite(wl) && Math.floor(wl) === wl && wl >= 1 && wl <= 4;
+    return wlValid ? wl - 1 : null;
+}
+
+function wrLegacyClientGuestIndex(client) {
+    if (!client) return null;
+
+    var guestRaw = client.isGN === true ? 1 : client.isGN;
+    if (guestRaw === undefined || guestRaw === null || String(guestRaw).trim() === '') return 0;
+
+    var guest = Number(guestRaw);
+    if (!Number.isFinite(guest) || Math.floor(guest) !== guest || guest < 0 || guest > 9) return null;
+    return guest;
+}
+
+function wrLegacyClientIfaceFallback(client) {
+    var unit = wrLegacyClientRadioUnit(client);
+    if (unit === null) return '';
+
+    var guest = wrLegacyClientGuestIndex(client);
+    if (guest === null) return '';
+
+    return 'wl' + unit + (guest > 0 ? '.' + guest : '');
+}
+
+function wrNodeClientIfaceFallback(node, client) {
+    // Legacy 388 AiMesh can keep a client in get_clientlist() while omitting the
+    // node from stainfo entirely. Validate the one-based isWL radio against the
+    // node's zero-based band_info unit map, then append the live guest slot.
+    if (WR_DIAG_API !== 'legacy' || !node || !client) return '';
+
+    var bandInfo = node.band_info;
+    if (!bandInfo || typeof bandInfo !== 'object') return '';
+
+    var expectedUnit = wrLegacyClientRadioUnit(client);
+    if (expectedUnit === null) return '';
+
+    // Match by band_info[].unit, not by the object's key. Many 388 nodes expose
+    // {"0":{"unit":0},"1":{"unit":1}} while get_clientlist().isWL is
+    // one-based. The previous exact-key preference therefore mapped isWL=1 to
+    // unit 1/wl1 instead of the correct unit 0/wl0.
+    var hasExpectedUnit = Object.keys(bandInfo).some(function(key) {
+        var candidateUnit = Number(bandInfo[key] && bandInfo[key].unit);
+        return Number.isFinite(candidateUnit) && Math.floor(candidateUnit) === candidateUnit &&
+            candidateUnit === expectedUnit;
+    });
+    if (!hasExpectedUnit) return '';
+
+    var guest = wrLegacyClientGuestIndex(client);
+    if (guest === null) return '';
+
+    return 'wl' + expectedUnit + (guest > 0 ? '.' + guest : '');
+}
+
+function wrStaIface(sta, client, node) {
     // Prefer ASUS' explicit interface string whenever stainfo supplies it.
     var direct = String(sta && sta.conn_if || '').trim();
     if (direct) return direct;
@@ -1845,14 +1961,38 @@ function wrStaIface(sta, client) {
         if (idxValid) return 'wl' + idx + (vidxValid && vidx > 0 ? '.' + vidx : '');
     }
 
-    // Last resort for either API family: use the live client interface if ASUS
-    // exposes one there. Importantly, do this even when a sta object exists.
-    return String(wrFirst(client, ['ifname', 'interface']) || '').trim();
+    // If legacy stainfo has no usable interface data for an AiMesh-node client,
+    // derive the node-local wlX[.Y] from that node's band_info + live isWL/isGN.
+    var nodeFallback = wrNodeClientIfaceFallback(node, client);
+    if (nodeFallback) return nodeFallback;
+
+    // Prefer an explicit live-client interface before inferring one.
+    var liveIface = String(wrFirst(client, ['ifname', 'interface']) || '').trim();
+    if (liveIface) return liveIface;
+
+    // Primary-router clients on affected 388 builds can also be completely absent
+    // from stainfo while get_clientlist() still supplies isWL/isGN. Reconstruct the
+    // primary wlX[.Y] so IFACE and the matching NVRAM SSID do not remain blank.
+    if (!node) {
+        var primaryFallback = wrLegacyClientIfaceFallback(client);
+        if (primaryFallback) return primaryFallback;
+    }
+
+    return '';
 }
 
 function wrStaSsidNvramKey(sta, client) {
     var iface = wrStaIface(sta, client);
     if (!/^wl[0-9]+(?:\.[0-9]+)?$/i.test(iface)) return '';
+    return iface.toLowerCase() + '_ssid';
+}
+
+function wrLegacyGuestSsidNvramKey(client) {
+    // Reuse the same one-based isWL -> zero-based wlX mapping as the IFACE
+    // fallback so a node can never display one interface while resolving the
+    // SSID from a different radio's NVRAM key.
+    var iface = wrLegacyClientIfaceFallback(client);
+    if (!/^wl[0-9]+\.[0-9]+$/i.test(iface)) return '';
     return iface.toLowerCase() + '_ssid';
 }
 
@@ -1874,21 +2014,42 @@ async function wrResolveClientSsids(items, allNodes, mainMac) {
     // 3006 normally supplies get_clientlist().ssid directly, so preserve it.
     // Affected 388 builds leave that field blank. For AiMesh-node clients,
     // conn_if is NODE-local (for example wl1.1 on the node) and must never be
-    // resolved against the primary router's NVRAM; use the parent node's AP
-    // SSID for the reported stainfo band instead.
+    // blindly resolved against the primary router's NVRAM. For legacy guest
+    // clients, however, get_clientlist() exposes isWL/isGN even when stainfo is
+    // absent; use those live fields to address the synchronized primary guest
+    // SSID key (for example isWL=2,isGN=1 -> wl1.1_ssid). Non-guest node clients
+    // retain the existing parent-node band SSID fallback.
     var mainNode = (allNodes || []).find(function(node) {
         return wrNormMac(node && (node.mac || node.mac_addr)) === wrNormMac(mainMac);
     }) || null;
 
     var primaryMissing = [];
+    var nodeGuestMissing = [];
     var primaryKeys = new Set();
 
     items.forEach(function(item) {
+        // The node-self entry represents the AiMesh uplink itself, not a client
+        // associated to an advertised SSID. Keep that row intentionally blank.
+        if (item.meshLinkNode) {
+            item.resolvedSsid = '';
+            return;
+        }
+
         var direct = wrFirst(item.client, ['ssid']) || wrFirst(item.saved, ['ssid']);
         item.resolvedSsid = direct || '';
         if (item.resolvedSsid) return;
 
         if (item.node) {
+            var guestKey = wrLegacyGuestSsidNvramKey(item.client);
+            if (guestKey) {
+                // AiMesh propagates the configured guest SSID from the primary.
+                // Use live isWL/isGN to select that exact guest slot without
+                // depending on intermittent node stainfo/conn_if data.
+                item.guestSsidKey = guestKey;
+                nodeGuestMissing.push(item);
+                primaryKeys.add(guestKey);
+                return;
+            }
             item.resolvedSsid = wrNodeBandSsid(item.node, item.sta, item.client) || '';
             return;
         }
@@ -1912,9 +2073,18 @@ async function wrResolveClientSsids(items, allNodes, mainMac) {
         }
     }
 
+    nodeGuestMissing.forEach(function(item) {
+        var key = item.guestSsidKey || '';
+        var fromGuest = key ? String(nvramSsids[key] || '').trim() : '';
+        if (fromGuest) item.resolvedSsid = fromGuest;
+        delete item.guestSsidKey;
+    });
+
     primaryMissing.forEach(function(item) {
         var sta = item.sta;
-        var key = wrStaSsidNvramKey(sta);
+        // Preserve the live client hint here too: when stainfo is absent, the
+        // primary IFACE fallback needs isWL/isGN to recover wlX[.Y].
+        var key = wrStaSsidNvramKey(sta, item.client);
         var fromIface = key ? String(nvramSsids[key] || '').trim() : '';
         if (fromIface) {
             item.resolvedSsid = fromIface;
@@ -2143,54 +2313,37 @@ function wrMemoryUsage(memory) {
     return Math.round((used / total) * 100);
 }
 
-function wrMainHealthSampleUsable(sample) {
-    sample = sample || {};
-    var cpu = sample.cpu || {};
-    var memory = sample.memory || {};
-    var hasCpu = Object.keys(cpu).some(function(key) {
-        var core = cpu[key] || {};
-        return /^cpu[0-9]+$/.test(key) &&
-            wrNumber(core.total) !== null && wrNumber(core.usage) !== null;
-    });
-    return hasCpu && wrNumber(memory.total) !== null &&
-        (wrNumber(memory.simple_used) !== null || wrNumber(memory.used) !== null);
-}
-
-async function wrGetMainHealthSample() {
-    // Tested GT-BE98 Pro behavior:
-    //   cpu_usage(appobj) / memory_usage(appobj) => malformed {{...}} wrappers
-    //   cpu_usage() / memory_usage()             => clean JSON
-    // Request the clean hooks independently and consume their actual nested schema.
-    var responses = await Promise.all([
-        wrAppGet('cpu_usage();'),
-        wrAppGet('memory_usage();')
-    ]);
-    var sample = {
-        cpu: (responses[0] && responses[0].cpu_usage) || {},
-        memory: (responses[1] && responses[1].memory_usage) || {}
-    };
-    if (!wrMainHealthSampleUsable(sample)) {
-        throw new Error('primary CPU/memory response did not contain usable counters');
+async function wrGetMainMemoryUsage() {
+    // Keep the primary-router memory source aligned with ASUS' human-facing
+    // memory_usage().simple_used value. sys_detect is used for CPU consistency,
+    // but this direct memory hook has already proven to match the native WebUI.
+    var response = await wrAppGet('memory_usage();');
+    var memory = (response && response.memory_usage) || {};
+    var usage = wrMemoryUsage(memory);
+    if (usage === null) {
+        throw new Error('primary memory response did not contain usable counters');
     }
-    return sample;
+    return usage;
 }
 
-async function wrGetMainHealth(first) {
-    first = first || { cpu: {}, memory: {} };
-    var second = await wrGetMainHealthSample();
-    var cpu = wrCpuUsageBetween(first.cpu, second.cpu);
+async function wrGetMainCpuFallback() {
+    // sys_detect is the preferred CPU source for both the controller and nodes.
+    // If a firmware does not publish a controller row, take two nearby counter
+    // samples instead. Never span the full report refresh, which measures the
+    // CPU work caused by Wireless Report itself and inflates the displayed load.
+    async function sample() {
+        var response = await wrAppGet('cpu_usage();');
+        return (response && response.cpu_usage) || {};
+    }
 
-    // CPU usage is counter based. If the first pair is unusable, take another
-    // sample after a short interval rather than fabricating a utilization value.
+    var first = await sample();
+    await new Promise(function(resolve) { setTimeout(resolve, 500); });
+    var second = await sample();
+    var cpu = wrCpuUsageBetween(first, second);
     if (cpu === null) {
-        await new Promise(function(resolve) { setTimeout(resolve, 250); });
-        var third = await wrGetMainHealthSample();
-        cpu = wrCpuUsageBetween(second.cpu, third.cpu);
-        second = third;
+        throw new Error('primary CPU fallback did not contain usable counters');
     }
-    var memory = wrMemoryUsage(second.memory);
-    if (memory === null) memory = wrMemoryUsage(first.memory);
-    return { cpuUsage: cpu, memoryUsage: memory };
+    return cpu;
 }
 
 function wrNodeIsExplicitlyOffline(node) {
@@ -2315,8 +2468,8 @@ function wrRenderRow(item, history, known, firstHistoryLoad) {
     var ip = rawIp.length > 15 ? rawIp.slice(0, 15) : rawIp;
     var name = rawName.length > 20 ? rawName.slice(0, 20) : rawName;
     var ssid = rawSsid;
-    var iface = wrStaIface(sta, c);
-    var rssi = sta && sta.sta_rssi !== undefined ? wrNumber(sta.sta_rssi) : wrNumber(c.rssi);
+    var iface = wrStaIface(sta, c, item.node);
+    var rssi = wrItemRssi(item);
     var rx = sta && sta.sta_rx !== undefined ? Math.round(wrNumber(sta.sta_rx)) : Math.round(wrNumber(c.curRx));
     var tx = sta && sta.sta_tx !== undefined ? Math.round(wrNumber(sta.sta_tx)) : Math.round(wrNumber(c.curTx));
     var connected = sta && sta.conn_time !== undefined ? sta.conn_time : c.wlConnectTime;
@@ -2364,7 +2517,7 @@ function wrRenderRow(item, history, known, firstHistoryLoad) {
         "<td data-sort='" + rateSort + "' style='" + quality.style + "text-align:center;'>" + wrEscape(rateText) + "</td>" +
         "<td><span class='ssid-val' data-sort='" + wrEscape(ssid) + "'>" + wrEscape(ssid || '--') + "</span>" +
         "<span class='iface-val' data-sort='" + wrEscape(iface) + "'>" + wrEscape(iface || '--') + "</span></td>" +
-        wrBandHtml(sta, c) +
+        wrBandHtml(sta, c, item.meshLinkNode) +
         "<td>" + wrFormatConnection(connected) + "</td>" +
         "</tr>";
 }
@@ -2372,8 +2525,7 @@ function wrRenderRow(item, history, known, firstHistoryLoad) {
 function wrApplyRssiCounts(items) {
     var counts = { excellent: 0, good: 0, fair: 0, poor: 0 };
     items.forEach(function(item) {
-        var sta = item.sta;
-        var rssi = sta && sta.sta_rssi !== undefined ? wrNumber(sta.sta_rssi) : wrNumber(item.client.rssi);
+        var rssi = wrItemRssi(item);
         var q = wrQuality(rssi);
         if (q.key) counts[q.key]++;
     });
@@ -2474,12 +2626,11 @@ async function wrResolveSta(item, staMaps) {
 }
 
 async function loadWirelessReport() {
-    // Primary CPU usage is derived from two clean cpu_usage() counter samples.
-    // Start the first sample alongside the larger client-inventory request so
-    // the normal page load provides a useful interval without slowing refreshes.
-    var mainHealthFirstPromise = wrGetMainHealthSample().catch(function(e) {
-        console.warn('Primary CPU/memory first sample failed', e);
-        return { cpu: {}, memory: {} };
+    // Primary memory remains a direct WebUI measurement. Start it alongside the
+    // client inventory so it does not add latency to the normal report refresh.
+    var mainMemoryPromise = wrGetMainMemoryUsage().catch(function(e) {
+        console.warn('Primary memory query failed', e);
+        return null;
     });
     var base = await wrAppGet(
         'get_cfg_clientlist();' +
@@ -2544,6 +2695,10 @@ async function loadWirelessReport() {
         var parent = wrNormMac(c.amesh_papMac || c.amesh_pap_mac);
         if (parent && offlineNodeMacs.has(parent)) return;
         var nodeInfo = nodeByMac.get(parent);
+        // If the live-client MAC is itself an AiMesh node MAC, this row is the
+        // node/backhaul pseudo-client. Keep it distinct from item.node, which
+        // continues to mean an ordinary client associated through that node.
+        var meshLinkInfo = nodeByMac.get(mac);
         var savedClient = wrSavedClient(saved, macRaw, mac);
         items.push({
             mac: mac,
@@ -2551,7 +2706,8 @@ async function loadWirelessReport() {
             saved: savedClient,
             node: nodeInfo ? nodeInfo.node : null,
             nodeIndex: nodeInfo ? nodeInfo.index : -1,
-            nodeMac: nodeInfo ? parent : mainMac
+            nodeMac: nodeInfo ? parent : mainMac,
+            meshLinkNode: meshLinkInfo ? meshLinkInfo.node : null
         });
     });
 
@@ -2559,6 +2715,13 @@ async function loadWirelessReport() {
     // return only one/latest row for a broad node query, so every client missing
     // from the batch fast-path is resolved individually without flooding the CGI.
     for (var itemIndex = 0; itemIndex < items.length; itemIndex++) {
+        // Node-self pseudo-clients are not ordinary stainfo stations. Even if a
+        // firmware build happens to return a row, its radio need not be the
+        // active backhaul selected by re_path, so keep this source isolated.
+        if (items[itemIndex].meshLinkNode) {
+            items[itemIndex].sta = null;
+            continue;
+        }
         items[itemIndex].sta = await wrResolveSta(items[itemIndex], staMaps);
     }
 
@@ -2574,10 +2737,21 @@ async function loadWirelessReport() {
     items.forEach(function(item) { item.historyTime = historySampleTime; });
     var mainItems = items.filter(function(item) { return !item.node; });
     var nodeItems = items.filter(function(item) { return !!item.node; });
-    var diagPairs = await Promise.all(nodes.map(async function(node) {
+    // Use the same ASUS sys_detect CPU telemetry for the primary router and
+    // AiMesh nodes. This keeps the values comparable and avoids measuring the
+    // controller's CPU across Wireless Report's own refresh workload.
+    var diagMacs = [];
+    if (mainMac) diagMacs.push(mainMac);
+    nodes.forEach(function(node) {
         var mac = wrNormMac(node.mac || node.mac_addr);
+        if (mac && diagMacs.indexOf(mac) === -1) diagMacs.push(mac);
+    });
+    var diagPairs = await Promise.all(diagMacs.map(async function(mac) {
         try { return [mac, await wrGetNodeDiag(mac)]; }
-        catch (e) { console.warn('Node diagnostic query failed for ' + mac, e); return [mac, null]; }
+        catch (e) {
+            console.warn((mac === mainMac ? 'Primary' : 'Node') + ' diagnostic query failed for ' + mac, e);
+            return [mac, null];
+        }
     }));
     var diagByMac = new Map(diagPairs);
     var history = wrLoadJson('wirelessReportRssiHistory', {});
@@ -2590,7 +2764,7 @@ async function loadWirelessReport() {
     document.querySelector('#nodeTable tbody').innerHTML = nodeRows || "<tr><td colspan='7'>No AiMesh-node wireless clients reported.</td></tr>";
     document.querySelector('#allTable tbody').innerHTML = allRows || "<tr><td colspan='7'>No active wireless clients reported.</td></tr>";
     items.forEach(function(item) {
-        var rssi = item.sta && item.sta.sta_rssi !== undefined ? wrNumber(item.sta.sta_rssi) : wrNumber(item.client.rssi);
+        var rssi = wrItemRssi(item);
         wrStoreRssiHistory(item, rssi, history);
         known[item.mac] = 1;
     });
@@ -2601,14 +2775,25 @@ async function loadWirelessReport() {
     wrSetText('wr-main-count', mainItems.length);
     wrSetText('wr-node-count', nodeItems.length);
     wrSetText('wr-all-count', items.length);
-    var mainHealthFirst = await mainHealthFirstPromise;
-    var mainHealth;
-    try {
-        mainHealth = await wrGetMainHealth(mainHealthFirst);
-    } catch (e) {
-        console.warn('Primary CPU/memory query failed', e);
-        mainHealth = { cpuUsage: null, memoryUsage: wrMemoryUsage(mainHealthFirst.memory) };
+    var mainDiag = diagByMac.get(mainMac) || null;
+    var mainCpu = mainDiag && Number.isFinite(mainDiag.cpuUsage)
+        ? Math.round(mainDiag.cpuUsage)
+        : null;
+    if (mainCpu === null) {
+        try {
+            mainCpu = await wrGetMainCpuFallback();
+        } catch (e) {
+            console.warn('Primary CPU fallback query failed', e);
+        }
     }
+
+    var mainMemory = await mainMemoryPromise;
+    // Preserve a useful value if memory_usage() is unavailable on an unusual
+    // firmware build; sys_detect already carries the same percentage for nodes.
+    if (mainMemory === null && mainDiag && Number.isFinite(mainDiag.memoryUsage)) {
+        mainMemory = Math.round(mainDiag.memoryUsage);
+    }
+    var mainHealth = { cpuUsage: mainCpu, memoryUsage: mainMemory };
 
     // Set Main Router specific metrics only here
     wrSetMetric('wr-main-cpu', mainHealth.cpuUsage, '%');
