@@ -2666,12 +2666,8 @@ async function loadWirelessReport() {
         "<span class='" + wrMetricClass(mainHealth.memoryUsage) + "'>" + (mainHealth.memoryUsage !== null ? mainHealth.memoryUsage + "%" : "--") + "</span>"
     ].concat(memHtml);
     wrSetHtml('wr-all-main-memory', allMemCombined.join(bullet));
-
-    // Wrap ONLY the main router count in the custom color class for the breakdown array
     var mainColoredCount = "<span class='main-color'>" + mainItems.length + "</span>";
     var allDeviceParts = [mainColoredCount].concat(nodeCountParts);
-
-    // items.length (Grand Total at the front) stays default blue, mainColoredCount gets your custom color after the arrow
     wrSetHtml('wr-all-count', nodes.length > 1 && nodeCountParts.length ? items.length + " <span class='right-arrow'>—›</span> " + allDeviceParts.join(bullet) : items.length);
     // ----------------------------------------------
 
