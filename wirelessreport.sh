@@ -213,11 +213,11 @@ do_install() {
             case "$update" in [yY]) break ;; [nN]) return ;; *) printf "\033[4A\033[J" ;; esac; done
     fi
     do_update || return 1
-    echo -e "\n${GR}[+] Installing Wireless Report (${NC}v${INSTALL_VERSION:-$REMOTE_VERSION}${GR})${NC}"
+    echo -e "\n${GR}[+] Downloading latest version (${NC}v$REMOTE_VERSION${GR})${NC}"
 	if [ "$is_update" = "1" ]; then
 		echo -e "\n${BL}[✓] Wireless Report successfully installed.${NC}"
 		printf "\nPress ${BL}[Enter]${NC} to apply changes & restart script..."; read -r discard
-        logger -p user.info -t "Wireless_Report" "(v${INSTALL_VERSION:-$REMOTE_VERSION}) successfully installed."
+        logger -p user.info -t "Wireless_Report" "(v$REMOTE_VERSION) successfully installed."
         exec "$REPORT_SCRIPT" install "$@"
 		echo -e "${RD}Error: Failed to restart script!${NC}" >&2
 		exit 1
@@ -232,7 +232,7 @@ do_install() {
     sed -i "\|$REPORT_SCRIPT|d" "$SS_FILE" 2>/dev/null
     echo "$REPORT_SCRIPT inject & # Inject Wireless Report" >> "$SS_FILE"
     chmod +x "$SS_FILE"
-    install=""; SCRIPT_VERSION="${INSTALL_VERSION:-$REMOTE_VERSION}"
+    install=""; SCRIPT_VERSION="$REMOTE_VERSION"
     logger -p user.info -t "Wireless_Report" "(v$SCRIPT_VERSION) successfully installed."
     echo -e "${GR}[✓] SUCCESS: Installation complete!${NC}\n"
     echo -e "${YL}[i] To access Report, navigate to Advanced Settings > Wireless "
