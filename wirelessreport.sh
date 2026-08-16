@@ -1111,7 +1111,7 @@ ALL_NAMES="<span id='wr-all-names' class='router-style'>Loading...</span>"
 ALL_TEMP="<span id='wr-all-main-cpu'>--</span>"
 ALL_LOAD="<span id='wr-all-main-memory'>--</span>"
 ALL_DEVICES="Devices: <span id='wr-all-count' class='stat-cool'>0</span>"
-ALL_UPTIME="<span id='wr-all-api-note'>Primary-router WebUI APIs • no direct node authentication</span>"
+ALL_UPTIME="<span id='wr-all-uptime' class='main-color'>Controller telemetry pending...</span>"
 
 GRAND_TOTAL_DEVICES="<span id='wr-grand-total' class='count-highlight'>0</span>"
 UPDATED_TIME="<span class='wr-updated-time total-count'>Loading controller data...</span>"
@@ -2604,21 +2604,37 @@ async function loadWirelessReport() {
 
     // Comment out or remove this line in your JS so it doesn't overwrite your shell output:
     // wrSetText('wr-main-reboot', Number.isFinite(uptimeSecs) ? wrFormatDateTime(new Date(Date.now() - uptimeSecs * 1000)) : '--');
-
     var mainNameEl = document.getElementById('wr-main-name');
     if (mainNameEl && !mainNameEl.textContent.trim()) mainNameEl.textContent = base.productid || 'Main Router';
+
+    // Set Main Router specific metrics only here
+    wrSetMetric('wr-main-cpu', mainHealth.cpuUsage, '%');
+    wrSetMetric('wr-main-memory', mainHealth.memoryUsage, '%');
+    var uptimeSecs = wrParseUptime(base.uptime);
+    wrSetText('wr-main-uptime', wrFormatRouterUptime(uptimeSecs));
     var nodeNamesHtml = [];
     var cpuHtml = [];
     var memHtml = [];
     var nodeCountParts = [];
     var nodeDiagParts = [];
+
+    // --- BUILD MAIN ROUTER DIAGNOSTIC DETAILS ---
+    var mainNameText = mainNameEl ? mainNameEl.textContent.trim() : (base.productid || 'Main Router');
+    var mainIp = String(wrFirst(base, ['lan_ipaddr', 'lan_ip', 'ip']) || window.location.hostname || '');
+
+    // Check all possible firmware/version properties on base or window scope
+    var mainFw = wrFirst(base, ['firmware', 'fwver', 'firmwarever', 'webs_state_info', 'buildno', 'extendno', 'version']) || window.firmware || window.webs_state_info || '';
+    var mainDiag = "<span class='main-color'>" + wrEscape(mainNameText) + "</span>";
+    if (mainIp) mainDiag += " <span style='color:white;'>•</span> <span style='color:white;'>" + wrEscape(mainIp) + "</span>";
+    if (mainFw) mainDiag += " <span style='color:white;'>•</span> <span class='main-color'>FW</span> <span style='color:white;'>" + wrEscape(mainFw) + "</span>";
+    // ------------------------------------------
+
     nodes.forEach(function(node, index) {
         var mac = wrNormMac(node.mac || node.mac_addr);
         var ip = String(wrFirst(node, ['ip', 'ip_addr', 'ipAddr']) || '');
         var name = wrNodeDisplayName(node);
         var color = wrNodeColor(index, node);
         var marker = (WR_CONFIG.hostColor === 0 && nodes.length > 1) ? '<sup>' + (index + 1) + '</sup>' : '';
-        // var marker = '';
         var diag = diagByMac.get(mac);
         var nodeClientCount = nodeItems.filter(function(item) { return item.nodeIndex === index; }).length;
         nodeNamesHtml.push("<span style='color:" + color + ";'>" + wrEscape(name) + marker + "</span>");
@@ -2633,16 +2649,15 @@ async function loadWirelessReport() {
         } else {
             memHtml.push("<span style='color:" + color + ";'>--" + "</span>");
         }
-        var model = wrFirst(node, ['model_name', 'product_id']) || '';
         var firmware = wrFirst(node, ['firmware', 'fwver', 'fw_version', 'version']);
         var details = "<span style='color:" + color + ";'>" + wrEscape(name) + "</span>";
-        // if (model) details += ' ' + wrEscape(model);
-        if (ip) details += ' • ' + wrEscape(ip);
-        if (firmware) details += " • <span style='color:" + color + ";'>FW</span> " + wrEscape(firmware);
-        // if (diag && Number.isFinite(diag.timestamp)) details += ' • Telemetry ' + new Date(diag.timestamp * 1000).toLocaleTimeString();
+        if (ip) details += " <span style='color:white;'>•</span> <span style='color:white;'>" + wrEscape(ip) + "</span>";
+        if (firmware) details += " <span style='color:white;'>•</span> <span style='color:" + color + ";'>FW</span> <span style='color:white;'>" + wrEscape(firmware) + "</span>";
         nodeDiagParts.push(details);
     });
     var bullet = " <span style='color:white;'>•</span> ";
+
+    // 1. Set the Node-only footer
     wrSetHtml('wr-node-names', nodeNamesHtml.length ? nodeNamesHtml.join(bullet) : 'No AiMesh nodes detected');
     wrSetHtml('wr-node-cpu', cpuHtml.length ? cpuHtml.join(bullet) : '--');
     wrSetHtml('wr-node-memory', memHtml.length ? memHtml.join(bullet) : '--');
@@ -2654,24 +2669,31 @@ async function loadWirelessReport() {
         "<span class='" + wrMetricClass(mainHealth.cpuUsage) + "'>" + (mainHealth.cpuUsage !== null ? mainHealth.cpuUsage + "%" : "--") + "</span>"
     ].concat(cpuHtml);
     wrSetHtml('wr-all-main-cpu', allCpuCombined.join(bullet));
+
     var allMemCombined = [
         "<span class='" + wrMetricClass(mainHealth.memoryUsage) + "'>" + (mainHealth.memoryUsage !== null ? mainHealth.memoryUsage + "%" : "--") + "</span>"
     ].concat(memHtml);
     wrSetHtml('wr-all-main-memory', allMemCombined.join(bullet));
+
     var mainColoredCount = "<span class='main-color'>" + mainItems.length + "</span>";
     var allDeviceParts = [mainColoredCount].concat(nodeCountParts);
     wrSetHtml('wr-all-count', nodes.length > 1 && nodeCountParts.length ? items.length + " <span class='right-arrow'>—›</span> " + allDeviceParts.join(bullet) : items.length);
-    // ----------------------------------------------
 
     var allNames = ["<span style='color:" + WR_CONFIG.mainColor + ";'>" + wrEscape(document.getElementById('wr-main-name').textContent) + "</span>"];
     allNames = allNames.concat(nodeNamesHtml);
     wrSetHtml('wr-all-names', allNames.join(bullet));
+
+    // 2. Set the All-Devices footer diagnostics (reuses the exact node diagnostic output with main on top)
+    var allDiagParts = [mainDiag].concat(nodeDiagParts.slice());
+    wrSetHtml('wr-all-uptime', allDiagParts.length ? allDiagParts.join('<br>') : 'No diagnostic telemetry available.');
+    // ----------------------------------------------
+
     var nodeCol = document.getElementById('nodeCol');
     if (nodeCol) nodeCol.style.display = nodes.length ? 'flex' : 'none';
 
-    /* document.querySelectorAll('.wr-updated-time').forEach(function(el) {
-        el.textContent = 'Updated: ' + new Date().toLocaleString();
-    }); */
+    // document.querySelectorAll('.wr-updated-time').forEach(function(el) {
+    //     el.textContent = 'Updated: ' + new Date().toLocaleString();
+    // });
 
     // Apply dynamic font sizing and alignment based on node count (TEMP_STYLE logic)
     var nodeCount = nodes.length;
@@ -2683,7 +2705,6 @@ async function loadWirelessReport() {
     } else {
         tempStyle = "text-align: center; justify-content: center;";
     }
-
     // Apply it dynamically to your metric elements
     ['wr-all-main-cpu', 'wr-all-main-memory', 'wr-node-cpu', 'wr-node-memory'].forEach(function(id) {
         var el = document.getElementById(id);
