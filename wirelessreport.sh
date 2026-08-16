@@ -28,7 +28,7 @@
 #        shellcheck shell=sh disable=SC2086,SC2155,SC3043         #
 #=================================================================#
 
-SCRIPT_VERSION="3.1.5"
+SCRIPT_VERSION="3.1.6"
 INSTALL_DIR="/jffs/addons/wireless_report"
 REPORT_SCRIPT="$INSTALL_DIR/wirelessreport.sh"
 SYSTEM_MENU="/www/require/modules/menuTree.js"
@@ -2313,54 +2313,37 @@ function wrMemoryUsage(memory) {
     return Math.round((used / total) * 100);
 }
 
-function wrMainHealthSampleUsable(sample) {
-    sample = sample || {};
-    var cpu = sample.cpu || {};
-    var memory = sample.memory || {};
-    var hasCpu = Object.keys(cpu).some(function(key) {
-        var core = cpu[key] || {};
-        return /^cpu[0-9]+$/.test(key) &&
-            wrNumber(core.total) !== null && wrNumber(core.usage) !== null;
-    });
-    return hasCpu && wrNumber(memory.total) !== null &&
-        (wrNumber(memory.simple_used) !== null || wrNumber(memory.used) !== null);
-}
-
-async function wrGetMainHealthSample() {
-    // Tested GT-BE98 Pro behavior:
-    //   cpu_usage(appobj) / memory_usage(appobj) => malformed {{...}} wrappers
-    //   cpu_usage() / memory_usage()             => clean JSON
-    // Request the clean hooks independently and consume their actual nested schema.
-    var responses = await Promise.all([
-        wrAppGet('cpu_usage();'),
-        wrAppGet('memory_usage();')
-    ]);
-    var sample = {
-        cpu: (responses[0] && responses[0].cpu_usage) || {},
-        memory: (responses[1] && responses[1].memory_usage) || {}
-    };
-    if (!wrMainHealthSampleUsable(sample)) {
-        throw new Error('primary CPU/memory response did not contain usable counters');
+async function wrGetMainMemoryUsage() {
+    // Keep the primary-router memory source aligned with ASUS' human-facing
+    // memory_usage().simple_used value. sys_detect is used for CPU consistency,
+    // but this direct memory hook has already proven to match the native WebUI.
+    var response = await wrAppGet('memory_usage();');
+    var memory = (response && response.memory_usage) || {};
+    var usage = wrMemoryUsage(memory);
+    if (usage === null) {
+        throw new Error('primary memory response did not contain usable counters');
     }
-    return sample;
+    return usage;
 }
 
-async function wrGetMainHealth(first) {
-    first = first || { cpu: {}, memory: {} };
-    var second = await wrGetMainHealthSample();
-    var cpu = wrCpuUsageBetween(first.cpu, second.cpu);
+async function wrGetMainCpuFallback() {
+    // sys_detect is the preferred CPU source for both the controller and nodes.
+    // If a firmware does not publish a controller row, take two nearby counter
+    // samples instead. Never span the full report refresh, which measures the
+    // CPU work caused by Wireless Report itself and inflates the displayed load.
+    async function sample() {
+        var response = await wrAppGet('cpu_usage();');
+        return (response && response.cpu_usage) || {};
+    }
 
-    // CPU usage is counter based. If the first pair is unusable, take another
-    // sample after a short interval rather than fabricating a utilization value.
+    var first = await sample();
+    await new Promise(function(resolve) { setTimeout(resolve, 500); });
+    var second = await sample();
+    var cpu = wrCpuUsageBetween(first, second);
     if (cpu === null) {
-        await new Promise(function(resolve) { setTimeout(resolve, 250); });
-        var third = await wrGetMainHealthSample();
-        cpu = wrCpuUsageBetween(second.cpu, third.cpu);
-        second = third;
+        throw new Error('primary CPU fallback did not contain usable counters');
     }
-    var memory = wrMemoryUsage(second.memory);
-    if (memory === null) memory = wrMemoryUsage(first.memory);
-    return { cpuUsage: cpu, memoryUsage: memory };
+    return cpu;
 }
 
 function wrNodeIsExplicitlyOffline(node) {
@@ -2643,12 +2626,11 @@ async function wrResolveSta(item, staMaps) {
 }
 
 async function loadWirelessReport() {
-    // Primary CPU usage is derived from two clean cpu_usage() counter samples.
-    // Start the first sample alongside the larger client-inventory request so
-    // the normal page load provides a useful interval without slowing refreshes.
-    var mainHealthFirstPromise = wrGetMainHealthSample().catch(function(e) {
-        console.warn('Primary CPU/memory first sample failed', e);
-        return { cpu: {}, memory: {} };
+    // Primary memory remains a direct WebUI measurement. Start it alongside the
+    // client inventory so it does not add latency to the normal report refresh.
+    var mainMemoryPromise = wrGetMainMemoryUsage().catch(function(e) {
+        console.warn('Primary memory query failed', e);
+        return null;
     });
     var base = await wrAppGet(
         'get_cfg_clientlist();' +
@@ -2755,10 +2737,21 @@ async function loadWirelessReport() {
     items.forEach(function(item) { item.historyTime = historySampleTime; });
     var mainItems = items.filter(function(item) { return !item.node; });
     var nodeItems = items.filter(function(item) { return !!item.node; });
-    var diagPairs = await Promise.all(nodes.map(async function(node) {
+    // Use the same ASUS sys_detect CPU telemetry for the primary router and
+    // AiMesh nodes. This keeps the values comparable and avoids measuring the
+    // controller's CPU across Wireless Report's own refresh workload.
+    var diagMacs = [];
+    if (mainMac) diagMacs.push(mainMac);
+    nodes.forEach(function(node) {
         var mac = wrNormMac(node.mac || node.mac_addr);
+        if (mac && diagMacs.indexOf(mac) === -1) diagMacs.push(mac);
+    });
+    var diagPairs = await Promise.all(diagMacs.map(async function(mac) {
         try { return [mac, await wrGetNodeDiag(mac)]; }
-        catch (e) { console.warn('Node diagnostic query failed for ' + mac, e); return [mac, null]; }
+        catch (e) {
+            console.warn((mac === mainMac ? 'Primary' : 'Node') + ' diagnostic query failed for ' + mac, e);
+            return [mac, null];
+        }
     }));
     var diagByMac = new Map(diagPairs);
     var history = wrLoadJson('wirelessReportRssiHistory', {});
@@ -2782,14 +2775,25 @@ async function loadWirelessReport() {
     wrSetText('wr-main-count', mainItems.length);
     wrSetText('wr-node-count', nodeItems.length);
     wrSetText('wr-all-count', items.length);
-    var mainHealthFirst = await mainHealthFirstPromise;
-    var mainHealth;
-    try {
-        mainHealth = await wrGetMainHealth(mainHealthFirst);
-    } catch (e) {
-        console.warn('Primary CPU/memory query failed', e);
-        mainHealth = { cpuUsage: null, memoryUsage: wrMemoryUsage(mainHealthFirst.memory) };
+    var mainDiag = diagByMac.get(mainMac) || null;
+    var mainCpu = mainDiag && Number.isFinite(mainDiag.cpuUsage)
+        ? Math.round(mainDiag.cpuUsage)
+        : null;
+    if (mainCpu === null) {
+        try {
+            mainCpu = await wrGetMainCpuFallback();
+        } catch (e) {
+            console.warn('Primary CPU fallback query failed', e);
+        }
     }
+
+    var mainMemory = await mainMemoryPromise;
+    // Preserve a useful value if memory_usage() is unavailable on an unusual
+    // firmware build; sys_detect already carries the same percentage for nodes.
+    if (mainMemory === null && mainDiag && Number.isFinite(mainDiag.memoryUsage)) {
+        mainMemory = Math.round(mainDiag.memoryUsage);
+    }
+    var mainHealth = { cpuUsage: mainCpu, memoryUsage: mainMemory };
 
     // Set Main Router specific metrics only here
     wrSetMetric('wr-main-cpu', mainHealth.cpuUsage, '%');
