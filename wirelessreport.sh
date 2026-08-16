@@ -66,12 +66,6 @@ show_header() {
 }
 
 install_menu() {
-    # The menu intentionally leaves the terminal in the blue theme between
-    # prompts. Always reset ANSI attributes when the interactive script exits,
-    # including Ctrl+C/TERM/HUP, so the parent shell/amtm prompt is not left
-    # colored after an interrupted menu session.
-    trap 'printf "\033[0m"' 0
-    trap 'exit 130' INT TERM HUP
 	while true; do
 		show_header
 		echo -e "${BL}=================================================="
@@ -101,12 +95,9 @@ install_menu() {
 						6) set_options ;;
 					esac
 					break ;;
-				e|E)
-                    # Saved configuration changes are regenerated immediately
-                    # and the open WebUI page watches for a new generation.
-                    clear; hasta; exit 0
-                    ;;
+				e|E) clear; hasta; exit 0 ;;
 				*) freeze2; continue ;;
+
 			esac
 		done
 	done
@@ -181,12 +172,12 @@ menu_vars() {
 	NE="${BL}(e)${NC}"; NQ="${BL}(c)${NC}"; ON="${GR}ON${NC}"; OFF="${RD}OFF${NC}"
 	STATUS=" ${BL}STATUS:${NC}"; CURRENT="${GR}Current: v$SCRIPT_VERSION${NC}"
     SS_FILE="/jffs/scripts/services-start"; SE_FILE="/jffs/scripts/service-event"
-	DU="${REPORT_UNIT:-F}"; CT="${GR}$CUR_TIME${NC}"
+    DU="${REPORT_UNIT:-USA}"; CT="${GR}$CUR_TIME${NC}"
     if [ "$REPORT_UNIT" = "ISO" ]; then DU="${GR}ISO${NC}"
-    elif [ "$REPORT_UNIT" = "C" ]; then DU="${GR}INTL${NC}"
+    elif [ "$REPORT_UNIT" = "INTL" ]; then DU="${GR}INTL${NC}"
     else DU="${GR}USA${NC}"; fi
 	DATE_USA="${GR}$(date +"%b-%d")${NC}"; DATE_INTL="${GR}$(date +"%d-%b")${NC}"; DATE_ISO="${GR}$(date +"%Y-%m-%d")${NC}"
-	RTIME=${RTIME:-1}; if [ "$RTIME" = "0" ]; then RT_STAT="$OFF"; else RT_STAT="$ON"; fi
+    RTIME=${RTIME:-1}; if [ "$RTIME" = "0" ]; then RT_STAT="$OFF"; else RT_STAT="$ON"; fi
     PULSE_MINS=${PULSE_MINS:-15}
     if [ "$PULSE_MINS" = "0" ]; then UP_STAT="$OFF"; else UP_STAT="${GR}${PULSE_MINS} Mins${NC}"; fi
     RS_HIST=${RS_HIST:-0}; case "$RS_HIST" in 0|1) ;; *) RS_HIST=0 ;; esac
@@ -258,23 +249,16 @@ do_update() {
     [ -z "$CURRENT_PATH" ] && CURRENT_PATH="$0"
     TARGET_PATH=$(readlink -f "$REPORT_SCRIPT" 2>/dev/null)
     [ -z "$TARGET_PATH" ] && TARGET_PATH="$REPORT_SCRIPT"
-
-    # Existing installs already have their WebUI page registered and bind
-    # mounted. Regenerate that page in-place with the newly installed script;
-    # only a first install needs the heavier inject_menu path.
     apply_updated_report() {
         local inject_rc=0
+
+        # the following 2-lines get deleted after a couple weeks, only for transition.
         SE_FILE="/jffs/scripts/service-event"; sed -i "/wireless_report/d" "$SE_FILE"
         get_usb
+
         if [ "$is_update" = "1" ]; then
             "$REPORT_SCRIPT" reload || return 1
         else
-            # First install must not bind/restart httpd against the temporary
-            # placeholder and then generate the real ASP asynchronously.  That
-            # can leave the first opened addon page on stale/incomplete content
-            # until ASUS WebUI navigation tears it down and loads it again.
-            # Build the complete page first, then bind that finished inode into
-            # the allocated /www/user slot and restart httpd once.
             "$REPORT_SCRIPT" live-reload || return 1
             WR_PREGENERATED="1"
             inject_menu
@@ -284,11 +268,6 @@ do_update() {
         fi
         case "$USB_PATH" in *wirelessreport*) rm -rf "$USB_PATH" 2>/dev/null ;; esac
     }
-
-    # When install is explicitly launched from a different local file (for
-    # example /tmp/wirelessreport.sh), install THAT supplied build. A fresh
-    # process then runs reload so the just-copied code, not the old in-memory
-    # functions, generates the report page.
     if [ "$CURRENT_PATH" != "$TARGET_PATH" ]; then
         INSTALL_VERSION="$SCRIPT_VERSION"
         echo -e "\n${YL}[i] Installing supplied local copy (v$SCRIPT_VERSION)...${NC}\n"
@@ -297,16 +276,16 @@ do_update() {
         apply_updated_report || return 1
         return 0
     fi
-
-    # Normal update initiated by the already-installed script: fetch upstream.
     if curl -sfL --retry 3 "$GITHUB" -o "$TEMP_SCRIPT" && [ -s "$TEMP_SCRIPT" ]; then
         mv "$TEMP_SCRIPT" "$REPORT_SCRIPT"
         chmod +x "$REPORT_SCRIPT" 2>/dev/null
         reload_report
+
         # the following 3-lines get deleted after a couple weeks, only for transition.
         SE_FILE="/jffs/scripts/service-event"; sed -i "/wireless_report/d" "$SE_FILE"
         get_usb
         case "$USB_PATH" in *wirelessreport*) rm -rf "$USB_PATH" 2>/dev/null ;; esac
+
         return 0
     else
         rm -f "$TEMP_SCRIPT"
@@ -352,11 +331,6 @@ ScriptUpdateFromAMTM() {
 wr_sha256() {
     local file="$1" hash=""
     [ -f "$file" ] || return 1
-
-    # sha256sum is not present on every ASUSWRT build. Prefer it when exposed,
-    # then try the BusyBox applet and OpenSSL before falling back to cmp in
-    # check_github(). This keeps true SHA-256 comparison without breaking
-    # legacy firmware that lacks the standalone utility.
     if command -v sha256sum >/dev/null 2>&1; then
         hash=$(sha256sum "$file" 2>/dev/null | awk '{print $1}')
     elif command -v busybox >/dev/null 2>&1 && busybox sha256sum "$file" >/dev/null 2>&1; then
@@ -364,7 +338,6 @@ wr_sha256() {
     elif command -v openssl >/dev/null 2>&1; then
         hash=$(openssl dgst -sha256 "$file" 2>/dev/null | awk '{print $NF}')
     fi
-
     [ "${#hash}" -eq 64 ] || return 1
     printf '%s\n' "$hash"
 }
@@ -372,17 +345,11 @@ wr_sha256() {
 check_github() {
     GITHUB="https://raw.githubusercontent.com/JB1366/Wireless_Report/main/wirelessreport.sh"
     REMOTE_TMP="/tmp/wr_remote.tmp"
-    LOCAL_HASH=""
-    REMOTE_HASH=""
-
+    LOCAL_HASH=""; REMOTE_HASH=""
     if curl -sfL --retry 3 "$GITHUB" -o "$REMOTE_TMP" 2>/dev/null && [ -s "$REMOTE_TMP" ]; then
         REMOTE_VERSION=$(grep "SCRIPT_VERSION=" "$REMOTE_TMP" | head -n 1 | cut -d'"' -f2 | tr -cd '0-9.')
         LOCAL_HASH=$(wr_sha256 "$REPORT_SCRIPT" 2>/dev/null)
         REMOTE_HASH=$(wr_sha256 "$REMOTE_TMP" 2>/dev/null)
-
-        # Some legacy builds expose neither sha256sum nor an OpenSSL/BusyBox
-        # SHA-256 implementation. Equality is all check_version needs, so keep
-        # cmp as a compatibility fallback rather than failing update detection.
         if [ -z "$LOCAL_HASH" ] || [ -z "$REMOTE_HASH" ]; then
             if [ -f "$REPORT_SCRIPT" ]; then
                 if cmp -s "$REPORT_SCRIPT" "$REMOTE_TMP"; then
@@ -395,10 +362,8 @@ check_github() {
             fi
         fi
     else
-        REMOTE_VERSION=""
-        REMOTE_HASH=""
+        REMOTE_VERSION=""; REMOTE_HASH=""
     fi
-
     rm -f "$REMOTE_TMP"
 }
 # this function gets deleted after a couple weeks, only for transition.
@@ -483,15 +448,9 @@ inject_menu() {
 	umount "/www/user/$am_webui_page" 2>/dev/null
 	mount -o bind "$WEB_PAGE" "/www/user/$am_webui_page"
 	flock -u "$FD"; restart_httpd
-    if [ "$NOLOADSCRIPT" = "1" ]; then
-        exit 0
-    elif [ "$WR_PREGENERATED" = "1" ]; then
-        # First-install page was generated synchronously before injection.
-        # Do not immediately rewrite the newly bound page in a background job.
-        return 0
-    else
-        "$REPORT_SCRIPT" &
-    fi
+    if [ "$NOLOADSCRIPT" = "1" ]; then exit 0
+    elif [ "$WR_PREGENERATED" = "1" ]; then return 0
+    else "$REPORT_SCRIPT" & fi
 }
 
 do_uninstall() {
@@ -517,8 +476,11 @@ do_uninstall() {
 	restart_httpd
     nvram unset wirelessreport_gen >/dev/null 2>&1
 	sed -i "\|$REPORT_SCRIPT|d" "$SS_FILE"
-    sed -i "/wireless_report/d" "$SE_FILE" # delete after a couple weeks, only for transition.
-	case "$USB_PATH" in *wirelessreport*) rm -rf "$USB_PATH" 2>/dev/null ;; esac # delete after a couple weeks, only for transition.
+
+    # delete 2-lines below, only for transition.
+    sed -i "/wireless_report/d" "$SE_FILE"
+	case "$USB_PATH" in *wirelessreport*) rm -rf "$USB_PATH" 2>/dev/null ;; esac
+
     restart_httpd
 	rm -rf "$INSTALL_DIR" "$WEB_PAGE" 2>/dev/null
 	logger -p user.info -t "Wireless_Report" "(v$SCRIPT_VERSION) successfully uninstalled."
@@ -547,8 +509,8 @@ set_date_time() {
         while true; do
             printf "\n ${NC}Selection: ${BL}"; read -r t_choice
             case "$t_choice" in
-                1) NEW_UNIT="F" ;;
-                2) NEW_UNIT="C" ;;
+                1) NEW_UNIT="USA" ;;
+                2) NEW_UNIT="INTL" ;;
                 3) NEW_UNIT="ISO" ;;
                 e|E) return ;;
                 *) freeze2; continue ;;
@@ -711,7 +673,6 @@ hex_to_ansi() {
 get_node_nick() {
     local node_ip="$1" key
     key="NODE_NICK_$(printf '%s' "$node_ip" | tr '.' '_')"
-
     [ -f "$CONFIG" ] || return 0
     awk -v key="$key" '
         index($0, key "=\"") == 1 {
@@ -778,10 +739,6 @@ set_colors() {
                 target_name="${MAIN_NICK:-$main_name}"
                 target_hex="$m_color_hex"
             else
-                # MESH_NODES is one node per line. Select by record number, not
-                # by awk field number; '$n' returned every line for choice 1 and
-                # produced a multi-line variable name that made eval fail with
-                # "bad substitution" on multi-node systems.
                 local target_node=$(printf '%s\n' "$MESH_NODES" | awk -v n="$node_choice" 'NR == n { print; exit }')
                 local target_ip=$(printf '%s\n' "$target_node" | cut -d'|' -f2)
                 target_name=$(get_node_nick "$target_ip")
@@ -1103,38 +1060,21 @@ echo -e "${NC}\n\n\n" #=========================================================
 }
 
 update_time() {
-    if [ "$REPORT_UNIT" = "ISO" ]; then
-        T_FMT="+%Y-%m-%d %H:%M:%S"
-        D_FMT="+%Y-%m-%d %H:%M"
-        TEMP_UNIT="C"
-    elif [ "$REPORT_UNIT" = "C" ]; then
-        T_FMT="+%-d-%b %-H:%M:%S"
-        D_FMT="+%-d-%b %-H:%M"
-        TEMP_UNIT="C"
-    else
-        T_FMT="+%b-%-d %-H:%M:%S"
-        D_FMT="+%b-%-d %-H:%M"
-        TEMP_UNIT="F"
-    fi
+    if [ "$REPORT_UNIT" = "ISO" ]; then T_FMT="+%Y-%m-%d %H:%M:%S"; D_FMT="+%Y-%m-%d %H:%M"
+    elif [ "$REPORT_UNIT" = "INTL" ]; then T_FMT="+%-d-%b %-H:%M:%S"; D_FMT="+%-d-%b %-H:%M"
+    else T_FMT="+%b-%-d %-H:%M:%S"; D_FMT="+%b-%-d %-H:%M"; fi
     CUR_TIME=$(date "$T_FMT")
 }
 
 startup() { mesh_init; check_github; update_time; hex_to_ansi; }
 
 reload_report() {
-    # Run in a fresh shell for normal callers so both webui.conf and any script
-    # replacement are picked up. run_report truncates /tmp/wireless.asp in
-    # place, so the existing bind mount remains valid and menu reinjection is
-    # unnecessary.
     if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
     startup
     run_report
 }
 
 reload_report_live() {
-    # Fast path for settings changed from the shell menu. No GitHub/version
-    # lookup is needed; regenerate the bound page, then publish a new browser
-    # generation token when the file is complete.
     if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
     mesh_init
     update_time
@@ -1161,9 +1101,6 @@ run_report() {
 #   /get_diag_content_data.cgi          (388 legacy diagnostic fallback)
 # All client/node refreshes happen in-page with same-origin fetch() calls.
 
-# Increment an ephemeral (non-committed) NVRAM generation. The new value is
-# published only after the generated ASP is complete, allowing an already-open
-# Wireless Report page to detect shell-menu changes and code updates safely.
 WR_GENERATION=$(nvram get wirelessreport_gen 2>/dev/null)
 case "$WR_GENERATION" in ""|*[!0-9]*) WR_GENERATION=0 ;; esac
 WR_GENERATION=$((WR_GENERATION + 1))
@@ -1179,15 +1116,6 @@ if [ -f "$CONFIG" ]; then
 		NODE_NICK_JS="${NODE_NICK_JS}WR_CUSTOM_NODE_NAMES['${nick_ip}']='${nick_value}';"
 	done < "$CONFIG"
 fi
-
-set_theme; check_version header_box; update_time
-IPPAD=${IPPAD:-1}; HOST_COLOR=${HOST_COLOR:-0}; PULSE_MINS=${PULSE_MINS:-15}
-: "${MAIN_COLOR:=#0096ff}"
-: "${NODE_COLORS:=#30d158 #bf40bf #ffd60a #64d2ff #ff9500 #ff453a #ffffff #ff70a6 #64ffda}"
-
-# NODE_COLORS is configured positionally by the shell menu, whose MESH_NODES
-# inventory is sorted by node IP. Publish an IP-keyed map into the generated
-# page so browser API ordering (and omitted/offline nodes) cannot shift colors.
 NODE_COLOR_JS=""
 node_color_idx=1
 for node in $MESH_NODES; do
@@ -1201,6 +1129,10 @@ for node in $MESH_NODES; do
     node_color_idx=$((node_color_idx + 1))
 done
 
+set_theme; check_version header_box; update_time
+IPPAD=${IPPAD:-1}; HOST_COLOR=${HOST_COLOR:-0}; PULSE_MINS=${PULSE_MINS:-15}
+: "${MAIN_COLOR:=#0096ff}"
+: "${NODE_COLORS:=#30d158 #bf40bf #ffd60a #64d2ff #ff9500 #ff453a #ffffff #ff70a6 #64ffda}"
 TEMP_STYLE="text-align: center; justify-content: center;"
 UPTIME_STYLE="text-align: center; justify-content: center;"
 if [ "$HOST_COLOR" = "1" ]; then IP_COLOR=""; MAC_COLOR="color: #64d2ff;"
@@ -1490,7 +1422,7 @@ function update_time() {
         const mm = String(now.getMonth() + 1).padStart(2, '0');
         const dd = String(day).padStart(2, '0');
         formattedTime = year + '-' + mm + '-' + dd + ' ' + String(hours).padStart(2, '0') + ':' + minutes + ':' + seconds;
-    } else if (WR_CONFIG.reportUnit === 'C') {
+    } else if (WR_CONFIG.reportUnit === 'INTL') {
         formattedTime = day + '-' + month + ' ' + hours + ':' + minutes + ':' + seconds;
     } else {
         formattedTime = month + '-' + day + ' ' + hours + ':' + minutes + ':' + seconds;
