@@ -11,7 +11,7 @@ I created this script to solve a specific gap in the ASUS WebGUI: the lack of re
 \
 \
 $\color{blue}{\Large\text{NODE DATA INTEGRATION}}$<br>
-To display data for AiMesh nodes, the script now uses inline Browser/API data integration.
+The script now utilizes inline Browser/API data integration to seamlessly display data for AiMesh nodes.
 \
 \
 $\color{blue}{\Large\text{PRO-TIP: CUSTOMIZING HOSTNAMES}}$<br>
