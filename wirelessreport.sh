@@ -28,7 +28,7 @@
 #        shellcheck shell=sh disable=SC2086,SC2155,SC3043         #
 #=================================================================#
 
-SCRIPT_VERSION="3.1.4"
+SCRIPT_VERSION="3.1.5"
 INSTALL_DIR="/jffs/addons/wireless_report"
 REPORT_SCRIPT="$INSTALL_DIR/wirelessreport.sh"
 SYSTEM_MENU="/www/require/modules/menuTree.js"
@@ -1876,55 +1876,67 @@ function wrSavedClient(saved, macRaw, mac) {
     return saved[macRaw] || saved[mac] || saved[String(mac).toLowerCase()] || {};
 }
 
+function wrLegacyClientRadioUnit(client) {
+    // Legacy get_clientlist().isWL numbers radios from 1 while ASUS wl units are
+    // zero-based. Keep this conversion in one place so IFACE and SSID fallbacks
+    // cannot disagree about which radio a client belongs to.
+    if (WR_DIAG_API !== 'legacy' || !client) return null;
+
+    var wlRaw = client.isWL;
+    var wl = Number(wlRaw);
+    var wlValid = wlRaw !== undefined && wlRaw !== null && String(wlRaw).trim() !== '' &&
+        Number.isFinite(wl) && Math.floor(wl) === wl && wl >= 1 && wl <= 4;
+    return wlValid ? wl - 1 : null;
+}
+
+function wrLegacyClientGuestIndex(client) {
+    if (!client) return null;
+
+    var guestRaw = client.isGN === true ? 1 : client.isGN;
+    if (guestRaw === undefined || guestRaw === null || String(guestRaw).trim() === '') return 0;
+
+    var guest = Number(guestRaw);
+    if (!Number.isFinite(guest) || Math.floor(guest) !== guest || guest < 0 || guest > 9) return null;
+    return guest;
+}
+
+function wrLegacyClientIfaceFallback(client) {
+    var unit = wrLegacyClientRadioUnit(client);
+    if (unit === null) return '';
+
+    var guest = wrLegacyClientGuestIndex(client);
+    if (guest === null) return '';
+
+    return 'wl' + unit + (guest > 0 ? '.' + guest : '');
+}
+
 function wrNodeClientIfaceFallback(node, client) {
     // Legacy 388 AiMesh can keep a client in get_clientlist() while omitting the
-    // node from stainfo entirely. In that case use the node's own band_info map
-    // to translate the client's isWL value to the node-local wl unit, then append
-    // the live guest-network slot from isGN. Do not use this on 3006/latest.
+    // node from stainfo entirely. Validate the one-based isWL radio against the
+    // node's zero-based band_info unit map, then append the live guest slot.
     if (WR_DIAG_API !== 'legacy' || !node || !client) return '';
 
     var bandInfo = node.band_info;
     if (!bandInfo || typeof bandInfo !== 'object') return '';
 
-    var wlRaw = client.isWL;
-    var wl = Number(wlRaw);
-    var wlValid = wlRaw !== undefined && wlRaw !== null && String(wlRaw).trim() !== '' &&
-        Number.isFinite(wl) && Math.floor(wl) === wl && wl >= 1;
-    if (!wlValid) return '';
+    var expectedUnit = wrLegacyClientRadioUnit(client);
+    if (expectedUnit === null) return '';
 
-    // Prefer ASUS' exact band_info key. Some legacy nodes index 2.4 GHz as key
-    // "0" while get_clientlist() reports isWL="1", so if there is no exact key,
-    // match by the node's zero-based radio unit instead of assuming the key.
-    var band = bandInfo[String(wl)] || null;
-    if (!band) {
-        var expectedUnit = wl - 1;
-        Object.keys(bandInfo).some(function(key) {
-            var candidate = bandInfo[key];
-            var candidateUnit = Number(candidate && candidate.unit);
-            if (Number.isFinite(candidateUnit) && Math.floor(candidateUnit) === candidateUnit &&
-                candidateUnit === expectedUnit) {
-                band = candidate;
-                return true;
-            }
-            return false;
-        });
-    }
-    if (!band) return '';
+    // Match by band_info[].unit, not by the object's key. Many 388 nodes expose
+    // {"0":{"unit":0},"1":{"unit":1}} while get_clientlist().isWL is
+    // one-based. The previous exact-key preference therefore mapped isWL=1 to
+    // unit 1/wl1 instead of the correct unit 0/wl0.
+    var hasExpectedUnit = Object.keys(bandInfo).some(function(key) {
+        var candidateUnit = Number(bandInfo[key] && bandInfo[key].unit);
+        return Number.isFinite(candidateUnit) && Math.floor(candidateUnit) === candidateUnit &&
+            candidateUnit === expectedUnit;
+    });
+    if (!hasExpectedUnit) return '';
 
-    var unitRaw = band.unit;
-    var unit = Number(unitRaw);
-    var unitValid = unitRaw !== undefined && unitRaw !== null && String(unitRaw).trim() !== '' &&
-        Number.isFinite(unit) && Math.floor(unit) === unit && unit >= 0;
-    if (!unitValid) return '';
+    var guest = wrLegacyClientGuestIndex(client);
+    if (guest === null) return '';
 
-    var iface = 'wl' + unit;
-    var guestRaw = client.isGN === true ? 1 : client.isGN;
-    if (guestRaw !== undefined && guestRaw !== null && String(guestRaw).trim() !== '') {
-        var guest = Number(guestRaw);
-        if (!Number.isFinite(guest) || Math.floor(guest) !== guest || guest < 0) return '';
-        if (guest > 0) iface += '.' + guest;
-    }
-    return iface;
+    return 'wl' + expectedUnit + (guest > 0 ? '.' + guest : '');
 }
 
 function wrStaIface(sta, client, node) {
@@ -1954,9 +1966,19 @@ function wrStaIface(sta, client, node) {
     var nodeFallback = wrNodeClientIfaceFallback(node, client);
     if (nodeFallback) return nodeFallback;
 
-    // Last resort for either API family: use the live client interface if ASUS
-    // exposes one there. Importantly, do this even when a sta object exists.
-    return String(wrFirst(client, ['ifname', 'interface']) || '').trim();
+    // Prefer an explicit live-client interface before inferring one.
+    var liveIface = String(wrFirst(client, ['ifname', 'interface']) || '').trim();
+    if (liveIface) return liveIface;
+
+    // Primary-router clients on affected 388 builds can also be completely absent
+    // from stainfo while get_clientlist() still supplies isWL/isGN. Reconstruct the
+    // primary wlX[.Y] so IFACE and the matching NVRAM SSID do not remain blank.
+    if (!node) {
+        var primaryFallback = wrLegacyClientIfaceFallback(client);
+        if (primaryFallback) return primaryFallback;
+    }
+
+    return '';
 }
 
 function wrStaSsidNvramKey(sta, client) {
@@ -1966,22 +1988,12 @@ function wrStaSsidNvramKey(sta, client) {
 }
 
 function wrLegacyGuestSsidNvramKey(client) {
-    // On affected 388 builds get_clientlist().ssid can be blank for AiMesh-node
-    // guest clients even though isWL/isGN still identify the radio and guest slot.
-    // ASUS numbers isWL radios from 1 while NVRAM wl units start at 0.
-    if (WR_DIAG_API !== 'legacy' || !client) return '';
-
-    var radioRaw = client.isWL;
-    var guestRaw = client.isGN === true ? 1 : client.isGN;
-    var radio = Number(radioRaw);
-    var guest = Number(guestRaw);
-    var radioValid = radioRaw !== undefined && radioRaw !== null && String(radioRaw).trim() !== '' &&
-        Number.isFinite(radio) && Math.floor(radio) === radio && radio >= 1 && radio <= 4;
-    var guestValid = guestRaw !== undefined && guestRaw !== null && String(guestRaw).trim() !== '' &&
-        Number.isFinite(guest) && Math.floor(guest) === guest && guest >= 1 && guest <= 9;
-
-    if (!radioValid || !guestValid) return '';
-    return 'wl' + (radio - 1) + '.' + guest + '_ssid';
+    // Reuse the same one-based isWL -> zero-based wlX mapping as the IFACE
+    // fallback so a node can never display one interface while resolving the
+    // SSID from a different radio's NVRAM key.
+    var iface = wrLegacyClientIfaceFallback(client);
+    if (!/^wl[0-9]+\.[0-9]+$/i.test(iface)) return '';
+    return iface.toLowerCase() + '_ssid';
 }
 
 function wrNodeBandSsid(node, sta, client) {
@@ -2070,7 +2082,9 @@ async function wrResolveClientSsids(items, allNodes, mainMac) {
 
     primaryMissing.forEach(function(item) {
         var sta = item.sta;
-        var key = wrStaSsidNvramKey(sta);
+        // Preserve the live client hint here too: when stainfo is absent, the
+        // primary IFACE fallback needs isWL/isGN to recover wlX[.Y].
+        var key = wrStaSsidNvramKey(sta, item.client);
         var fromIface = key ? String(nvramSsids[key] || '').trim() : '';
         if (fromIface) {
             item.resolvedSsid = fromIface;
