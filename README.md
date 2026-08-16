@@ -127,6 +127,7 @@ Wireless Report is designed to be more than just a static table. Use these inter
     * $\color{blue}{\text{Main:}}$ A clean, vertical list of router and nodes.<br>
     * $\color{blue}{\text{All Devices:}}$ A consolidated view of every wireless client on the network.<br>
     * $\color{blue}{\text{Side-by-Side (Pop-out):}}$ Launches a separate window for easier comparison between the Router and Nodes.
+    * $\color{blue}{\text{Wide View:}}$ Expands the existing views to full-page width for a more expansive layout.
   * $\color{green}{\text{Visual Notifications:}}$<br>
     * $\color{blue}{\text{New Device Pulse:}}$ The entire row will pulse when a new device is first detected on the network.<br>
     * $\color{blue}{\text{Uptime Alert:}}$ Spot recent roaming or reconnections instantly with a pulsing indicator for new connections. The sensitivity threshold is now user-definable (default: 15 minutes).
