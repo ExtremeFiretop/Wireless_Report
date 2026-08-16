@@ -1104,7 +1104,7 @@ ROUTER=$(nvram get productid); MAIN_NAME="${MAIN_NICK:-${ROUTER:-Main Router}}"
 MAIN_NAME="<span id='wr-main-name' class='router-style'>${MAIN_NAME}</span>"
 MAIN_TEMP="<span id='wr-main-cpu' class='stat-cool'>--</span>"
 MAIN_LOAD="<span id='wr-main-memory' class='stat-cool'>--</span>"
-MAIN_DEVICE_TOTAL="<span id='wr-main-count' class='stat-cool'>0</span>"
+MAIN_DEVICE_TOTAL="<span id='wr-main-count' class='main-color'>0</span>"
 MAIN_UPTIME="<span id='wr-main-uptime' class='stat-cool'>--</span>"
 MAIN_BOOTTIME="<span id='wr-main-reboot' class='stat-cool'>--</span>"
 
@@ -2666,7 +2666,12 @@ async function loadWirelessReport() {
         "<span class='" + wrMetricClass(mainHealth.memoryUsage) + "'>" + (mainHealth.memoryUsage !== null ? mainHealth.memoryUsage + "%" : "--") + "</span>"
     ].concat(memHtml);
     wrSetHtml('wr-all-main-memory', allMemCombined.join(bullet));
-    var allDeviceParts = [mainItems.length].concat(nodeCountParts);
+
+    // Wrap ONLY the main router count in the custom color class for the breakdown array
+    var mainColoredCount = "<span class='main-color'>" + mainItems.length + "</span>";
+    var allDeviceParts = [mainColoredCount].concat(nodeCountParts);
+
+    // items.length (Grand Total at the front) stays default blue, mainColoredCount gets your custom color after the arrow
     wrSetHtml('wr-all-count', nodes.length > 1 && nodeCountParts.length ? items.length + " <span class='right-arrow'>—›</span> " + allDeviceParts.join(bullet) : items.length);
     // ----------------------------------------------
 
