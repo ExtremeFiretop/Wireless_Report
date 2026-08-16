@@ -420,7 +420,6 @@ inject_menu() {
 
 do_uninstall() {
     echo -e "\n${RD}[!] WARNING: Removing Wireless Report...${NC}\n"
-    get_usb
     while true; do
         printf "Are you sure? (y/n): "; read -r confirm
         case "$confirm" in [yY]) break ;; [nN]) return ;; *) printf "\033[1A\033[J" ;; esac; done
@@ -442,9 +441,10 @@ do_uninstall() {
     nvram unset wirelessreport_gen >/dev/null 2>&1
 	sed -i "\|$REPORT_SCRIPT|d" "$SS_FILE"
 
-    # delete 2-lines below, only for transition.
+    # the following 3-lines get deleted after a couple weeks, only for transition.
     sed -i "/wireless_report/d" "$SE_FILE"
-	case "$USB_PATH" in *wirelessreport*) rm -rf "$USB_PATH" 2>/dev/null ;; esac
+	get_usb
+    case "$USB_PATH" in *wirelessreport*) rm -rf "$USB_PATH" 2>/dev/null ;; esac
 
     restart_httpd
 	rm -rf "$INSTALL_DIR" "$WEB_PAGE" 2>/dev/null
@@ -459,7 +459,7 @@ set_date_time() {
     while true; do
         show_header
         echo -e "${BL}=================================================="
-        echo -e "${NC}                 Set Date/Time                    "
+        echo -e "${NC}                  Set Date/Time                   "
         echo -e "${BL}=================================================="
         echo -e "${NC}       $DU     (Current)    $CT                   "
         echo -e "${BL}=================================================="
@@ -918,7 +918,7 @@ theme_submenu() {
     while true; do
         show_header
         echo -e "${BL}=================================================="
-        echo -e "${NC} Set Theme                    Current: $TM_STAT   "
+        echo -e "${NC}  Set Theme                    Current: $TM_STAT  "
         echo -e "${BL}=================================================="
         echo -e "                                                       "
         echo -e "  $N1 Original Theme                                   "
@@ -1031,17 +1031,9 @@ get_hostcolor() {
 
 startup() { mesh_init; check_github; hex_to_ansi; }
 
-reload_report() {
-    if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
-    startup
-    run_report
-}
-
 reload_report_live() {
     if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
-    mesh_init
-    update_time
-    hex_to_ansi
+    startup
     run_report
 }
 
@@ -3259,11 +3251,6 @@ case "$1" in
         # Install/Uninstall options
         startup
         install_menu
-        ;;
-    reload)
-        # Lightweight page regeneration for installed code changes. The existing
-        # addon registration and bind mounts are intentionally left untouched.
-        reload_report
         ;;
     live-reload)
         # Fast regeneration used by shell-menu settings. Open v3.0.6+ pages
