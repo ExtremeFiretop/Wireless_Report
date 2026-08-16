@@ -1024,10 +1024,9 @@ echo -e "                                                                       
 echo -e "${NC}\n\n\n" #===========================================================================================================
 }
 
-update_time() {
-    if [ "$REPORT_UNIT" = "ISO" ]; then D_FMT="+%Y-%m-%d %H:%M"
-    elif [ "$REPORT_UNIT" = "INTL" ]; then  D_FMT="+%-d-%b %-H:%M"
-    else D_FMT="+%b-%-d %-H:%M"; fi
+get_hostcolor() {
+    if [ "$HOST_COLOR" = "1" ]; then IP_COLOR=""; MAC_COLOR="color: #64d2ff;"
+    else IP_COLOR="color: #64d2ff; "MAC_COLOR=""; fi
 }
 
 startup() { mesh_init; check_github; hex_to_ansi; }
@@ -1093,23 +1092,21 @@ for node in $MESH_NODES; do
     node_color_idx=$((node_color_idx + 1))
 done
 
-set_theme; check_version header_box; update_time
+set_theme; check_version header_box; get_hostcolor
+
 IPPAD=${IPPAD:-1}; HOST_COLOR=${HOST_COLOR:-0}; PULSE_MINS=${PULSE_MINS:-15}
 : "${MAIN_COLOR:=#0096ff}"
 : "${NODE_COLORS:=#30d158 #bf40bf #ffd60a #64d2ff #ff9500 #ff453a #ffffff #ff70a6 #64ffda}"
 TEMP_STYLE="text-align: center; justify-content: center;"
 UPTIME_STYLE="text-align: center; justify-content: center;"
-if [ "$HOST_COLOR" = "1" ]; then IP_COLOR=""; MAC_COLOR="color: #64d2ff;"
-else IP_COLOR="color: #64d2ff; "MAC_COLOR=""; fi
+
 ROUTER=$(nvram get productid); MAIN_NAME="${MAIN_NICK:-${ROUTER:-Main Router}}"
 MAIN_NAME="<span id='wr-main-name' class='router-style'>${MAIN_NAME}</span>"
 MAIN_TEMP="<span id='wr-main-cpu' class='stat-cool'>--</span>"
 MAIN_LOAD="<span id='wr-main-memory' class='stat-cool'>--</span>"
 MAIN_DEVICE_TOTAL="<span id='wr-main-count' class='main-color'>0</span>"
 MAIN_UPTIME="<span id='wr-main-uptime' class='main-color'>--</span>"
-read -r s _ < /proc/uptime; s=${s%.*}; M_TIME=$(( $(date +%s) - s ))
-M_BOOT=$(date -d "@$M_TIME" "$D_FMT") 2>/dev/null
-MAIN_BOOTTIME="<span class='main-color' id='wr-main-reboot'>${M_BOOT}</span>"
+MAIN_BOOTTIME="<span id='wr-main-reboot' class='main-color'>--</span>"
 
 NODE_NAMES="<span id='wr-node-names' class='router-style'>AiMesh nodes</span>"
 NODE_TEMPS="<span id='wr-node-cpu' class='stat-cool'>--</span>"
@@ -1382,6 +1379,7 @@ function update_time() {
     const minutes = String(now.getMinutes()).padStart(2, '0');
     const seconds = String(now.getSeconds()).padStart(2, '0');
     let formattedTime = '';
+
     if (WR_CONFIG.reportUnit === 'ISO') {
         const mm = String(now.getMonth() + 1).padStart(2, '0');
         const dd = String(day).padStart(2, '0');
@@ -1391,9 +1389,48 @@ function update_time() {
     } else {
         formattedTime = month + '-' + day + ' ' + hours + ':' + minutes + ':' + seconds;
     }
+
     document.querySelectorAll('.wr-updated-time').forEach(function(el) {
         el.textContent = 'Updated: ' + formattedTime;
     });
+
+    // Handle boot time calculation dynamically using the uptime span value
+    const uptimeEl = document.getElementById('wr-main-uptime');
+    const bootEl = document.getElementById('wr-main-reboot');
+
+    if (bootEl && uptimeEl) {
+        const uptimeText = uptimeEl.textContent.trim();
+        // Parse "1d 04h", "04h 15m", or "00h 15m" from wrFormatSeconds output
+        let totalSeconds = 0;
+        const dMatch = uptimeText.match(/(\d+)d/);
+        const hMatch = uptimeText.match(/(\d+)h/);
+        const mMatch = uptimeText.match(/(\d+)m/);
+
+        if (dMatch) totalSeconds += parseInt(dMatch[1], 10) * 86400;
+        if (hMatch) totalSeconds += parseInt(hMatch[1], 10) * 3600;
+        if (mMatch) totalSeconds += parseInt(mMatch[1], 10) * 60;
+
+        if (totalSeconds > 0) {
+            const bootDate = new Date(now.getTime() - (totalSeconds * 1000));
+            const bDay = bootDate.getDate();
+            const bMonth = months[bootDate.getMonth()];
+            const bYear = bootDate.getFullYear();
+            const bHours = bootDate.getHours();
+            const bMinutes = String(bootDate.getMinutes()).padStart(2, '0');
+
+            let formattedBoot = '';
+            if (WR_CONFIG.reportUnit === 'ISO') {
+                const bMm = String(bootDate.getMonth() + 1).padStart(2, '0');
+                const bDd = String(bDay).padStart(2, '0');
+                formattedBoot = bYear + '-' + bMm + '-' + bDd + ' ' + String(bHours).padStart(2, '0') + ':' + bMinutes;
+            } else if (WR_CONFIG.reportUnit === 'INTL') {
+                formattedBoot = bDay + '-' + bMonth + ' ' + bHours + ':' + bMinutes;
+            } else {
+                formattedBoot = bMonth + '-' + bDay + ' ' + bHours + ':' + bMinutes;
+            }
+            bootEl.textContent = formattedBoot;
+        }
+    }
 }
 
 var WR_STA_COLUMNS = [
