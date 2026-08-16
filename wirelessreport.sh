@@ -212,7 +212,7 @@ do_install() {
             printf "Do you want to $UP (y/n): "; read -r update
             case "$update" in [yY]) break ;; [nN]) return ;; *) printf "\033[4A\033[J" ;; esac; done
     fi
-    do_update "$is_update" || return 1
+    do_update || return 1
     echo -e "\n${GR}[+] Installing Wireless Report (${NC}v${INSTALL_VERSION:-$REMOTE_VERSION}${GR})${NC}"
 	if [ "$is_update" = "1" ]; then
 		echo -e "\n${BL}[✓] Wireless Report successfully installed.${NC}"
