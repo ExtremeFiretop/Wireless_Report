@@ -172,11 +172,11 @@ menu_vars() {
 	NE="${BL}(e)${NC}"; NQ="${BL}(c)${NC}"; ON="${GR}ON${NC}"; OFF="${RD}OFF${NC}"
 	STATUS=" ${BL}STATUS:${NC}"; CURRENT="${GR}Current: v$SCRIPT_VERSION${NC}"
     SS_FILE="/jffs/scripts/services-start"; SE_FILE="/jffs/scripts/service-event"
-    DU="${REPORT_UNIT:-USA}"; CT="${GR}$CUR_TIME${NC}"
-    if [ "$REPORT_UNIT" = "ISO" ]; then DU="${GR}ISO${NC}"
-    elif [ "$REPORT_UNIT" = "INTL" ]; then DU="${GR}INTL${NC}"
-    else DU="${GR}USA${NC}"; fi
-	DATE_USA="${GR}$(date +"%b-%d")${NC}"; DATE_INTL="${GR}$(date +"%d-%b")${NC}"; DATE_ISO="${GR}$(date +"%Y-%m-%d")${NC}"
+    DU="${REPORT_UNIT:-USA}"; DATE_USA="${GR}$(date +"%b-%-d %-H:%M:%S")${NC}"
+    DATE_INTL="${GR}$(date +"%-d-%b %-H:%M:%S")${NC}"; DATE_ISO="${GR}$(date +"%Y-%m-%d %H:%M:%S")${NC}"
+    if [ "$REPORT_UNIT" = "ISO" ]; then DU="${GR}ISO${NC}"; CT="$DATE_ISO"
+    elif [ "$REPORT_UNIT" = "INTL" ]; then DU="${GR}INTL${NC}"; CT="$DATE_INTL"
+    else DU="${GR}USA${NC}"; CT="$DATE_USA"; fi
     RTIME=${RTIME:-1}; if [ "$RTIME" = "0" ]; then RT_STAT="$OFF"; else RT_STAT="$ON"; fi
     PULSE_MINS=${PULSE_MINS:-15}
     if [ "$PULSE_MINS" = "0" ]; then UP_STAT="$OFF"; else UP_STAT="${GR}${PULSE_MINS} Mins${NC}"; fi
@@ -461,12 +461,12 @@ set_date_time() {
         echo -e "${BL}=================================================="
         echo -e "${NC}                 Set Date/Time                    "
         echo -e "${BL}=================================================="
-        echo -e "${NC}  Format: $DU            Date: $CT                "
+        echo -e "${NC}       $DU     (Current)    $CT                   "
         echo -e "${BL}=================================================="
         echo -e "                                                       "
-        echo -e "  $N1  USA                          ($DATE_USA)        "
-        echo -e "  $N2  INTERNATIONAL                ($DATE_INTL)       "
-        echo -e "  $N3  ISO                          ($DATE_ISO)        "
+        echo -e "  $N1  USA                 ($DATE_USA)                 "
+        echo -e "  $N2  INTERNATIONAL       ($DATE_INTL)                "
+        echo -e "  $N3  ISO                 ($DATE_ISO)                 "
         echo -e "                                                       "
         echo -e "  $NE  Back to main menu                               "
         echo -e "                                                       "
@@ -483,7 +483,7 @@ set_date_time() {
             sed -i '/REPORT_UNIT=/d' "$CONFIG"
             echo "REPORT_UNIT=\"$NEW_UNIT\"" >> "$CONFIG"
             REPORT_UNIT="$NEW_UNIT"
-            update_time; break
+            break
         done
         apply_webui_changes
     done
@@ -1025,10 +1025,9 @@ echo -e "${NC}\n\n\n" #=========================================================
 }
 
 update_time() {
-    if [ "$REPORT_UNIT" = "ISO" ]; then T_FMT="+%Y-%m-%d %H:%M:%S"; D_FMT="+%Y-%m-%d %H:%M"
-    elif [ "$REPORT_UNIT" = "INTL" ]; then T_FMT="+%-d-%b %-H:%M:%S"; D_FMT="+%-d-%b %-H:%M"
-    else T_FMT="+%b-%-d %-H:%M:%S"; D_FMT="+%b-%-d %-H:%M"; fi
-    CUR_TIME=$(date "$T_FMT")
+    if [ "$REPORT_UNIT" = "ISO" ]; then D_FMT="+%Y-%m-%d %H:%M"
+    elif [ "$REPORT_UNIT" = "INTL" ]; then  D_FMT="+%-d-%b %-H:%M"
+    else D_FMT="+%b-%-d %-H:%M"; fi
 }
 
 startup() { mesh_init; check_github; update_time; hex_to_ansi; }
