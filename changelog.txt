@@ -2,6 +2,7 @@
 # Wireless Report - Changelog #
 #=============================#
 
+v3.1.4-fixed AiMesh node-self/backhaul rows to use re_path-selected band/RSSI and report unknown band data as -- instead of 2.4G (20).
 v3.1.3-added wide-view option to webgui view button row. fixed AiMesh node Guest network SSIDs and interfaces. Uptime does not populate for Guest networks on AX series routers (388 F/W)
 v3.1.2-fixed AiMesh WebUI node order/color mismatch by matching shell IP order and keying configured node colors by IP.
 v3.1.1-fixed intermittent/missing IFACE on 388-series firmware by reconstructing wlX[.Y] from stainfo interface indexes when conn_if is blank.
