@@ -294,6 +294,12 @@ ScriptUpdateFromAMTM() {
     fi
 }
 
+apply_webui_changes() {
+    if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
+    startup
+    run_report
+}
+
 wr_sha256() {
     local file="$1" hash=""
     [ -f "$file" ] || return 1
@@ -461,14 +467,14 @@ set_date_time() {
         echo -e "${BL}=================================================="
         echo -e "${NC}                  Set Date/Time                   "
         echo -e "${BL}=================================================="
-        echo -e "${NC}       $DU     (Current)    $CT                   "
+        echo -e "${NC}  Format: $DU         Current: $CT                "
         echo -e "${BL}=================================================="
         echo -e "                                                       "
-        echo -e "  $N1  USA                 ($DATE_USA)                 "
-        echo -e "  $N2  INTERNATIONAL       ($DATE_INTL)                "
-        echo -e "  $N3  ISO                 ($DATE_ISO)                 "
+        echo -e "  $N1  USA                   ($DATE_USA)               "
+        echo -e "  $N2  INTERNATIONAL         ($DATE_INTL)              "
+        echo -e "  $N3  ISO                   ($DATE_ISO)               "
         echo -e "                                                       "
-        echo -e "  $NE  Back to main menu                               "
+        echo -e "  $NE  Exit back to main menu                          "
         echo -e "                                                       "
 		echo -e "${BL}=================================================="
         while true; do
@@ -500,7 +506,7 @@ set_nicknames() {
 		echo -e "  $N2 Location Nicknames                               "
 		echo -e "  $N3 Manual Nicknames                                 "
 		echo -e "                                                       "
-		echo -e "  $NE Back to main menu                                "
+        echo -e "  $NE Exit back to main menu                           "
 		echo -e "                                                       "
         echo -e "${BL}=================================================="
         MAIN_ROUTER=$(nvram get productid); MAIN_IP=$(nvram get lan_ipaddr)
@@ -783,7 +789,7 @@ set_options() {
         echo -e "  $N5  Toggle IP Padding: ($PD_STAT)                   "
         echo -e "  $N6  Toggle Node Hostname Display: ($HN_STAT)        "
         echo -e "                                                       "
-        echo -e "  $NE  Back to main menu                               "
+        echo -e "  $NE  Exit back to main menu                          "
         echo -e "                                                       "
         echo -e "${BL}=================================================="
         while true; do
@@ -903,8 +909,6 @@ rssi_submenu() {
                         fi
                     done
                     echo -e "\n${GR}[+] RSSI history configuration saved.${NC}"
-                    echo -e "${BL}[i] History is stored only in browser localStorage."
-                    echo -e "    If these settings changed, browser history resets on the next report reload.${NC}"
                     unset CUR_RS_HIST CUR_ENTRIES CUR_DATE
                     pause; return 0 ;;
                 *)
@@ -925,7 +929,7 @@ theme_submenu() {
         echo -e "  $N2 Darkmode Theme                                   "
         echo -e "  $N3 Asus WebUI Theme                                 "
         echo -e "                                                       "
-        echo -e "  $NE Exit                                             "
+        echo -e "  $NE Exit back to Set Options                         "
         echo -e "                                                       "
         echo -e "${BL}=================================================="
         while true; do
@@ -951,10 +955,6 @@ theme_submenu() {
         done
     done
 }
-
-restart_httpd() { service restart_httpd >/dev/null 2>&1; killall -HUP httpd >/dev/null 2>&1; }
-
-pause() { printf "\nPress ${BL}[Enter]${NC} to return..."; read -r discard; }
 
 set_theme() {
     THEME="${THEME:-ORIGINAL}"
@@ -1024,26 +1024,16 @@ echo -e "                                                                       
 echo -e "${NC}\n\n\n" #===========================================================================================================
 }
 
+restart_httpd() { service restart_httpd >/dev/null 2>&1; killall -HUP httpd >/dev/null 2>&1; }
+
+pause() { printf "\nPress ${BL}[Enter]${NC} to return..."; read -r discard; }
+
 get_hostcolor() {
     if [ "$HOST_COLOR" = "1" ]; then IP_COLOR=""; MAC_COLOR="color: #64d2ff;"
     else IP_COLOR="color: #64d2ff; "MAC_COLOR=""; fi
 }
 
 startup() { mesh_init; check_github; hex_to_ansi; }
-
-reload_report_live() {
-    if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
-    startup
-    run_report
-}
-
-apply_webui_changes() {
-    if [ -x "$REPORT_SCRIPT" ]; then
-        "$REPORT_SCRIPT" live-reload >/dev/null 2>&1
-    else
-        reload_report_live >/dev/null 2>&1
-    fi
-}
 
 run_report() {
 #======================================#
@@ -1084,13 +1074,9 @@ for node in $MESH_NODES; do
     node_color_idx=$((node_color_idx + 1))
 done
 
-set_theme; check_version header_box; get_hostcolor
-
 IPPAD=${IPPAD:-1}; HOST_COLOR=${HOST_COLOR:-0}; PULSE_MINS=${PULSE_MINS:-15}
 : "${MAIN_COLOR:=#0096ff}"
 : "${NODE_COLORS:=#30d158 #bf40bf #ffd60a #64d2ff #ff9500 #ff453a #ffffff #ff70a6 #64ffda}"
-TEMP_STYLE="text-align: center; justify-content: center;"
-UPTIME_STYLE="text-align: center; justify-content: center;"
 
 ROUTER=$(nvram get productid); MAIN_NAME="${MAIN_NICK:-${ROUTER:-Main Router}}"
 MAIN_NAME="<span id='wr-main-name' class='router-style'>${MAIN_NAME}</span>"
@@ -1105,7 +1091,6 @@ NODE_TEMPS="<span id='wr-node-cpu' class='stat-cool'>--</span>"
 NODE_LOADS="<span id='wr-node-memory' class='stat-cool'>--</span>"
 NODE_DEVICE_TOTAL="<span id='wr-node-count' class='stat-cool'>0</span>"
 NODE_UPTIMES="<span id='wr-node-diag'>Controller telemetry pending...</span>"
-NODE_BOOTTIMES=""
 
 ALL_NAMES="<span id='wr-all-names' class='router-style'>Loading...</span>"
 ALL_TEMP="<span id='wr-all-main-cpu'>--</span>"
@@ -1115,12 +1100,14 @@ ALL_UPTIME="<span id='wr-all-uptime' class='main-color'>Controller telemetry pen
 
 GRAND_TOTAL_DEVICES="<span id='wr-grand-total' class='count-highlight'>0</span>"
 UPDATED_TIME="<span class='wr-updated-time total-count'>Loading controller data...</span>"
-ALL_BOOTTIME=""; MAIN_ROWS="";mNODE_ROWS=""; ALL_ROWS=""; NTOTAL=""
+MAIN_ROWS=""; NODE_ROWS=""; ALL_ROWS=""
 
 RSSI_BOXES="<div class='rssi-quality-box rssi-excl'>Excellent: <span style='background:#30d158;' class='rssi-font wr-rssi-excellent'>0</span></div>
     <div class='rssi-quality-box rssi-good'>Good: <span style='background:#64d2ff;' class='rssi-font wr-rssi-good'>0</span></div>
     <div class='rssi-quality-box rssi-fair'>Fair: <span style='background:#ffd60a;' class='rssi-font wr-rssi-fair'>0</span></div>
     <div class='rssi-quality-box rssi-poor'>Poor: <span style='background:#ff453a;' class='rssi-font wr-rssi-poor'>0</span></div>"
+
+set_theme; check_version header_box; get_hostcolor
 
 #=================#
 #  Generate HTML  #
@@ -1217,16 +1204,16 @@ cat <<HTML >> "$WEB_PAGE"
 	#splitView { display: flex; flex-direction: column; gap: 15px; width: 100%; }
     #allCol { display: none; width: 100% ; align-self: flex-start; }
     .router-style { color: $MAIN_COLOR; font-size: 20px; font-weight: bold; text-transform: uppercase; display: inline-block; margin-bottom: 4px; }
-    .temp_load_row { display: block; font-size: 14px; color: #f2f2f7; margin-top: 11px; font-weight: bold; white-space: nowrap; width: 100%; overflow: visible !important; }
-    .temp_load_row > span:not(:last-child) { margin-right: 1px; }
-	.stat-cool { color: #0096ff !important; font-weight: bold; }
+    .temp-load-row { display: block; font-size: 14px; color: #f2f2f7; margin-top: 11px; font-weight: bold; white-space: nowrap; width: 100%; overflow: visible !important; text-align: center; justify-content: center; }
+    .temp-load-row > span:not(:last-child) { margin-right: 1px; }
+	.uptime-row { text-align: center; justify-content: center; font-size: 14px; }
+    .stat-cool { color: #0096ff !important; font-weight: bold; }
     .stat-warm { color: #ffa500 !important; font-weight: bold; }
 	.stat-hot { color: #ff453a !important; font-weight: bold; }
     .main-color { color: $MAIN_COLOR !important; font-weight: bold; }
     .band-24g { color: #0096ff !important; font-weight: bold; }
 	.band-5g { color: #30d158 !important; font-weight: bold; }
 	.band-6g { color: #bf40bf !important; font-weight: bold; }
-    .footer { font-size: 13px; }
     .hidden-node-number { position:absolute; width:0; height:0; overflow:hidden; opacity:0; pointer-events:none; }
     .separator-line { margin: 8px -12px; width: calc(100% + 24px); display: block; }
     sup { font-size: 0.6em; margin-left: 2px; }
@@ -1248,7 +1235,6 @@ cat <<HTML >> "$WEB_PAGE"
     .button-refresh .button-trigger:not([style*="--highlow-text"]):after { display: none !important; }
     .button-refresh:not([style*="--avg-text"]):before,
     .button-refresh:not([style*="--avg-text"]):after { display: block !important; visibility: hidden !important; opacity: 0 !important; content: "" !important; }
-
     /* Wide View keeps the normal ASUS page available, but lets the report itself use
     the complete browser viewport when more horizontal room is useful. */
     body.wr-wide-mode { overflow: hidden !important; }
@@ -1270,7 +1256,6 @@ cat <<HTML >> "$WEB_PAGE"
     body.wr-wide-mode table.report_table th:nth-child(5), #popoutModal table.report_table th:nth-child(5) { min-width: 75px; }
     body.wr-wide-mode table.report_table th:nth-child(6), #popoutModal table.report_table th:nth-child(6) { min-width: 75px; }
     body.wr-wide-mode table.report_table th:nth-child(7), #popoutModal table.report_table th:nth-child(7) { min-width: 75px; }
-
     .popout-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:9999; align-items: center; justify-content: center; backdrop-filter: blur(8px); }
     .popout-content { background: rgba(0, 0, 0, 0.2); width: calc(100vw - 24px); max-width: none; height: calc(100vh - 24px); max-height: none; margin: 12px; padding:12px; box-sizing: border-box; border-radius:15px; border:1px solid rgba(0, 150, 255, 0.4); position: relative; overflow-y: auto; box-shadow: 0 0 40px rgba(0,0,0,0.6); backdrop-filter: blur(20px); overflow-x: hidden !important; }
     .popout-close-x { position: absolute; top: 8px; right: 20px; color: #fff; font-size: 30px; font-weight: bold; }
@@ -1284,8 +1269,8 @@ cat <<HTML >> "$WEB_PAGE"
     #popoutModal table.report_table tbody td[style*="font-weight: bold"] { font-size: 12px !important; }
     #popoutModal table.report_table tbody td:nth-child(7) { font-weight: normal !important; }
     #popoutModal table.report_table thead th { font-size: 12px !important; font-weight: bold !important; white-space: nowrap; vertical-align: middle !important; height: 32px !important; padding: 0 4px !important; }
-    #popoutModal .report-column .section-header .temp_load_row { margin-top: -2px !important; margin-bottom: -2px !important; display: block !important; }
-    #popoutModal .report-column .section-header .temp_load_row span { font-size: 14px !important; font-weight: bold !important; }
+    #popoutModal .report-column .section-header .temp-load-row { margin-top: -2px !important; margin-bottom: -2px !important; display: block !important; }
+    #popoutModal .report-column .section-header .temp-load-row span { font-size: 14px !important; font-weight: bold !important; }
     #popoutModal .report-column div:last-child, #popoutModal .table-footer, #popoutModal tfoot td { font-size: 12px !important; font-weight: bold !important; line-height: normal !important; padding-top: 12px !important; padding-bottom: 12px !important; background: transparent !important; white-space: nowrap !important; }
     #popoutModal .rssi-container { position: relative !important; }
     #popoutModal .rssi-tooltip { position: absolute !important; bottom: 100% !important; left: 50% !important; top: auto !important; right: auto !important; transform: translateX(-50%) !important; margin-bottom: 6px !important; z-index: 999999 !important; }
@@ -2803,12 +2788,39 @@ async function loadWirelessReport() {
     var nodeCountParts = [];
     var nodeDiagParts = [];
 
-    // --- BUILD MAIN ROUTER DIAGNOSTIC DETAILS ---
+   // --- BUILD MAIN ROUTER DIAGNOSTIC DETAILS ---
     var mainNameText = mainNameEl ? mainNameEl.textContent.trim() : (base.productid || 'Main Router');
     var mainIp = String(wrFirst(base, ['lan_ipaddr', 'lan_ip', 'ip']) || window.location.hostname || '');
+    if (typeof window._cachedMainFw === 'undefined' || !window._cachedMainFw) {
+        var rawFw = wrFirst(base, ['firmware', 'fwver', 'firmwarever', 'webs_state_info', 'buildno', 'extendno', 'version'])
+                    || window.firmware || window.webs_state_info || window.firmver || '';
 
-    // Check all possible firmware/version properties on base or window scope
-    var mainFw = wrFirst(base, ['firmware', 'fwver', 'firmwarever', 'webs_state_info', 'buildno', 'extendno', 'version']) || window.firmware || window.webs_state_info || '';
+        var detectedFw = (rawFw && typeof rawFw === 'object') ? (rawFw.textContent || '') : String(rawFw || '');
+        if (!detectedFw && typeof firmver !== 'undefined' && typeof buildno !== 'undefined') {
+            detectedFw = firmver + '_' + buildno;
+            if (typeof extendno !== 'undefined' && extendno) detectedFw += '_' + extendno;
+        }
+        if (detectedFw) {
+            window._cachedMainFw = detectedFw;
+        }
+    }
+    var mainFw = window._cachedMainFw || '';
+    // Force consistent formatting: 3006.102.8_2 (dots for the first two separators, underscore for the last)
+    if (mainFw) {
+        mainFw = mainFw.replace(/^[\._]+/, '').replace(/[\._]+$/, '');
+        if (/^300[46]/.test(mainFw)) {
+            var parts = mainFw.split(/[\._]/);
+            if (parts.length >= 4) {
+                // e.g. parts = ['3006', '102', '8', '2'] -> 3006.102.8_2
+                mainFw = parts[0] + '.' + parts[1] + '.' + parts[2] + '_' + parts.slice(3).join('_');
+            } else if (parts.length === 3) {
+                // e.g. parts = ['3006', '102', '8'] -> 3006.102.8
+                mainFw = parts[0] + '.' + parts[1] + '.' + parts[2];
+            } else if (parts.length === 2) {
+                mainFw = parts[0] + '.' + parts[1];
+            }
+        }
+    }
     var mainDiag = "<span class='main-color'>" + wrEscape(mainNameText) + "</span>";
     if (mainIp) mainDiag += " <span style='color:white;'>•</span> <span style='color:white;'>" + wrEscape(mainIp) + "</span>";
     if (mainFw) mainDiag += " <span style='color:white;'>•</span> <span class='main-color'>FW</span> <span style='color:white;'>" + wrEscape(mainFw) + "</span>";
@@ -2834,7 +2846,15 @@ async function loadWirelessReport() {
         } else {
             memHtml.push("<span style='color:" + color + ";'>--" + "</span>");
         }
+
         var firmware = wrFirst(node, ['firmware', 'fwver', 'fw_version', 'version']);
+        if (firmware) {
+            firmware = String(firmware);
+            var dashIndex = firmware.indexOf('-');
+            if (dashIndex !== -1) {
+                firmware = firmware.substring(0, dashIndex);
+            }
+        }
         var details = "<span style='color:" + color + ";'>" + wrEscape(name) + "</span>";
         if (ip) details += " <span style='color:white;'>•</span> <span style='color:white;'>" + wrEscape(ip) + "</span>";
         if (firmware) details += " <span style='color:white;'>•</span> <span style='color:" + color + ";'>FW</span> <span style='color:white;'>" + wrEscape(firmware) + "</span>";
@@ -3189,7 +3209,7 @@ function openPopout() {
     mCol = mCol.cloneNode(true);
     nCol = nCol.cloneNode(true);
     [mCol, nCol].forEach(c => {
-        let h = c.querySelector('.temp_load_row'), s = c.querySelector('.section-header'), r = c.querySelector('.separator-line');
+        let h = c.querySelector('.temp-load-row'), s = c.querySelector('.section-header'), r = c.querySelector('.separator-line');
         if(h) Object.assign(h.style, { fontSize: "14px", lineHeight: "1.1", padding: "1px 0", margin: "0", height: "auto" });
         if(s) Object.assign(s.style, { paddingBottom: "0px", height: "auto" });
         if(r) Object.assign(r.style, { margin: "8px -11px 2px -11px" });
@@ -3336,7 +3356,7 @@ document.addEventListener('mouseout', function(e) {
                                     $MAIN_NAME<br>
                                     $UPDATED_TIME
                                     <hr class="separator-line">
-                                    <div class="temp_load_row">
+                                    <div class="temp-load-row">
                                         <span>CPU: $MAIN_TEMP</span>
                                         <span>Memory: $MAIN_LOAD</span>
                                         <span>Devices: $MAIN_DEVICE_TOTAL</span>
@@ -3356,8 +3376,8 @@ document.addEventListener('mouseout', function(e) {
                                     <tfoot>
                                         <tr>
                                             <td colspan="7">
-                                                <span class="footer">Uptime: $MAIN_UPTIME</span>
-                                                <span class="footer">Reboot: $MAIN_BOOTTIME</span>
+                                                <span class="uptime-row">Uptime: $MAIN_UPTIME</span>
+                                                <span class="uptime-row">Reboot: $MAIN_BOOTTIME</span>
                                             </td>
                                         </tr>
                                     </tfoot>
@@ -3371,10 +3391,10 @@ document.addEventListener('mouseout', function(e) {
                                     $NODE_NAMES<br>
                                     $UPDATED_TIME
                                     <hr class="separator-line">
-                                    <div class="temp_load_row">
+                                    <div class="temp-load-row">
                                         <span>CPU: $NODE_TEMPS</span>
                                         <span>Memory: $NODE_LOADS</span>
-                                        <span>Devices: $NODE_DEVICE_TOTAL $NTOTAL</span>
+                                        <span>Devices: $NODE_DEVICE_TOTAL</span>
                                     </div>
                                 </div>
                                 <table id="nodeTable" class="report_table show-ip">
@@ -3391,7 +3411,7 @@ document.addEventListener('mouseout', function(e) {
                                     <tfoot>
                                         <tr>
                                             <td colspan="7">
-                                                <span class="footer">$NODE_UPTIMES</span>
+                                                <span class="uptime-row">$NODE_UPTIMES</span>
                                             </td>
                                         </tr>
                                     </tfoot>
@@ -3403,7 +3423,7 @@ document.addEventListener('mouseout', function(e) {
                                 $ALL_NAMES<br>
                                 $UPDATED_TIME
                                 <hr class="separator-line">
-                                <div class="temp_load_row" style="$TEMP_STYLE">
+                                <div class="temp-load-row">
                                     <span>CPU: $ALL_TEMP</span>
                                     <span>Memory: $ALL_LOAD</span>
                                     <span>$ALL_DEVICES</span>
@@ -3422,8 +3442,8 @@ document.addEventListener('mouseout', function(e) {
                                 <tbody>$ALL_ROWS</tbody>
                                 <tfoot>
                                     <tr>
-                                        <td colspan="7" style="$UPTIME_STYLE">
-                                            <span class="footer">$ALL_UPTIME</span>
+                                        <td colspan="7">
+                                            <span class="uptime-row">$ALL_UPTIME</span>
                                         </td>
                                     </tr>
                                 </tfoot>
@@ -3457,11 +3477,6 @@ case "$1" in
         # Install/Uninstall options
         startup
         install_menu
-        ;;
-    live-reload)
-        # Fast regeneration used by shell-menu settings. Open v3.0.6+ pages
-        # notice the generation change and perform a cache-busted navigation.
-        reload_report_live
         ;;
     inject|inject1|inject2|inject3)
         case "$1" in
