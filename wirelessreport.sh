@@ -2846,7 +2846,15 @@ async function loadWirelessReport() {
         } else {
             memHtml.push("<span style='color:" + color + ";'>--" + "</span>");
         }
+
         var firmware = wrFirst(node, ['firmware', 'fwver', 'fw_version', 'version']);
+        if (firmware) {
+            firmware = String(firmware);
+            var dashIndex = firmware.indexOf('-');
+            if (dashIndex !== -1) {
+                firmware = firmware.substring(0, dashIndex);
+            }
+        }
         var details = "<span style='color:" + color + ";'>" + wrEscape(name) + "</span>";
         if (ip) details += " <span style='color:white;'>•</span> <span style='color:white;'>" + wrEscape(ip) + "</span>";
         if (firmware) details += " <span style='color:white;'>•</span> <span style='color:" + color + ";'>FW</span> <span style='color:white;'>" + wrEscape(firmware) + "</span>";
