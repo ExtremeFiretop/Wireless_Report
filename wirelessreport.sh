@@ -2796,25 +2796,20 @@ async function loadWirelessReport() {
    // --- BUILD MAIN ROUTER DIAGNOSTIC DETAILS ---
     var mainNameText = mainNameEl ? mainNameEl.textContent.trim() : (base.productid || 'Main Router');
     var mainIp = String(wrFirst(base, ['lan_ipaddr', 'lan_ip', 'ip']) || window.location.hostname || '');
-
     if (typeof window._cachedMainFw === 'undefined' || !window._cachedMainFw) {
         var rawFw = wrFirst(base, ['firmware', 'fwver', 'firmwarever', 'webs_state_info', 'buildno', 'extendno', 'version'])
                     || window.firmware || window.webs_state_info || window.firmver || '';
 
         var detectedFw = (rawFw && typeof rawFw === 'object') ? (rawFw.textContent || '') : String(rawFw || '');
-
         if (!detectedFw && typeof firmver !== 'undefined' && typeof buildno !== 'undefined') {
             detectedFw = firmver + '_' + buildno;
             if (typeof extendno !== 'undefined' && extendno) detectedFw += '_' + extendno;
         }
-
         if (detectedFw) {
             window._cachedMainFw = detectedFw;
         }
     }
-
     var mainFw = window._cachedMainFw || '';
-
     // Force consistent formatting: 3006.102.8_2 (dots for the first two separators, underscore for the last)
     if (mainFw) {
         mainFw = mainFw.replace(/^[\._]+/, '').replace(/[\._]+$/, '');
@@ -2831,11 +2826,11 @@ async function loadWirelessReport() {
             }
         }
     }
-
     var mainDiag = "<span class='main-color'>" + wrEscape(mainNameText) + "</span>";
     if (mainIp) mainDiag += " <span style='color:white;'>•</span> <span style='color:white;'>" + wrEscape(mainIp) + "</span>";
     if (mainFw) mainDiag += " <span style='color:white;'>•</span> <span class='main-color'>FW</span> <span style='color:white;'>" + wrEscape(mainFw) + "</span>";
     // ------------------------------------------
+
     nodes.forEach(function(node, index) {
         var mac = wrNormMac(node.mac || node.mac_addr);
         var ip = String(wrFirst(node, ['ip', 'ip_addr', 'ipAddr']) || '');
