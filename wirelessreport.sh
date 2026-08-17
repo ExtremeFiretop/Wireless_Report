@@ -1091,7 +1091,6 @@ NODE_TEMPS="<span id='wr-node-cpu' class='stat-cool'>--</span>"
 NODE_LOADS="<span id='wr-node-memory' class='stat-cool'>--</span>"
 NODE_DEVICE_TOTAL="<span id='wr-node-count' class='stat-cool'>0</span>"
 NODE_UPTIMES="<span id='wr-node-diag'>Controller telemetry pending...</span>"
-NODE_BOOTTIMES=""
 
 ALL_NAMES="<span id='wr-all-names' class='router-style'>Loading...</span>"
 ALL_TEMP="<span id='wr-all-main-cpu'>--</span>"
@@ -1101,9 +1100,7 @@ ALL_UPTIME="<span id='wr-all-uptime' class='main-color'>Controller telemetry pen
 
 GRAND_TOTAL_DEVICES="<span id='wr-grand-total' class='count-highlight'>0</span>"
 UPDATED_TIME="<span class='wr-updated-time total-count'>Loading controller data...</span>"
-TEMP_STYLE="text-align: center; justify-content: center;"
-UPTIME_STYLE="text-align: center; justify-content: center;"
-ALL_BOOTTIME=""; MAIN_ROWS="";mNODE_ROWS=""; ALL_ROWS=""; NTOTAL=""
+MAIN_ROWS=""; NODE_ROWS=""; ALL_ROWS=""
 
 RSSI_BOXES="<div class='rssi-quality-box rssi-excl'>Excellent: <span style='background:#30d158;' class='rssi-font wr-rssi-excellent'>0</span></div>
     <div class='rssi-quality-box rssi-good'>Good: <span style='background:#64d2ff;' class='rssi-font wr-rssi-good'>0</span></div>
@@ -1207,16 +1204,16 @@ cat <<HTML >> "$WEB_PAGE"
 	#splitView { display: flex; flex-direction: column; gap: 15px; width: 100%; }
     #allCol { display: none; width: 100% ; align-self: flex-start; }
     .router-style { color: $MAIN_COLOR; font-size: 20px; font-weight: bold; text-transform: uppercase; display: inline-block; margin-bottom: 4px; }
-    .temp_load_row { display: block; font-size: 14px; color: #f2f2f7; margin-top: 11px; font-weight: bold; white-space: nowrap; width: 100%; overflow: visible !important; }
-    .temp_load_row > span:not(:last-child) { margin-right: 1px; }
-	.stat-cool { color: #0096ff !important; font-weight: bold; }
+    .temp-load-row { display: block; font-size: 14px; color: #f2f2f7; margin-top: 11px; font-weight: bold; white-space: nowrap; width: 100%; overflow: visible !important; text-align: center; justify-content: center; }
+    .temp-load-row > span:not(:last-child) { margin-right: 1px; }
+	.uptime-row { text-align: center; justify-content: center; font-size: 14px; }
+    .stat-cool { color: #0096ff !important; font-weight: bold; }
     .stat-warm { color: #ffa500 !important; font-weight: bold; }
 	.stat-hot { color: #ff453a !important; font-weight: bold; }
     .main-color { color: $MAIN_COLOR !important; font-weight: bold; }
     .band-24g { color: #0096ff !important; font-weight: bold; }
 	.band-5g { color: #30d158 !important; font-weight: bold; }
 	.band-6g { color: #bf40bf !important; font-weight: bold; }
-    .footer { font-size: 13px; }
     .hidden-node-number { position:absolute; width:0; height:0; overflow:hidden; opacity:0; pointer-events:none; }
     .separator-line { margin: 8px -12px; width: calc(100% + 24px); display: block; }
     sup { font-size: 0.6em; margin-left: 2px; }
@@ -1238,7 +1235,6 @@ cat <<HTML >> "$WEB_PAGE"
     .button-refresh .button-trigger:not([style*="--highlow-text"]):after { display: none !important; }
     .button-refresh:not([style*="--avg-text"]):before,
     .button-refresh:not([style*="--avg-text"]):after { display: block !important; visibility: hidden !important; opacity: 0 !important; content: "" !important; }
-
     /* Wide View keeps the normal ASUS page available, but lets the report itself use
     the complete browser viewport when more horizontal room is useful. */
     body.wr-wide-mode { overflow: hidden !important; }
@@ -1260,7 +1256,6 @@ cat <<HTML >> "$WEB_PAGE"
     body.wr-wide-mode table.report_table th:nth-child(5), #popoutModal table.report_table th:nth-child(5) { min-width: 75px; }
     body.wr-wide-mode table.report_table th:nth-child(6), #popoutModal table.report_table th:nth-child(6) { min-width: 75px; }
     body.wr-wide-mode table.report_table th:nth-child(7), #popoutModal table.report_table th:nth-child(7) { min-width: 75px; }
-
     .popout-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:9999; align-items: center; justify-content: center; backdrop-filter: blur(8px); }
     .popout-content { background: rgba(0, 0, 0, 0.2); width: calc(100vw - 24px); max-width: none; height: calc(100vh - 24px); max-height: none; margin: 12px; padding:12px; box-sizing: border-box; border-radius:15px; border:1px solid rgba(0, 150, 255, 0.4); position: relative; overflow-y: auto; box-shadow: 0 0 40px rgba(0,0,0,0.6); backdrop-filter: blur(20px); overflow-x: hidden !important; }
     .popout-close-x { position: absolute; top: 8px; right: 20px; color: #fff; font-size: 30px; font-weight: bold; }
@@ -1274,8 +1269,8 @@ cat <<HTML >> "$WEB_PAGE"
     #popoutModal table.report_table tbody td[style*="font-weight: bold"] { font-size: 12px !important; }
     #popoutModal table.report_table tbody td:nth-child(7) { font-weight: normal !important; }
     #popoutModal table.report_table thead th { font-size: 12px !important; font-weight: bold !important; white-space: nowrap; vertical-align: middle !important; height: 32px !important; padding: 0 4px !important; }
-    #popoutModal .report-column .section-header .temp_load_row { margin-top: -2px !important; margin-bottom: -2px !important; display: block !important; }
-    #popoutModal .report-column .section-header .temp_load_row span { font-size: 14px !important; font-weight: bold !important; }
+    #popoutModal .report-column .section-header .temp-load-row { margin-top: -2px !important; margin-bottom: -2px !important; display: block !important; }
+    #popoutModal .report-column .section-header .temp-load-row span { font-size: 14px !important; font-weight: bold !important; }
     #popoutModal .report-column div:last-child, #popoutModal .table-footer, #popoutModal tfoot td { font-size: 12px !important; font-weight: bold !important; line-height: normal !important; padding-top: 12px !important; padding-bottom: 12px !important; background: transparent !important; white-space: nowrap !important; }
     #popoutModal .rssi-container { position: relative !important; }
     #popoutModal .rssi-tooltip { position: absolute !important; bottom: 100% !important; left: 50% !important; top: auto !important; right: auto !important; transform: translateX(-50%) !important; margin-bottom: 6px !important; z-index: 999999 !important; }
@@ -3206,7 +3201,7 @@ function openPopout() {
     mCol = mCol.cloneNode(true);
     nCol = nCol.cloneNode(true);
     [mCol, nCol].forEach(c => {
-        let h = c.querySelector('.temp_load_row'), s = c.querySelector('.section-header'), r = c.querySelector('.separator-line');
+        let h = c.querySelector('.temp-load-row'), s = c.querySelector('.section-header'), r = c.querySelector('.separator-line');
         if(h) Object.assign(h.style, { fontSize: "14px", lineHeight: "1.1", padding: "1px 0", margin: "0", height: "auto" });
         if(s) Object.assign(s.style, { paddingBottom: "0px", height: "auto" });
         if(r) Object.assign(r.style, { margin: "8px -11px 2px -11px" });
@@ -3353,7 +3348,7 @@ document.addEventListener('mouseout', function(e) {
                                     $MAIN_NAME<br>
                                     $UPDATED_TIME
                                     <hr class="separator-line">
-                                    <div class="temp_load_row">
+                                    <div class="temp-load-row">
                                         <span>CPU: $MAIN_TEMP</span>
                                         <span>Memory: $MAIN_LOAD</span>
                                         <span>Devices: $MAIN_DEVICE_TOTAL</span>
@@ -3373,8 +3368,8 @@ document.addEventListener('mouseout', function(e) {
                                     <tfoot>
                                         <tr>
                                             <td colspan="7">
-                                                <span class="footer">Uptime: $MAIN_UPTIME</span>
-                                                <span class="footer">Reboot: $MAIN_BOOTTIME</span>
+                                                <span class="uptime-row">Uptime: $MAIN_UPTIME</span>
+                                                <span class="uptime-row">Reboot: $MAIN_BOOTTIME</span>
                                             </td>
                                         </tr>
                                     </tfoot>
@@ -3388,10 +3383,10 @@ document.addEventListener('mouseout', function(e) {
                                     $NODE_NAMES<br>
                                     $UPDATED_TIME
                                     <hr class="separator-line">
-                                    <div class="temp_load_row">
+                                    <div class="temp-load-row">
                                         <span>CPU: $NODE_TEMPS</span>
                                         <span>Memory: $NODE_LOADS</span>
-                                        <span>Devices: $NODE_DEVICE_TOTAL $NTOTAL</span>
+                                        <span>Devices: $NODE_DEVICE_TOTAL</span>
                                     </div>
                                 </div>
                                 <table id="nodeTable" class="report_table show-ip">
@@ -3408,7 +3403,7 @@ document.addEventListener('mouseout', function(e) {
                                     <tfoot>
                                         <tr>
                                             <td colspan="7">
-                                                <span class="footer">$NODE_UPTIMES</span>
+                                                <span class="uptime-row">$NODE_UPTIMES</span>
                                             </td>
                                         </tr>
                                     </tfoot>
@@ -3420,7 +3415,7 @@ document.addEventListener('mouseout', function(e) {
                                 $ALL_NAMES<br>
                                 $UPDATED_TIME
                                 <hr class="separator-line">
-                                <div class="temp_load_row" style="$TEMP_STYLE">
+                                <div class="temp-load-row">
                                     <span>CPU: $ALL_TEMP</span>
                                     <span>Memory: $ALL_LOAD</span>
                                     <span>$ALL_DEVICES</span>
@@ -3439,8 +3434,8 @@ document.addEventListener('mouseout', function(e) {
                                 <tbody>$ALL_ROWS</tbody>
                                 <tfoot>
                                     <tr>
-                                        <td colspan="7" style="$UPTIME_STYLE">
-                                            <span class="footer">$ALL_UPTIME</span>
+                                        <td colspan="7">
+                                            <span class="uptime-row">$ALL_UPTIME</span>
                                         </td>
                                     </tr>
                                 </tfoot>
