@@ -2796,22 +2796,46 @@ async function loadWirelessReport() {
    // --- BUILD MAIN ROUTER DIAGNOSTIC DETAILS ---
     var mainNameText = mainNameEl ? mainNameEl.textContent.trim() : (base.productid || 'Main Router');
     var mainIp = String(wrFirst(base, ['lan_ipaddr', 'lan_ip', 'ip']) || window.location.hostname || '');
-    var rawFw = wrFirst(base, ['firmware', 'fwver', 'firmwarever', 'webs_state_info', 'buildno', 'extendno', 'version'])
-                || window.firmware || window.webs_state_info || window.firmver || '';
-    var mainFw = (rawFw && typeof rawFw === 'object') ? (rawFw.textContent || '') : String(rawFw || '');
-    if (!mainFw && typeof firmver !== 'undefined' && typeof buildno !== 'undefined') {
-        mainFw = firmver + '_' + buildno;
-        if (typeof extendno !== 'undefined' && extendno) mainFw += '_' + extendno;
+
+    if (typeof window._cachedMainFw === 'undefined' || !window._cachedMainFw) {
+        var rawFw = wrFirst(base, ['firmware', 'fwver', 'firmwarever', 'webs_state_info', 'buildno', 'extendno', 'version'])
+                    || window.firmware || window.webs_state_info || window.firmver || '';
+
+        var detectedFw = (rawFw && typeof rawFw === 'object') ? (rawFw.textContent || '') : String(rawFw || '');
+
+        if (!detectedFw && typeof firmver !== 'undefined' && typeof buildno !== 'undefined') {
+            detectedFw = firmver + '_' + buildno;
+            if (typeof extendno !== 'undefined' && extendno) detectedFw += '_' + extendno;
+        }
+
+        if (detectedFw) {
+            window._cachedMainFw = detectedFw;
+        }
     }
-    // Globally replace all dots with underscores for consistent formatting
+
+    var mainFw = window._cachedMainFw || '';
+
+    // Force consistent formatting: 3006.102.8_2 (dots for the first two separators, underscore for the last)
     if (mainFw) {
-        mainFw = mainFw.replace(/\./g, '_');
+        mainFw = mainFw.replace(/^[\._]+/, '').replace(/[\._]+$/, '');
+        if (/^300[46]/.test(mainFw)) {
+            var parts = mainFw.split(/[\._]/);
+            if (parts.length >= 4) {
+                // e.g. parts = ['3006', '102', '8', '2'] -> 3006.102.8_2
+                mainFw = parts[0] + '.' + parts[1] + '.' + parts[2] + '_' + parts.slice(3).join('_');
+            } else if (parts.length === 3) {
+                // e.g. parts = ['3006', '102', '8'] -> 3006.102.8
+                mainFw = parts[0] + '.' + parts[1] + '.' + parts[2];
+            } else if (parts.length === 2) {
+                mainFw = parts[0] + '.' + parts[1];
+            }
+        }
     }
+
     var mainDiag = "<span class='main-color'>" + wrEscape(mainNameText) + "</span>";
     if (mainIp) mainDiag += " <span style='color:white;'>•</span> <span style='color:white;'>" + wrEscape(mainIp) + "</span>";
     if (mainFw) mainDiag += " <span style='color:white;'>•</span> <span class='main-color'>FW</span> <span style='color:white;'>" + wrEscape(mainFw) + "</span>";
     // ------------------------------------------
-
     nodes.forEach(function(node, index) {
         var mac = wrNormMac(node.mac || node.mac_addr);
         var ip = String(wrFirst(node, ['ip', 'ip_addr', 'ipAddr']) || '');
