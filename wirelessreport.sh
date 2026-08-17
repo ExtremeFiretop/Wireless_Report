@@ -294,6 +294,12 @@ ScriptUpdateFromAMTM() {
     fi
 }
 
+apply_webui_changes() {
+    if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
+    startup
+    run_report
+}
+
 wr_sha256() {
     local file="$1" hash=""
     [ -f "$file" ] || return 1
@@ -461,14 +467,14 @@ set_date_time() {
         echo -e "${BL}=================================================="
         echo -e "${NC}                  Set Date/Time                   "
         echo -e "${BL}=================================================="
-        echo -e "${NC}       $DU     (Current)    $CT                   "
+        echo -e "${NC}  Format: $DU         Current: $CT                "
         echo -e "${BL}=================================================="
         echo -e "                                                       "
-        echo -e "  $N1  USA                 ($DATE_USA)                 "
-        echo -e "  $N2  INTERNATIONAL       ($DATE_INTL)                "
-        echo -e "  $N3  ISO                 ($DATE_ISO)                 "
+        echo -e "  $N1  USA                   ($DATE_USA)               "
+        echo -e "  $N2  INTERNATIONAL         ($DATE_INTL)              "
+        echo -e "  $N3  ISO                   ($DATE_ISO)               "
         echo -e "                                                       "
-        echo -e "  $NE  Back to main menu                               "
+        echo -e "  $NE  Exit back to main menu                          "
         echo -e "                                                       "
 		echo -e "${BL}=================================================="
         while true; do
@@ -500,7 +506,7 @@ set_nicknames() {
 		echo -e "  $N2 Location Nicknames                               "
 		echo -e "  $N3 Manual Nicknames                                 "
 		echo -e "                                                       "
-		echo -e "  $NE Back to main menu                                "
+        echo -e "  $NE Exit back to main menu                           "
 		echo -e "                                                       "
         echo -e "${BL}=================================================="
         MAIN_ROUTER=$(nvram get productid); MAIN_IP=$(nvram get lan_ipaddr)
@@ -783,7 +789,7 @@ set_options() {
         echo -e "  $N5  Toggle IP Padding: ($PD_STAT)                   "
         echo -e "  $N6  Toggle Node Hostname Display: ($HN_STAT)        "
         echo -e "                                                       "
-        echo -e "  $NE  Back to main menu                               "
+        echo -e "  $NE  Exit back to main menu                          "
         echo -e "                                                       "
         echo -e "${BL}=================================================="
         while true; do
@@ -903,8 +909,6 @@ rssi_submenu() {
                         fi
                     done
                     echo -e "\n${GR}[+] RSSI history configuration saved.${NC}"
-                    echo -e "${BL}[i] History is stored only in browser localStorage."
-                    echo -e "    If these settings changed, browser history resets on the next report reload.${NC}"
                     unset CUR_RS_HIST CUR_ENTRIES CUR_DATE
                     pause; return 0 ;;
                 *)
@@ -925,7 +929,7 @@ theme_submenu() {
         echo -e "  $N2 Darkmode Theme                                   "
         echo -e "  $N3 Asus WebUI Theme                                 "
         echo -e "                                                       "
-        echo -e "  $NE Exit                                             "
+        echo -e "  $NE Exit back to Set Options                         "
         echo -e "                                                       "
         echo -e "${BL}=================================================="
         while true; do
@@ -951,10 +955,6 @@ theme_submenu() {
         done
     done
 }
-
-restart_httpd() { service restart_httpd >/dev/null 2>&1; killall -HUP httpd >/dev/null 2>&1; }
-
-pause() { printf "\nPress ${BL}[Enter]${NC} to return..."; read -r discard; }
 
 set_theme() {
     THEME="${THEME:-ORIGINAL}"
@@ -1024,26 +1024,16 @@ echo -e "                                                                       
 echo -e "${NC}\n\n\n" #===========================================================================================================
 }
 
+restart_httpd() { service restart_httpd >/dev/null 2>&1; killall -HUP httpd >/dev/null 2>&1; }
+
+pause() { printf "\nPress ${BL}[Enter]${NC} to return..."; read -r discard; }
+
 get_hostcolor() {
     if [ "$HOST_COLOR" = "1" ]; then IP_COLOR=""; MAC_COLOR="color: #64d2ff;"
     else IP_COLOR="color: #64d2ff; "MAC_COLOR=""; fi
 }
 
 startup() { mesh_init; check_github; hex_to_ansi; }
-
-reload_report_live() {
-    if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
-    startup
-    run_report
-}
-
-apply_webui_changes() {
-    if [ -x "$REPORT_SCRIPT" ]; then
-        "$REPORT_SCRIPT" live-reload >/dev/null 2>&1
-    else
-        reload_report_live >/dev/null 2>&1
-    fi
-}
 
 run_report() {
 #======================================#
@@ -1084,13 +1074,9 @@ for node in $MESH_NODES; do
     node_color_idx=$((node_color_idx + 1))
 done
 
-set_theme; check_version header_box; get_hostcolor
-
 IPPAD=${IPPAD:-1}; HOST_COLOR=${HOST_COLOR:-0}; PULSE_MINS=${PULSE_MINS:-15}
 : "${MAIN_COLOR:=#0096ff}"
 : "${NODE_COLORS:=#30d158 #bf40bf #ffd60a #64d2ff #ff9500 #ff453a #ffffff #ff70a6 #64ffda}"
-TEMP_STYLE="text-align: center; justify-content: center;"
-UPTIME_STYLE="text-align: center; justify-content: center;"
 
 ROUTER=$(nvram get productid); MAIN_NAME="${MAIN_NICK:-${ROUTER:-Main Router}}"
 MAIN_NAME="<span id='wr-main-name' class='router-style'>${MAIN_NAME}</span>"
@@ -1115,12 +1101,16 @@ ALL_UPTIME="<span id='wr-all-uptime' class='main-color'>Controller telemetry pen
 
 GRAND_TOTAL_DEVICES="<span id='wr-grand-total' class='count-highlight'>0</span>"
 UPDATED_TIME="<span class='wr-updated-time total-count'>Loading controller data...</span>"
+TEMP_STYLE="text-align: center; justify-content: center;"
+UPTIME_STYLE="text-align: center; justify-content: center;"
 ALL_BOOTTIME=""; MAIN_ROWS="";mNODE_ROWS=""; ALL_ROWS=""; NTOTAL=""
 
 RSSI_BOXES="<div class='rssi-quality-box rssi-excl'>Excellent: <span style='background:#30d158;' class='rssi-font wr-rssi-excellent'>0</span></div>
     <div class='rssi-quality-box rssi-good'>Good: <span style='background:#64d2ff;' class='rssi-font wr-rssi-good'>0</span></div>
     <div class='rssi-quality-box rssi-fair'>Fair: <span style='background:#ffd60a;' class='rssi-font wr-rssi-fair'>0</span></div>
     <div class='rssi-quality-box rssi-poor'>Poor: <span style='background:#ff453a;' class='rssi-font wr-rssi-poor'>0</span></div>"
+
+set_theme; check_version header_box; get_hostcolor
 
 #=================#
 #  Generate HTML  #
@@ -2803,12 +2793,20 @@ async function loadWirelessReport() {
     var nodeCountParts = [];
     var nodeDiagParts = [];
 
-    // --- BUILD MAIN ROUTER DIAGNOSTIC DETAILS ---
+   // --- BUILD MAIN ROUTER DIAGNOSTIC DETAILS ---
     var mainNameText = mainNameEl ? mainNameEl.textContent.trim() : (base.productid || 'Main Router');
     var mainIp = String(wrFirst(base, ['lan_ipaddr', 'lan_ip', 'ip']) || window.location.hostname || '');
-
-    // Check all possible firmware/version properties on base or window scope
-    var mainFw = wrFirst(base, ['firmware', 'fwver', 'firmwarever', 'webs_state_info', 'buildno', 'extendno', 'version']) || window.firmware || window.webs_state_info || '';
+    var rawFw = wrFirst(base, ['firmware', 'fwver', 'firmwarever', 'webs_state_info', 'buildno', 'extendno', 'version'])
+                || window.firmware || window.webs_state_info || window.firmver || '';
+    var mainFw = (rawFw && typeof rawFw === 'object') ? (rawFw.textContent || '') : String(rawFw || '');
+    if (!mainFw && typeof firmver !== 'undefined' && typeof buildno !== 'undefined') {
+        mainFw = firmver + '_' + buildno;
+        if (typeof extendno !== 'undefined' && extendno) mainFw += '_' + extendno;
+    }
+    // Globally replace all dots with underscores for consistent formatting
+    if (mainFw) {
+        mainFw = mainFw.replace(/\./g, '_');
+    }
     var mainDiag = "<span class='main-color'>" + wrEscape(mainNameText) + "</span>";
     if (mainIp) mainDiag += " <span style='color:white;'>•</span> <span style='color:white;'>" + wrEscape(mainIp) + "</span>";
     if (mainFw) mainDiag += " <span style='color:white;'>•</span> <span class='main-color'>FW</span> <span style='color:white;'>" + wrEscape(mainFw) + "</span>";
@@ -3457,11 +3455,6 @@ case "$1" in
         # Install/Uninstall options
         startup
         install_menu
-        ;;
-    live-reload)
-        # Fast regeneration used by shell-menu settings. Open v3.0.6+ pages
-        # notice the generation change and perform a cache-busted navigation.
-        reload_report_live
         ;;
     inject|inject1|inject2|inject3)
         case "$1" in
