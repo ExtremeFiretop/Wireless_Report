@@ -1045,6 +1045,8 @@ WR_GENERATION=$(nvram get wirelessreport_gen 2>/dev/null)
 case "$WR_GENERATION" in ""|*[!0-9]*) WR_GENERATION=0 ;; esac
 WR_GENERATION=$((WR_GENERATION + 1))
 
+: "${MAIN_COLOR:=#0096ff}"
+: "${NODE_COLORS:=#30d158 #bf40bf #ffd60a #64d2ff #ff9500 #ff453a #ffffff #ff70a6 #64ffda}"
 NODE_NICK_JS=""
 if [ -f "$CONFIG" ]; then
 	while IFS='=' read -r nick_key nick_value; do
@@ -1070,9 +1072,6 @@ for node in $MESH_NODES; do
 done
 
 IPPAD=${IPPAD:-1}; HOST_COLOR=${HOST_COLOR:-0}; PULSE_MINS=${PULSE_MINS:-15}
-: "${MAIN_COLOR:=#0096ff}"
-: "${NODE_COLORS:=#30d158 #bf40bf #ffd60a #64d2ff #ff9500 #ff453a #ffffff #ff70a6 #64ffda}"
-
 ROUTER=$(nvram get productid); MAIN_NAME="${MAIN_NICK:-${ROUTER:-Main Router}}"
 MAIN_NAME="<span id='wr-main-name' class='router-style'>${MAIN_NAME}</span>"
 MAIN_TEMP="<span id='wr-main-cpu' class='stat-cool'>--</span>"
