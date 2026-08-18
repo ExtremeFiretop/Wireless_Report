@@ -1089,7 +1089,7 @@ NODE_UPTIMES="<span id='wr-node-diag'>Controller telemetry pending...</span>"
 ALL_NAMES="<span id='wr-all-names' class='router-style'>Loading...</span>"
 ALL_TEMP="<span id='wr-all-main-cpu'>--</span>"
 ALL_LOAD="<span id='wr-all-main-memory'>--</span>"
-ALL_DEVICES="Devices: <span id='wr-all-count' class='stat-cool'>0</span>"
+ALL_DEVICES="<span id='wr-all-count' class='stat-cool'>0</span>"
 ALL_UPTIME="<span id='wr-all-uptime' class='main-color'>Controller telemetry pending...</span>"
 
 GRAND_TOTAL_DEVICES="<span id='wr-grand-total' class='count-highlight'>0</span>"
@@ -3420,7 +3420,7 @@ document.addEventListener('mouseout', function(e) {
                                 <div class="temp-load-row">
                                     <span>CPU: $ALL_TEMP</span>
                                     <span>Memory: $ALL_LOAD</span>
-                                    <span>$ALL_DEVICES</span>
+                                    <span>Devices: $ALL_DEVICES</span>
                                 </div>
                             </div>
                             <table id="allTable" class="report_table show-ip">
