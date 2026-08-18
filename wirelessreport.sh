@@ -1033,7 +1033,7 @@ get_hostcolor() {
     else IP_COLOR="color: #64d2ff; "MAC_COLOR=""; fi
 }
 
-startup() { mesh_init; check_github; }
+startup() { mesh_init; check_github; hex_to_ansi; }
 
 run_report() {
 #======================================#
