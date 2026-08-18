@@ -170,6 +170,8 @@ menu_vars() {
 	N0="${BL}(0)${NC}"; N1="${BL}(1)${NC}"; N2="${BL}(2)${NC}"; N3="${BL}(3)${NC}"; N4="${BL}(4)${NC}"
 	N5="${BL}(5)${NC}"; N6="${BL}(6)${NC}"; N7="${BL}(7)${NC}"; N8="${BL}(8)${NC}"; echo -e "${BL}"
 	NE="${BL}(e)${NC}"; NQ="${BL}(c)${NC}"; ON="${GR}ON${NC}"; OFF="${RD}OFF${NC}"
+    : "${MAIN_COLOR:=#0096ff}"
+    : "${NODE_COLORS:=#30d158 #bf40bf #ffd60a #64d2ff #ff9500 #ff453a #ffffff #ff70a6 #64ffda}"
 	STATUS=" ${BL}STATUS:${NC}"; CURRENT="${GR}Current: v$SCRIPT_VERSION${NC}"
     SS_FILE="/jffs/scripts/services-start"; SE_FILE="/jffs/scripts/service-event"
     DU="${REPORT_UNIT:-USA}"; DATE_USA="${GR}$(date +"%b-%-d %-H:%M:%S")${NC}"
@@ -622,8 +624,6 @@ set_nicknames() {
 }
 
 hex_to_ansi() {
-    : "${MAIN_COLOR:=#0096ff}"
-    : "${NODE_COLORS:=#30d158 #bf40bf #ffd60a #64d2ff #ff9500 #ff453a #ffffff #ff70a6 #64ffda}"
     NB='\033[38;5;39m'; LG='\033[38;5;82m'; MP='\033[38;5;133m'; RD='\033[38;5;196m'; PK='\033[38;5;211m'
     YL='\033[38;5;220m'; SB='\033[38;5;75m'; OR='\033[38;5;208m'; WT='\033[38;5;231m'; MT='\033[38;5;86m'
     case "$1" in
@@ -1033,7 +1033,7 @@ get_hostcolor() {
     else IP_COLOR="color: #64d2ff; "MAC_COLOR=""; fi
 }
 
-startup() { mesh_init; check_github; hex_to_ansi; }
+startup() { mesh_init; check_github; }
 
 run_report() {
 #======================================#
