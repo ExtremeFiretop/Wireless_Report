@@ -28,7 +28,7 @@
 #        shellcheck shell=sh disable=SC2086,SC2155,SC3043         #
 #=================================================================#
 
-SCRIPT_VERSION="3.1.6"
+SCRIPT_VERSION="3.1.7"
 INSTALL_DIR="/jffs/addons/wireless_report"
 REPORT_SCRIPT="$INSTALL_DIR/wirelessreport.sh"
 SYSTEM_MENU="/www/require/modules/menuTree.js"
@@ -296,12 +296,6 @@ ScriptUpdateFromAMTM() {
     fi
 }
 
-apply_webui_changes() {
-    if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
-    startup
-    run_report
-}
-
 wr_sha256() {
     local file="$1" hash=""
     [ -f "$file" ] || return 1
@@ -493,7 +487,7 @@ set_date_time() {
             REPORT_UNIT="$NEW_UNIT"
             break
         done
-        apply_webui_changes
+        run_report
     done
 }
 
@@ -619,7 +613,7 @@ set_nicknames() {
                     freeze2; continue ;;
             esac
         done
-        apply_webui_changes
+        run_report
     done
 }
 
@@ -770,7 +764,7 @@ set_colors() {
     }
     update_config_var "MAIN_COLOR" "$m_color_hex"
     update_config_var "NODE_COLORS" "$working_colors"
-    apply_webui_changes
+    run_report
     echo -e "\n${BL}Device colors successfully saved to CONFIG.${NC}"
     pause
 }
@@ -854,7 +848,7 @@ set_options() {
                     freeze2; continue ;;
             esac
         done
-        apply_webui_changes
+        run_report
     done
 }
 
@@ -1033,7 +1027,7 @@ get_hostcolor() {
     else IP_COLOR="color: #64d2ff; "MAC_COLOR=""; fi
 }
 
-startup() { mesh_init; check_github; hex_to_ansi; }
+mesh_init; check_github; hex_to_ansi
 
 run_report() {
 #======================================#
@@ -1046,6 +1040,7 @@ run_report() {
 #   /get_diag_content_data.cgi          (388 legacy diagnostic fallback)
 # All client/node refreshes happen in-page with same-origin fetch() calls.
 
+if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
 WR_GENERATION=$(nvram get wirelessreport_gen 2>/dev/null)
 case "$WR_GENERATION" in ""|*[!0-9]*) WR_GENERATION=0 ;; esac
 WR_GENERATION=$((WR_GENERATION + 1))
@@ -3375,9 +3370,9 @@ document.addEventListener('mouseout', function(e) {
                                     <tbody>$MAIN_ROWS</tbody>
                                     <tfoot>
                                         <tr>
-                                            <td colspan="7">
-                                                <span class="uptime-row">Uptime: $MAIN_UPTIME</span>
-                                                <span class="uptime-row">Reboot: $MAIN_BOOTTIME</span>
+                                            <td colspan="7" class="uptime-row">
+                                                <span>Uptime: $MAIN_UPTIME</span>
+                                                <span>Reboot: $MAIN_BOOTTIME</span>
                                             </td>
                                         </tr>
                                     </tfoot>
@@ -3410,8 +3405,8 @@ document.addEventListener('mouseout', function(e) {
                                     <tbody>$NODE_ROWS</tbody>
                                     <tfoot>
                                         <tr>
-                                            <td colspan="7">
-                                                <span class="uptime-row">$NODE_UPTIMES</span>
+                                            <td colspan="7" class="uptime-row">
+                                                $NODE_UPTIMES
                                             </td>
                                         </tr>
                                     </tfoot>
@@ -3442,8 +3437,8 @@ document.addEventListener('mouseout', function(e) {
                                 <tbody>$ALL_ROWS</tbody>
                                 <tfoot>
                                     <tr>
-                                        <td colspan="7">
-                                            <span class="uptime-row">$ALL_UPTIME</span>
+                                        <td colspan="7" class="uptime-row">
+                                            $ALL_UPTIME
                                         </td>
                                     </tr>
                                 </tfoot>
@@ -3475,7 +3470,6 @@ HTML
 case "$1" in
     install)
         # Install/Uninstall options
-        startup
         install_menu
         ;;
     inject|inject1|inject2|inject3)
@@ -3495,7 +3489,6 @@ case "$1" in
         ;;
 	*)
         # Run (Scans)
-        startup
 		run_report
         ;;
 esac
