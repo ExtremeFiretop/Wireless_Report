@@ -2795,6 +2795,7 @@ async function loadWirelessReport() {
             if (typeof extendno !== 'undefined' && extendno) detectedFw += '_' + extendno;
         }
         if (detectedFw) {
+            detectedFw = detectedFw.split('-')[0];
             window._cachedMainFw = detectedFw;
         }
     }
