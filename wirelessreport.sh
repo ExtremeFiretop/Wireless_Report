@@ -2786,9 +2786,9 @@ async function loadWirelessReport() {
     var mainNameText = mainNameEl ? mainNameEl.textContent.trim() : (base.productid || 'Main Router');
     var mainIp = String(wrFirst(base, ['lan_ipaddr', 'lan_ip', 'ip']) || window.location.hostname || '');
     if (typeof window._cachedMainFw === 'undefined' || !window._cachedMainFw) {
-        var rawFw = wrFirst(base, ['firmware', 'fwver', 'firmwarever', 'webs_state_info', 'buildno', 'extendno', 'version'])
-                    || window.firmware || window.webs_state_info || window.firmver || '';
-
+        // Moved 'webs_state_info' to the end so it checks precise version/build keys first
+        var rawFw = wrFirst(base, ['firmware', 'fwver', 'firmwarever', 'buildno', 'extendno', 'version', 'webs_state_info'])
+                    || window.firmware || window.firmver || window.webs_state_info || '';
         var detectedFw = (rawFw && typeof rawFw === 'object') ? (rawFw.textContent || '') : String(rawFw || '');
         if (!detectedFw && typeof firmver !== 'undefined' && typeof buildno !== 'undefined') {
             detectedFw = firmver + '_' + buildno;
@@ -2841,7 +2841,6 @@ async function loadWirelessReport() {
         } else {
             memHtml.push("<span style='color:" + color + ";'>--" + "</span>");
         }
-
         var firmware = wrFirst(node, ['firmware', 'fwver', 'fw_version', 'version']);
         if (firmware) {
             firmware = String(firmware);
@@ -2869,21 +2868,16 @@ async function loadWirelessReport() {
         "<span class='" + wrMetricClass(mainHealth.cpuUsage) + "'>" + (mainHealth.cpuUsage !== null ? mainHealth.cpuUsage + "%" : "--") + "</span>"
     ].concat(cpuHtml);
     wrSetHtml('wr-all-main-cpu', allCpuCombined.join(bullet));
-
     var allMemCombined = [
         "<span class='" + wrMetricClass(mainHealth.memoryUsage) + "'>" + (mainHealth.memoryUsage !== null ? mainHealth.memoryUsage + "%" : "--") + "</span>"
     ].concat(memHtml);
     wrSetHtml('wr-all-main-memory', allMemCombined.join(bullet));
-
     var mainColoredCount = "<span class='main-color'>" + mainItems.length + "</span>";
     var allDeviceParts = [mainColoredCount].concat(nodeCountParts);
     wrSetHtml('wr-all-count', nodes.length > 1 && nodeCountParts.length ? items.length + " <span class='right-arrow'>—›</span> " + allDeviceParts.join(bullet) : items.length);
-
     var allNames = ["<span style='color:" + WR_CONFIG.mainColor + ";'>" + wrEscape(document.getElementById('wr-main-name').textContent) + "</span>"];
     allNames = allNames.concat(nodeNamesHtml);
     wrSetHtml('wr-all-names', allNames.join(bullet));
-
-    // 2. Set the All-Devices footer diagnostics (reuses the exact node diagnostic output with main on top)
     var allDiagParts = [mainDiag].concat(nodeDiagParts.slice());
     wrSetHtml('wr-all-uptime', allDiagParts.length ? allDiagParts.join('<br>') : 'No diagnostic telemetry available.');
     // ----------------------------------------------
