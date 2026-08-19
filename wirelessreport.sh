@@ -1695,6 +1695,7 @@ function wrLoadJson(key, fallback) {
         return fallback;
     }
 }
+
 function wrRssiHistoryEntries(raw) {
     if (Array.isArray(raw)) {
         return raw.filter(function(entry) {
@@ -2597,6 +2598,7 @@ async function loadWirelessReport() {
         console.warn('Primary memory query failed', e);
         return null;
     });
+
     var base = await wrAppGet(
         'get_cfg_clientlist();' +
         'get_clientlist();' +
@@ -2605,6 +2607,7 @@ async function loadWirelessReport() {
         'nvram_get(lan_hwaddr);' +
         'uptime();'
     );
+
     var live = base.get_clientlist || {};
     var saved = base.get_clientlist_from_json_database || {};
     var allNodes = Array.isArray(base.get_cfg_clientlist) ? base.get_cfg_clientlist : [];
@@ -2642,12 +2645,14 @@ async function loadWirelessReport() {
         var mac = wrNormMac(node.mac || node.mac_addr);
         nodeByMac.set(mac, { node: node, index: index });
     });
+
     var staTargets = [];
     if (mainMac) staTargets.push(mainMac);
     nodes.forEach(function(node) {
         var mac = wrNormMac(node.mac || node.mac_addr);
         if (mac && staTargets.indexOf(mac) === -1) staTargets.push(mac);
     });
+
     var staResults = await Promise.all(staTargets.map(function(mac) { return wrGetStaRows(mac); }));
     var staMaps = new Map();
     staTargets.forEach(function(mac, i) { staMaps.set(mac, wrIndexSta(staResults[i] || [])); });
@@ -2702,6 +2707,7 @@ async function loadWirelessReport() {
     items.forEach(function(item) { item.historyTime = historySampleTime; });
     var mainItems = items.filter(function(item) { return !item.node; });
     var nodeItems = items.filter(function(item) { return !!item.node; });
+
     // Use the same ASUS sys_detect CPU telemetry for the primary router and
     // AiMesh nodes. This keeps the values comparable and avoids measuring the
     // controller's CPU across Wireless Report's own refresh workload.
@@ -2711,6 +2717,7 @@ async function loadWirelessReport() {
         var mac = wrNormMac(node.mac || node.mac_addr);
         if (mac && diagMacs.indexOf(mac) === -1) diagMacs.push(mac);
     });
+
     var diagPairs = await Promise.all(diagMacs.map(async function(mac) {
         try { return [mac, await wrGetNodeDiag(mac)]; }
         catch (e) {
@@ -2718,6 +2725,7 @@ async function loadWirelessReport() {
             return [mac, null];
         }
     }));
+
     var diagByMac = new Map(diagPairs);
     var history = wrLoadJson('wirelessReportRssiHistory', {});
     var known = wrLoadJson('wirelessReportKnownMacs', {});
@@ -2733,6 +2741,7 @@ async function loadWirelessReport() {
         wrStoreRssiHistory(item, rssi, history);
         known[item.mac] = 1;
     });
+
     localStorage.setItem('wirelessReportRssiHistory', JSON.stringify(history));
     localStorage.setItem('wirelessReportKnownMacs', JSON.stringify(known));
     wrApplyRssiCounts(items);
@@ -2751,20 +2760,14 @@ async function loadWirelessReport() {
             console.warn('Primary CPU fallback query failed', e);
         }
     }
-
     var mainMemory = await mainMemoryPromise;
+
     // Preserve a useful value if memory_usage() is unavailable on an unusual
     // firmware build; sys_detect already carries the same percentage for nodes.
     if (mainMemory === null && mainDiag && Number.isFinite(mainDiag.memoryUsage)) {
         mainMemory = Math.round(mainDiag.memoryUsage);
     }
     var mainHealth = { cpuUsage: mainCpu, memoryUsage: mainMemory };
-
-    // Set Main Router specific metrics only here
-    wrSetMetric('wr-main-cpu', mainHealth.cpuUsage, '%');
-    wrSetMetric('wr-main-memory', mainHealth.memoryUsage, '%');
-    var uptimeSecs = wrParseUptime(base.uptime);
-    wrSetText('wr-main-uptime', wrFormatRouterUptime(uptimeSecs));
 
     // Comment out or remove this line in your JS so it doesn't overwrite your shell output:
     // wrSetText('wr-main-reboot', Number.isFinite(uptimeSecs) ? wrFormatDateTime(new Date(Date.now() - uptimeSecs * 1000)) : '--');
@@ -2782,10 +2785,11 @@ async function loadWirelessReport() {
     var nodeCountParts = [];
     var nodeDiagParts = [];
 
-   // --- BUILD MAIN ROUTER DIAGNOSTIC DETAILS ---
+    // --- BUILD MAIN ROUTER DIAGNOSTIC DETAILS ---
     var mainNameText = mainNameEl ? mainNameEl.textContent.trim() : (base.productid || 'Main Router');
     var mainIp = String(wrFirst(base, ['lan_ipaddr', 'lan_ip', 'ip']) || window.location.hostname || '');
     if (typeof window._cachedMainFw === 'undefined' || !window._cachedMainFw) {
+
         // Moved 'webs_state_info' to the end so it checks precise version/build keys first
         var rawFw = wrFirst(base, ['firmware', 'fwver', 'firmwarever', 'buildno', 'extendno', 'version', 'webs_state_info'])
                     || window.firmware || window.firmver || window.webs_state_info || '';
@@ -2800,6 +2804,7 @@ async function loadWirelessReport() {
         }
     }
     var mainFw = window._cachedMainFw || '';
+
     // Force consistent formatting: 3006.102.8_2 (dots for the first two separators, underscore for the last)
     if (mainFw) {
         mainFw = mainFw.replace(/^[\._]+/, '').replace(/[\._]+$/, '');
@@ -2854,6 +2859,7 @@ async function loadWirelessReport() {
         if (firmware) details += " <span style='color:white;'>•</span> <span style='color:" + color + ";'>FW</span> <span style='color:white;'>" + wrEscape(firmware) + "</span>";
         nodeDiagParts.push(details);
     });
+
     var bullet = " <span style='color:white;'>•</span> ";
 
     // 1. Set the Node-only footer
@@ -2899,6 +2905,7 @@ async function loadWirelessReport() {
     } else {
         tempStyle = "text-align: center; justify-content: center;";
     }
+
     // Apply it dynamically to your metric elements
     ['wr-all-main-cpu', 'wr-all-main-memory', 'wr-node-cpu', 'wr-node-memory'].forEach(function(id) {
         var el = document.getElementById(id);
@@ -2906,6 +2913,7 @@ async function loadWirelessReport() {
             el.style.cssText += tempStyle;
         }
     });
+
     wrRestoreTableState();
     if (localStorage.getItem('wifiReportPopoutOpen') === 'true') {
         openPopout();
@@ -3099,6 +3107,7 @@ function sortTable(n, tId, keepDir, forceDesc) {
             h.innerHTML = table.classList.contains('show-iface') ? "IFACE ⇵" : "SSID ⇵";
         }
     });
+
     rows.sort(function(a, b) {
         var valA, valB;
         var cellA = a.cells[n];
@@ -3165,6 +3174,7 @@ function sortTable(n, tId, keepDir, forceDesc) {
         }
         return dir === "asc" ? valA.localeCompare(valB) : valB.localeCompare(valA);
     });
+
     rows.forEach(function(r) {
         tbody.appendChild(r);
     });
@@ -3203,6 +3213,7 @@ function openPopout() {
         if(s) Object.assign(s.style, { paddingBottom: "0px", height: "auto" });
         if(r) Object.assign(r.style, { margin: "8px -11px 2px -11px" });
     });
+
     mCol.querySelector('table').id = "popMainTable";
     nCol.querySelector('table').id = "popNodeTable";
     mCol.querySelectorAll('th').forEach(function(th, i) {
@@ -3210,11 +3221,13 @@ function openPopout() {
         else if(i===4) th.onclick = function() { toggleCols('popMainTable', 'show-iface', this, 'SSID', 'IFACE'); };
         else th.onclick = function() { sortTable(i, 'popMainTable'); };
     });
+
     nCol.querySelectorAll('th').forEach(function(th, i) {
         if(i===1) th.onclick = function() { toggleCols('popNodeTable', 'show-ip', this, 'MAC ADDRESS', 'IP ADDRESS'); };
         else if(i===4) th.onclick = function() { toggleCols('popNodeTable', 'show-iface', this, 'SSID', 'IFACE'); };
         else th.onclick = function() { sortTable(i, 'popNodeTable'); };
     });
+
     var mainWrapper = document.createElement('div');
     mainWrapper.className = 'popout-main-wrapper';
     Object.assign(mCol.style, { maxWidth: "100%", width: "100%", overflowX: "auto", WebkitOverflowScrolling: "touch" });
@@ -3260,6 +3273,7 @@ document.addEventListener('contextmenu', function(e) {
         sortTable(0, table.id, false, false);
     }
 });
+
 document.addEventListener('mouseover', function(e) {
     const container = e.target.closest('.rssi-container');
     if (container) {
