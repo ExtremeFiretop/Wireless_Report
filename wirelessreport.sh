@@ -122,8 +122,8 @@ check_version() {
                                VERSION_HASH=" [$REMOTE_VERSION]"; HEADER_TITLE="header-title2" ;;
                 HASH_DIFF)     HOVER_TEXT="Current v$SCRIPT_VERSION <br> Hash Update available"
                                VERSION_HASH=" [Hash]"; HEADER_TITLE="header-title2" ;;
-                UP_TO_DATE|*)  HOVER_TEXT="Current v$SCRIPT_VERSION$DEV"
-                               VERSION_HASH="$DEV"; HEADER_TITLE="header-title" ;;
+                UP_TO_DATE|*)  HOVER_TEXT="Current v$SCRIPT_VERSION"
+                               VERSION_HASH=""; HEADER_TITLE="header-title" ;;
             esac ;;
         do_install)
             case "$STATE" in
@@ -131,7 +131,7 @@ check_version() {
                                UP="update version?" ;;
                 HASH_DIFF)     echo -e "\n${GR}[i] There is a Hash Update for (${NC}v$SCRIPT_VERSION${GR}).${NC}\n"
                                UP="update Hash?" ;;
-                UP_TO_DATE|*)  echo -e "\n${GR}[i] You are already on the latest version (${NC}v$SCRIPT_VERSION$DEV${GR}).${NC}\n"
+                UP_TO_DATE|*)  echo -e "\n${GR}[i] You are already on the latest version (${NC}v$SCRIPT_VERSION${GR}).${NC}\n"
                                UP="reinstall/overwrite anyway?";;
             esac ;;
         *)
@@ -140,7 +140,7 @@ check_version() {
                 NOT_INSTALLED) echo -e "$STATUS ${RD}[Not Installed]${NC} Latest Available: ${GR}v$REMOTE_VERSION${NC}"; N1="${BL}(1)" ;;
                 OUTDATED)      echo -e "$STATUS [v$REMOTE_VERSION Available] $CURRENT" ;;
                 HASH_DIFF)     echo -e "$STATUS [Hash Update Available] $CURRENT" ;;
-                UP_TO_DATE|*)  echo -e "$STATUS [Up to date] $CURRENT$DEV" ;;
+                UP_TO_DATE|*)  echo -e "$STATUS [Up to date] $CURRENT" ;;
             esac ;;
     esac
 }
@@ -173,7 +173,7 @@ menu_vars() {
     : "${MAIN_COLOR:=#0096ff}"
     : "${NODE_COLORS:=#30d158 #bf40bf #ffd60a #64d2ff #ff9500 #ff453a #ffffff #ff70a6 #64ffda}"
 	STATUS=" ${BL}STATUS:${NC}"; CURRENT="${GR}Current: v$SCRIPT_VERSION${NC}"
-    SS_FILE="/jffs/scripts/services-start"; SE_FILE="/jffs/scripts/service-event"
+    SS_FILE="/jffs/scripts/services-start"
     DU="${REPORT_UNIT:-USA}"; DATE_USA="${GR}$(date +"%b-%-d %-H:%M:%S")${NC}"
     DATE_INTL="${GR}$(date +"%-d-%b %-H:%M:%S")${NC}"; DATE_ISO="${GR}$(date +"%Y-%m-%d %H:%M:%S")${NC}"
     if [ "$REPORT_UNIT" = "ISO" ]; then DU="${GR}ISO${NC}"; CT="$DATE_ISO"
@@ -438,23 +438,23 @@ do_uninstall() {
 		umount -l "/www/user/$INSTALLED_PAGE" >/dev/null 2>&1
 		rm -f /www/user/"${INSTALLED_PAGE}" >/dev/null 2>&1
 	fi
-	sed -i "\|$REPORT_SCRIPT|d" "$SS_FILE"; sed -i "/wireless_report/d" "$SE_FILE"
+	sed -i "\|$REPORT_SCRIPT|d" "$SS_FILE"
 	restart_httpd
     nvram unset wirelessreport_gen >/dev/null 2>&1
 	sed -i "\|$REPORT_SCRIPT|d" "$SS_FILE"
 
     # the following 3-lines get deleted after a couple weeks, only for transition.
+	get_usb; SE_FILE="/jffs/scripts/service-event"
     sed -i "/wireless_report/d" "$SE_FILE"
-	get_usb
     case "$USB_PATH" in *wirelessreport*) rm -rf "$USB_PATH" 2>/dev/null ;; esac
 
     restart_httpd
 	rm -rf "$INSTALL_DIR" "$WEB_PAGE" 2>/dev/null
 	logger -p user.info -t "Wireless_Report" "(v$SCRIPT_VERSION) successfully uninstalled."
-    unset RTIME CUR_DATE RS_HIST_DATE RS_HIST CUR_RS_HIST CUR_ENTRIES
+    unset RTIME CUR_DATE RS_HIST_DATE RS_HIST CUR_RS_HIST CUR_ENTRIES REPORT_UNIT
     unset THEME IPPAD PULSE_MINS DISPLAY_UNIT HOST_COLOR MAIN_COLOR NODE_COLORS
 	echo -e "${GR}[+] Success: Wireless Report uninstalled.${NC}\n"
-	exit 0
+	pause
 }
 
 set_date_time() {
@@ -1283,7 +1283,7 @@ var WR_CONFIG = {
     nodeColors: String("$NODE_COLORS").trim().split(/\s+/).filter(Boolean),
     hostColor: Number("$HOST_COLOR") || 0,
     pulseMins: Number("$PULSE_MINS"),
-    reportUnit: String("${REPORT_UNIT:-ISO}"),
+    reportUnit: String("${REPORT_UNIT:-USA}"),
     runtimeTracking: Number("${RTIME:-1}") || 0,
     ipPad: Number("${IPPAD:-1}") || 0,
     rssiHistory: Number("${RS_HIST:-0}") || 0,
