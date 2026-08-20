@@ -122,8 +122,8 @@ check_version() {
                                VERSION_HASH=" [$REMOTE_VERSION]"; HEADER_TITLE="header-title2" ;;
                 HASH_DIFF)     HOVER_TEXT="Current v$SCRIPT_VERSION <br> Hash Update available"
                                VERSION_HASH=" [Hash]"; HEADER_TITLE="header-title2" ;;
-                UP_TO_DATE|*)  HOVER_TEXT="Current v$SCRIPT_VERSION$DEV"
-                               VERSION_HASH="$DEV"; HEADER_TITLE="header-title" ;;
+                UP_TO_DATE|*)  HOVER_TEXT="Current v$SCRIPT_VERSION"
+                               VERSION_HASH=""; HEADER_TITLE="header-title" ;;
             esac ;;
         do_install)
             case "$STATE" in
@@ -131,7 +131,7 @@ check_version() {
                                UP="update version?" ;;
                 HASH_DIFF)     echo -e "\n${GR}[i] There is a Hash Update for (${NC}v$SCRIPT_VERSION${GR}).${NC}\n"
                                UP="update Hash?" ;;
-                UP_TO_DATE|*)  echo -e "\n${GR}[i] You are already on the latest version (${NC}v$SCRIPT_VERSION$DEV${GR}).${NC}\n"
+                UP_TO_DATE|*)  echo -e "\n${GR}[i] You are already on the latest version (${NC}v$SCRIPT_VERSION${GR}).${NC}\n"
                                UP="reinstall/overwrite anyway?";;
             esac ;;
         *)
@@ -140,7 +140,7 @@ check_version() {
                 NOT_INSTALLED) echo -e "$STATUS ${RD}[Not Installed]${NC} Latest Available: ${GR}v$REMOTE_VERSION${NC}"; N1="${BL}(1)" ;;
                 OUTDATED)      echo -e "$STATUS [v$REMOTE_VERSION Available] $CURRENT" ;;
                 HASH_DIFF)     echo -e "$STATUS [Hash Update Available] $CURRENT" ;;
-                UP_TO_DATE|*)  echo -e "$STATUS [Up to date] $CURRENT$DEV" ;;
+                UP_TO_DATE|*)  echo -e "$STATUS [Up to date] $CURRENT" ;;
             esac ;;
     esac
 }
@@ -173,7 +173,7 @@ menu_vars() {
     : "${MAIN_COLOR:=#0096ff}"
     : "${NODE_COLORS:=#30d158 #bf40bf #ffd60a #64d2ff #ff9500 #ff453a #ffffff #ff70a6 #64ffda}"
 	STATUS=" ${BL}STATUS:${NC}"; CURRENT="${GR}Current: v$SCRIPT_VERSION${NC}"
-    SS_FILE="/jffs/scripts/services-start"; SE_FILE="/jffs/scripts/service-event"
+    SS_FILE="/jffs/scripts/services-start"
     DU="${REPORT_UNIT:-USA}"; DATE_USA="${GR}$(date +"%b-%-d %-H:%M:%S")${NC}"
     DATE_INTL="${GR}$(date +"%-d-%b %-H:%M:%S")${NC}"; DATE_ISO="${GR}$(date +"%Y-%m-%d %H:%M:%S")${NC}"
     if [ "$REPORT_UNIT" = "ISO" ]; then DU="${GR}ISO${NC}"; CT="$DATE_ISO"
@@ -438,23 +438,23 @@ do_uninstall() {
 		umount -l "/www/user/$INSTALLED_PAGE" >/dev/null 2>&1
 		rm -f /www/user/"${INSTALLED_PAGE}" >/dev/null 2>&1
 	fi
-	sed -i "\|$REPORT_SCRIPT|d" "$SS_FILE"; sed -i "/wireless_report/d" "$SE_FILE"
+	sed -i "\|$REPORT_SCRIPT|d" "$SS_FILE"
 	restart_httpd
     nvram unset wirelessreport_gen >/dev/null 2>&1
 	sed -i "\|$REPORT_SCRIPT|d" "$SS_FILE"
 
     # the following 3-lines get deleted after a couple weeks, only for transition.
+	get_usb; SE_FILE="/jffs/scripts/service-event"
     sed -i "/wireless_report/d" "$SE_FILE"
-	get_usb
     case "$USB_PATH" in *wirelessreport*) rm -rf "$USB_PATH" 2>/dev/null ;; esac
 
     restart_httpd
 	rm -rf "$INSTALL_DIR" "$WEB_PAGE" 2>/dev/null
 	logger -p user.info -t "Wireless_Report" "(v$SCRIPT_VERSION) successfully uninstalled."
-    unset RTIME CUR_DATE RS_HIST_DATE RS_HIST CUR_RS_HIST CUR_ENTRIES
+    unset RTIME CUR_DATE RS_HIST_DATE RS_HIST CUR_RS_HIST CUR_ENTRIES REPORT_UNIT
     unset THEME IPPAD PULSE_MINS DISPLAY_UNIT HOST_COLOR MAIN_COLOR NODE_COLORS
 	echo -e "${GR}[+] Success: Wireless Report uninstalled.${NC}\n"
-	exit 0
+	pause
 }
 
 set_date_time() {
@@ -619,12 +619,12 @@ set_nicknames() {
 
 hex_to_ansi() {
     NB='\033[38;5;39m'; LG='\033[38;5;82m'; MP='\033[38;5;133m'; RD='\033[38;5;196m'; PK='\033[38;5;211m'
-    YL='\033[38;5;220m'; SB='\033[38;5;75m'; OR='\033[38;5;208m'; WT='\033[38;5;231m'; MT='\033[38;5;86m'
+    YW='\033[38;5;226m'; SB='\033[38;5;75m'; OR='\033[38;5;208m'; WT='\033[38;5;231m'; MT='\033[38;5;86m'
     case "$1" in
         "#0096ff") echo -e "$NB" ;;
         "#30d158") echo -e "$LG" ;;
         "#bf40bf") echo -e "$MP" ;;
-        "#ffd60a") echo -e "$YL" ;;
+        "#ffd60a") echo -e "$YW" ;;
         "#64d2ff") echo -e "$SB" ;;
         "#ff9500") echo -e "$OR" ;;
         "#ff453a") echo -e "$RD" ;;
@@ -671,7 +671,7 @@ set_colors() {
         echo -e "${BL}=================================================="
         echo -e "${NC}                Set Device Colors                 "
         echo -e "${BL}=================================================="
-        echo -e "${NC}\n${BL} Current Device Configuration:\n"
+        echo -e "${NC}\n Current Device Configuration:\n"
         local main_display_name="${MAIN_NICK:-$main_name}"
         local main_display_color=$(hex_to_ansi "$m_color_hex")
         local formatted_main_ip=$(printf "(%s)" "$main_ip")
@@ -711,21 +711,21 @@ set_colors() {
                 target_hex=$(echo "$working_colors" | awk -v col="$node_choice" '{print $col}')
             fi
             local target_prompt_color=$(hex_to_ansi "$target_hex")
-            echo -e "\nSelect a new color for ${target_prompt_color}[${target_name}]${NC}:\n"
-            echo -e "${NB}   (1) Neon-Blue (#0096ff)"
-            echo -e "${LG}   (2) Lime-Green (#30d158)"
-            echo -e "${MP}   (3) Medium-Purple (#bf40bf)"
-            echo -e "${YL}   (4) Yellow (#ffd60a)"
-            echo -e "${SB}   (5) SkyBlue (#64d2ff)"
-            echo -e "${OR}   (6) Orange (#ff9500)"
-            echo -e "${RD}   (7) Red (#ff453a)"
-            echo -e "${WT}   (8) White (#ffffff)"
-            echo -e "${PK}   (9) Light-Pink (#ff70a6)"
-            echo -e "${MT}  (10) Mint-Green (#64ffda)"
+            echo -e "\n ${NC}Select a new color for ${target_prompt_color}[${target_name}]${NC}:\n"
+            echo -e "${NB}  (1) Neon-Blue (#0096ff)"
+            echo -e "${LG}  (2) Lime-Green (#30d158)"
+            echo -e "${MP}  (3) Medium-Purple (#bf40bf)"
+            echo -e "${YW}  (4) Yellow (#ffd60a)"
+            echo -e "${SB}  (5) SkyBlue (#64d2ff)"
+            echo -e "${OR}  (6) Orange (#ff9500)"
+            echo -e "${RD}  (7) Red (#ff453a)"
+            echo -e "${WT}  (8) White (#ffffff)"
+            echo -e "${PK}  (9) Light-Pink (#ff70a6)"
+            echo -e "${MT} (10) Mint-Green (#64ffda)"
             echo -e "${NC}"
             local selected_hex=""
             while true; do
-                printf "${NC}Choose option ${BL}(1-10): "; read -r color_choice
+                printf "${NC} Choose option ${BL}(1-10): "; read -r color_choice
                 case "$color_choice" in
                     1) selected_hex="#0096ff"; break ;;
                     2) selected_hex="#30d158"; break ;;
@@ -1022,11 +1022,6 @@ restart_httpd() { service restart_httpd >/dev/null 2>&1; killall -HUP httpd >/de
 
 pause() { printf "\nPress ${BL}[Enter]${NC} to return..."; read -r discard; }
 
-get_hostcolor() {
-    if [ "$HOST_COLOR" = "1" ]; then IP_COLOR=""; MAC_COLOR="color: #64d2ff;"
-    else IP_COLOR="color: #64d2ff; "MAC_COLOR=""; fi
-}
-
 mesh_init; check_github; hex_to_ansi
 
 run_report() {
@@ -1074,23 +1069,23 @@ done
 IPPAD=${IPPAD:-1}; HOST_COLOR=${HOST_COLOR:-0}; PULSE_MINS=${PULSE_MINS:-15}
 ROUTER=$(nvram get productid); MAIN_NAME="${MAIN_NICK:-${ROUTER:-Main Router}}"
 MAIN_NAME="<span id='wr-main-name' class='router-style'>${MAIN_NAME}</span>"
-MAIN_TEMP="<span id='wr-main-cpu' class='stat-cool'>--</span>"
-MAIN_LOAD="<span id='wr-main-memory' class='stat-cool'>--</span>"
+MAIN_CPU="<span id='wr-main-cpu' class='stat-cool'>--</span>"
+MAIN_MEMORY="<span id='wr-main-memory' class='stat-cool'>--</span>"
 MAIN_DEVICE_TOTAL="<span id='wr-main-count' class='main-color'>0</span>"
-MAIN_UPTIME="<span id='wr-main-uptime' class='stat-cool'>--</span>"
-MAIN_BOOTTIME="<span id='wr-main-reboot' class='stat-cool'>--</span>"
+MAIN_UPTIME="<span id='wr-main-uptime' class='main-color'>--</span>"
+MAIN_REBOOT="<span id='wr-main-reboot' class='main-color'>--</span>"
 
 NODE_NAMES="<span id='wr-node-names' class='router-style'>AiMesh nodes</span>"
-NODE_TEMPS="<span id='wr-node-cpu' class='stat-cool'>--</span>"
-NODE_LOADS="<span id='wr-node-memory' class='stat-cool'>--</span>"
+NODE_CPU="<span id='wr-node-cpu' class='stat-cool'>--</span>"
+NODE_MEMORY="<span id='wr-node-memory' class='stat-cool'>--</span>"
 NODE_DEVICE_TOTAL="<span id='wr-node-count' class='stat-cool'>0</span>"
-NODE_UPTIMES="<span id='wr-node-diag'>Controller telemetry pending...</span>"
+NODE_FOOTER="<span id='wr-node-diag'>Controller telemetry pending...</span>"
 
 ALL_NAMES="<span id='wr-all-names' class='router-style'>Loading...</span>"
-ALL_TEMP="<span id='wr-all-main-cpu'>--</span>"
-ALL_LOAD="<span id='wr-all-main-memory'>--</span>"
+ALL_CPU="<span id='wr-all-cpu'>--</span>"
+ALL_MEMORY="<span id='wr-all-memory'>--</span>"
 ALL_DEVICES="<span id='wr-all-count' class='stat-cool'>0</span>"
-ALL_UPTIME="<span id='wr-all-uptime' class='main-color'>Controller telemetry pending...</span>"
+ALL_FOOTER="<span id='wr-all-footer' class='main-color'>Controller telemetry pending...</span>"
 
 GRAND_TOTAL_DEVICES="<span id='wr-grand-total' class='count-highlight'>0</span>"
 UPDATED_TIME="<span class='wr-updated-time total-count'>Loading controller data...</span>"
@@ -1101,7 +1096,7 @@ RSSI_BOXES="<div class='rssi-quality-box rssi-excl'>Excellent: <span style='back
     <div class='rssi-quality-box rssi-fair'>Fair: <span style='background:#ffd60a;' class='rssi-font wr-rssi-fair'>0</span></div>
     <div class='rssi-quality-box rssi-poor'>Poor: <span style='background:#ff453a;' class='rssi-font wr-rssi-poor'>0</span></div>"
 
-set_theme; check_version header_box; get_hostcolor
+set_theme; check_version header_box
 
 #=================#
 #  Generate HTML  #
@@ -1178,8 +1173,8 @@ cat <<HTML >> "$WEB_PAGE"
     ${THEME_CSS}
 	.report_table tbody tr:hover td { background-color: rgba(0, 123, 255, 0.15) !important; }
 	table.report_table { width: 100%; border-collapse: collapse; }
-	table.report_table .mac-val { $MAC_COLOR; }
-	table.report_table .ip-val { $IP_COLOR; }
+	table.report_table .mac-val {}
+	table.report_table .ip-val {}
 	table.report_table.show-ip .mac-val { display: none !important; }
 	table.report_table.show-ip .ip-val { display: inline !important; }
 	table.report_table.show-mac .mac-val { display: inline !important; }
@@ -1281,9 +1276,9 @@ $NODE_COLOR_JS
 var WR_CONFIG = {
     mainColor: "$MAIN_COLOR",
     nodeColors: String("$NODE_COLORS").trim().split(/\s+/).filter(Boolean),
-    hostColor: Number("$HOST_COLOR") || 0,
-    pulseMins: Number("$PULSE_MINS"),
-    reportUnit: String("${REPORT_UNIT:-ISO}"),
+    hostColor: Number("${HOST_COLOR:-0}") || 0,
+    pulseMins: Number("${PULSE_MINS:-15}") || 15,
+    reportUnit: String("${REPORT_UNIT:-USA}"),
     runtimeTracking: Number("${RTIME:-1}") || 0,
     ipPad: Number("${IPPAD:-1}") || 0,
     rssiHistory: Number("${RS_HIST:-0}") || 0,
@@ -1362,6 +1357,7 @@ function update_time() {
     document.querySelectorAll('.wr-updated-time').forEach(function(el) {
         el.textContent = 'Updated: ' + formattedTime;
     });
+
     // Handle boot time calculation dynamically using the uptime span value
     const uptimeEl = document.getElementById('wr-main-uptime');
     const bootEl = document.getElementById('wr-main-reboot');
@@ -1531,28 +1527,6 @@ function wrPad2(value) {
     return String(value).padStart(2, '0');
 }
 
-function wrFormatDateTime(value) {
-    var d = value instanceof Date ? value : new Date(value);
-    if (!d || Number.isNaN(d.getTime())) return '--';
-    var y = d.getFullYear();
-    var month = wrPad2(d.getMonth() + 1);
-    var day = wrPad2(d.getDate());
-    var hh24 = d.getHours();
-    var minute = wrPad2(d.getMinutes());
-    var second = wrPad2(d.getSeconds());
-    switch (WR_CONFIG.dateFormat) {
-        case 'INTL':
-            return day + '/' + month + '/' + y + ' ' + wrPad2(hh24) + ':' + minute + ':' + second;
-        case 'ISO':
-            return y + '-' + month + '-' + day + ' ' + wrPad2(hh24) + ':' + minute + ':' + second;
-        case 'USA':
-        default:
-            var suffix = hh24 >= 12 ? 'PM' : 'AM';
-            var hh12 = hh24 % 12 || 12;
-            return month + '/' + day + '/' + y + ' ' + wrPad2(hh12) + ':' + minute + ':' + second + ' ' + suffix;
-    }
-}
-
 function wrMetricClass(value) {
     var n = Number(value);
     if (!Number.isFinite(n)) return 'stat-cool';
@@ -1695,6 +1669,7 @@ function wrLoadJson(key, fallback) {
         return fallback;
     }
 }
+
 function wrRssiHistoryEntries(raw) {
     if (Array.isArray(raw)) {
         return raw.filter(function(entry) {
@@ -1804,7 +1779,7 @@ function wrGetTrend(item, rssi, history) {
                 var mm = String(d.getMonth() + 1).padStart(2, '0');
                 var dd = String(day).padStart(2, '0');
                 formattedTime = year + '-' + mm + '-' + dd + ' ' + hours + ':' + minutes + ':' + seconds;
-            } else if (typeof WR_CONFIG !== 'undefined' && WR_CONFIG.reportUnit === 'C') {
+            } else if (typeof WR_CONFIG !== 'undefined' && WR_CONFIG.reportUnit === 'INTL') {
                 formattedTime = day + '-' + month + ' ' + hours + ':' + minutes + ':' + seconds;
             } else {
                 formattedTime = month + '-' + day + ' ' + hours + ':' + minutes + ':' + seconds;
@@ -2636,6 +2611,8 @@ function wrRenderRow(item, history, known, firstHistoryLoad) {
     var quality = wrQuality(rssi);
     var trend = wrGetTrend(item, rssi, history);
     var isNew = !firstHistoryLoad && !known[mac] ? 'new-device-row' : '';
+    var ipColorStyle = (WR_CONFIG.hostColor === 1) ? "" : "color: #64d2ff;";
+    var macColorStyle = (WR_CONFIG.hostColor === 1) ? "color: #64d2ff;" : "";
     var nodeMarker = '';
     if (item.node) {
         var markerColor = wrNodeColor(item.nodeIndex, item.node);
@@ -2670,8 +2647,8 @@ function wrRenderRow(item, history, known, firstHistoryLoad) {
     var bars = quality.bars ? "<span class='rssi_bars " + quality.cls + "'>" + quality.bars + "</span>" : '';
     return "<tr class='" + isNew + "'>" +
         "<td style='text-align:left;'>" + name + "</td>" +
-        "<td><span class='mac-val' data-sort='" + wrEscape(mac) + "'>" + wrEscape(mac) + "</span>" +
-        "<span class='ip-val' data-sort='" + wrIpSort(ip) + "'>" + wrEscape(wrDisplayIp(ip) || '--') + "</span></td>" +
+        "<td><span class='mac-val' style='" + macColorStyle + "' data-sort='" + wrEscape(mac) + "'>" + wrEscape(mac) + "</span>" +
+        "<span class='ip-val' style='" + ipColorStyle + "' data-sort='" + wrIpSort(ip) + "'>" + wrEscape(wrDisplayIp(ip) || '--') + "</span></td>" +
         "<td data-sort='" + (Number.isFinite(rssi) ? rssi : -999) + "' class='rssi-container'>" +
             bars + " <span style='" + quality.style + "'>" + rssiText + "</span> " + trend + "</td>" +
         "<td data-sort='" + rateSort + "' style='" + quality.style + "text-align:center;'>" + wrEscape(rateText) + "</td>" +
@@ -2792,6 +2769,7 @@ async function loadWirelessReport() {
         console.warn('Primary memory query failed', e);
         return null;
     });
+
     var base = await wrAppGet(
         'get_cfg_clientlist();' +
         'get_clientlist();' +
@@ -2800,6 +2778,7 @@ async function loadWirelessReport() {
         'nvram_get(lan_hwaddr);' +
         'uptime();'
     );
+
     var live = base.get_clientlist || {};
     var saved = base.get_clientlist_from_json_database || {};
     var allNodes = Array.isArray(base.get_cfg_clientlist) ? base.get_cfg_clientlist : [];
@@ -2837,12 +2816,14 @@ async function loadWirelessReport() {
         var mac = wrNormMac(node.mac || node.mac_addr);
         nodeByMac.set(mac, { node: node, index: index });
     });
+
     var staTargets = [];
     if (mainMac) staTargets.push(mainMac);
     nodes.forEach(function(node) {
         var mac = wrNormMac(node.mac || node.mac_addr);
         if (mac && staTargets.indexOf(mac) === -1) staTargets.push(mac);
     });
+
     var staResults = await Promise.all(staTargets.map(function(mac) { return wrGetStaRows(mac); }));
     var staMaps = new Map();
     staTargets.forEach(function(mac, i) { staMaps.set(mac, wrIndexSta(staResults[i] || [])); });
@@ -2897,6 +2878,7 @@ async function loadWirelessReport() {
     items.forEach(function(item) { item.historyTime = historySampleTime; });
     var mainItems = items.filter(function(item) { return !item.node; });
     var nodeItems = items.filter(function(item) { return !!item.node; });
+
     // Use the same ASUS sys_detect CPU telemetry for the primary router and
     // AiMesh nodes. This keeps the values comparable and avoids measuring the
     // controller's CPU across Wireless Report's own refresh workload.
@@ -2906,6 +2888,7 @@ async function loadWirelessReport() {
         var mac = wrNormMac(node.mac || node.mac_addr);
         if (mac && diagMacs.indexOf(mac) === -1) diagMacs.push(mac);
     });
+
     var diagPairs = await Promise.all(diagMacs.map(async function(mac) {
         try { return [mac, await wrGetNodeDiag(mac)]; }
         catch (e) {
@@ -2913,6 +2896,7 @@ async function loadWirelessReport() {
             return [mac, null];
         }
     }));
+
     var diagByMac = new Map(diagPairs);
     var history = wrLoadJson('wirelessReportRssiHistory', {});
     var known = wrLoadJson('wirelessReportKnownMacs', {});
@@ -2928,6 +2912,7 @@ async function loadWirelessReport() {
         wrStoreRssiHistory(item, rssi, history);
         known[item.mac] = 1;
     });
+
     localStorage.setItem('wirelessReportRssiHistory', JSON.stringify(history));
     localStorage.setItem('wirelessReportKnownMacs', JSON.stringify(known));
     wrApplyRssiCounts(items);
@@ -2946,8 +2931,8 @@ async function loadWirelessReport() {
             console.warn('Primary CPU fallback query failed', e);
         }
     }
-
     var mainMemory = await mainMemoryPromise;
+
     // Preserve a useful value if memory_usage() is unavailable on an unusual
     // firmware build; sys_detect already carries the same percentage for nodes.
     if (mainMemory === null && mainDiag && Number.isFinite(mainDiag.memoryUsage)) {
@@ -2955,14 +2940,6 @@ async function loadWirelessReport() {
     }
     var mainHealth = { cpuUsage: mainCpu, memoryUsage: mainMemory };
 
-    // Set Main Router specific metrics only here
-    wrSetMetric('wr-main-cpu', mainHealth.cpuUsage, '%');
-    wrSetMetric('wr-main-memory', mainHealth.memoryUsage, '%');
-    var uptimeSecs = wrParseUptime(base.uptime);
-    wrSetText('wr-main-uptime', wrFormatRouterUptime(uptimeSecs));
-
-    // Comment out or remove this line in your JS so it doesn't overwrite your shell output:
-    // wrSetText('wr-main-reboot', Number.isFinite(uptimeSecs) ? wrFormatDateTime(new Date(Date.now() - uptimeSecs * 1000)) : '--');
     var mainNameEl = document.getElementById('wr-main-name');
     if (mainNameEl && !mainNameEl.textContent.trim()) mainNameEl.textContent = base.productid || 'Main Router';
 
@@ -2977,10 +2954,11 @@ async function loadWirelessReport() {
     var nodeCountParts = [];
     var nodeDiagParts = [];
 
-   // --- BUILD MAIN ROUTER DIAGNOSTIC DETAILS ---
+    // --- BUILD MAIN ROUTER DIAGNOSTIC DETAILS ---
     var mainNameText = mainNameEl ? mainNameEl.textContent.trim() : (base.productid || 'Main Router');
     var mainIp = String(wrFirst(base, ['lan_ipaddr', 'lan_ip', 'ip']) || window.location.hostname || '');
     if (typeof window._cachedMainFw === 'undefined' || !window._cachedMainFw) {
+
         // Moved 'webs_state_info' to the end so it checks precise version/build keys first
         var rawFw = wrFirst(base, ['firmware', 'fwver', 'firmwarever', 'buildno', 'extendno', 'version', 'webs_state_info'])
                     || window.firmware || window.firmver || window.webs_state_info || '';
@@ -2995,6 +2973,7 @@ async function loadWirelessReport() {
         }
     }
     var mainFw = window._cachedMainFw || '';
+
     // Force consistent formatting: 3006.102.8_2 (dots for the first two separators, underscore for the last)
     if (mainFw) {
         mainFw = mainFw.replace(/^[\._]+/, '').replace(/[\._]+$/, '');
@@ -3049,6 +3028,7 @@ async function loadWirelessReport() {
         if (firmware) details += " <span style='color:white;'>•</span> <span style='color:" + color + ";'>FW</span> <span style='color:white;'>" + wrEscape(firmware) + "</span>";
         nodeDiagParts.push(details);
     });
+
     var bullet = " <span style='color:white;'>•</span> ";
 
     // 1. Set the Node-only footer
@@ -3062,11 +3042,11 @@ async function loadWirelessReport() {
     var allCpuCombined = [
         "<span class='" + wrMetricClass(mainHealth.cpuUsage) + "'>" + (mainHealth.cpuUsage !== null ? mainHealth.cpuUsage + "%" : "--") + "</span>"
     ].concat(cpuHtml);
-    wrSetHtml('wr-all-main-cpu', allCpuCombined.join(bullet));
+    wrSetHtml('wr-all-cpu', allCpuCombined.join(bullet));
     var allMemCombined = [
         "<span class='" + wrMetricClass(mainHealth.memoryUsage) + "'>" + (mainHealth.memoryUsage !== null ? mainHealth.memoryUsage + "%" : "--") + "</span>"
     ].concat(memHtml);
-    wrSetHtml('wr-all-main-memory', allMemCombined.join(bullet));
+    wrSetHtml('wr-all-memory', allMemCombined.join(bullet));
     var mainColoredCount = "<span class='main-color'>" + mainItems.length + "</span>";
     var allDeviceParts = [mainColoredCount].concat(nodeCountParts);
     wrSetHtml('wr-all-count', nodes.length > 1 && nodeCountParts.length ? items.length + " <span class='right-arrow'>—›</span> " + allDeviceParts.join(bullet) : items.length);
@@ -3074,7 +3054,7 @@ async function loadWirelessReport() {
     allNames = allNames.concat(nodeNamesHtml);
     wrSetHtml('wr-all-names', allNames.join(bullet));
     var allDiagParts = [mainDiag].concat(nodeDiagParts.slice());
-    wrSetHtml('wr-all-uptime', allDiagParts.length ? allDiagParts.join('<br>') : 'No diagnostic telemetry available.');
+    wrSetHtml('wr-all-footer', allDiagParts.length ? allDiagParts.join('<br>') : 'No diagnostic telemetry available.');
     // ----------------------------------------------
 
     var nodeCol = document.getElementById('nodeCol');
@@ -3094,13 +3074,15 @@ async function loadWirelessReport() {
     } else {
         tempStyle = "text-align: center; justify-content: center;";
     }
+
     // Apply it dynamically to your metric elements
-    ['wr-all-main-cpu', 'wr-all-main-memory', 'wr-node-cpu', 'wr-node-memory'].forEach(function(id) {
+    ['wr-all-cpu', 'wr-all-memory', 'wr-node-cpu', 'wr-node-memory'].forEach(function(id) {
         var el = document.getElementById(id);
         if (el) {
             el.style.cssText += tempStyle;
         }
     });
+
     wrRestoreTableState();
     if (localStorage.getItem('wifiReportPopoutOpen') === 'true') {
         openPopout();
@@ -3294,6 +3276,7 @@ function sortTable(n, tId, keepDir, forceDesc) {
             h.innerHTML = table.classList.contains('show-iface') ? "IFACE ⇵" : "SSID ⇵";
         }
     });
+
     rows.sort(function(a, b) {
         var valA, valB;
         var cellA = a.cells[n];
@@ -3360,6 +3343,7 @@ function sortTable(n, tId, keepDir, forceDesc) {
         }
         return dir === "asc" ? valA.localeCompare(valB) : valB.localeCompare(valA);
     });
+
     rows.forEach(function(r) {
         tbody.appendChild(r);
     });
@@ -3398,6 +3382,7 @@ function openPopout() {
         if(s) Object.assign(s.style, { paddingBottom: "0px", height: "auto" });
         if(r) Object.assign(r.style, { margin: "8px -11px 2px -11px" });
     });
+
     mCol.querySelector('table').id = "popMainTable";
     nCol.querySelector('table').id = "popNodeTable";
     mCol.querySelectorAll('th').forEach(function(th, i) {
@@ -3405,11 +3390,13 @@ function openPopout() {
         else if(i===4) th.onclick = function() { toggleCols('popMainTable', 'show-iface', this, 'SSID', 'IFACE'); };
         else th.onclick = function() { sortTable(i, 'popMainTable'); };
     });
+
     nCol.querySelectorAll('th').forEach(function(th, i) {
         if(i===1) th.onclick = function() { toggleCols('popNodeTable', 'show-ip', this, 'MAC ADDRESS', 'IP ADDRESS'); };
         else if(i===4) th.onclick = function() { toggleCols('popNodeTable', 'show-iface', this, 'SSID', 'IFACE'); };
         else th.onclick = function() { sortTable(i, 'popNodeTable'); };
     });
+
     var mainWrapper = document.createElement('div');
     mainWrapper.className = 'popout-main-wrapper';
     Object.assign(mCol.style, { maxWidth: "100%", width: "100%", overflowX: "auto", WebkitOverflowScrolling: "touch" });
@@ -3455,6 +3442,7 @@ document.addEventListener('contextmenu', function(e) {
         sortTable(0, table.id, false, false);
     }
 });
+
 document.addEventListener('mouseover', function(e) {
     const container = e.target.closest('.rssi-container');
     if (container) {
@@ -3541,8 +3529,8 @@ document.addEventListener('mouseout', function(e) {
                                     $UPDATED_TIME
                                     <hr class="separator-line">
                                     <div class="temp-load-row">
-                                        <span>CPU: $MAIN_TEMP</span>
-                                        <span>Memory: $MAIN_LOAD</span>
+                                        <span>CPU: $MAIN_CPU</span>
+                                        <span>Memory: $MAIN_MEMORY</span>
                                         <span>Devices: $MAIN_DEVICE_TOTAL</span>
                                     </div>
                                 </div>
@@ -3561,7 +3549,7 @@ document.addEventListener('mouseout', function(e) {
                                         <tr>
                                             <td colspan="7" class="uptime-row">
                                                 <span>Uptime: $MAIN_UPTIME</span>
-                                                <span>Reboot: $MAIN_BOOTTIME</span>
+                                                <span>Reboot: $MAIN_REBOOT</span>
                                             </td>
                                         </tr>
                                     </tfoot>
@@ -3576,8 +3564,8 @@ document.addEventListener('mouseout', function(e) {
                                     $UPDATED_TIME
                                     <hr class="separator-line">
                                     <div class="temp-load-row">
-                                        <span>CPU: $NODE_TEMPS</span>
-                                        <span>Memory: $NODE_LOADS</span>
+                                        <span>CPU: $NODE_CPU</span>
+                                        <span>Memory: $NODE_MEMORY</span>
                                         <span>Devices: $NODE_DEVICE_TOTAL</span>
                                     </div>
                                 </div>
@@ -3595,7 +3583,7 @@ document.addEventListener('mouseout', function(e) {
                                     <tfoot>
                                         <tr>
                                             <td colspan="7" class="uptime-row">
-                                                $NODE_UPTIMES
+                                                $NODE_FOOTER
                                             </td>
                                         </tr>
                                     </tfoot>
@@ -3608,8 +3596,8 @@ document.addEventListener('mouseout', function(e) {
                                 $UPDATED_TIME
                                 <hr class="separator-line">
                                 <div class="temp-load-row">
-                                    <span>CPU: $ALL_TEMP</span>
-                                    <span>Memory: $ALL_LOAD</span>
+                                    <span>CPU: $ALL_CPU</span>
+                                    <span>Memory: $ALL_MEMORY</span>
                                     <span>Devices: $ALL_DEVICES</span>
                                 </div>
                             </div>
@@ -3627,7 +3615,7 @@ document.addEventListener('mouseout', function(e) {
                                 <tfoot>
                                     <tr>
                                         <td colspan="7" class="uptime-row">
-                                            $ALL_UPTIME
+                                            $ALL_FOOTER
                                         </td>
                                     </tr>
                                 </tfoot>
