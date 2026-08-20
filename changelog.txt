@@ -2,7 +2,6 @@
 # Wireless Report - Changelog #
 #=============================#
 
-v3.1.9-fixed stale AiMesh-node SSIDs by trusting exact node stainfo wlX.1 main-BSS associations before networkmap, while retaining the v3.1.8 primary driver-backed fallback.
 v3.1.8-prefer driver-backed Wireless Log VIF/SSID data for 3006 primary-router clients, with existing networkmap/NVRAM logic as fallback.
 v3.1.7-minor updates.
 v3.1.6-added node/all-devices footer telemetry. fixed inflated primary-router CPU reporting by using sys_detect telemetry like AiMesh nodes, with a short counter-sample fallback.
