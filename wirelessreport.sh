@@ -2473,8 +2473,8 @@ function wrRenderRow(item, history, known, firstHistoryLoad) {
     var bars = quality.bars ? "<span class='rssi_bars " + quality.cls + "'>" + quality.bars + "</span>" : '';
     return "<tr class='" + isNew + "'>" +
         "<td style='text-align:left;'>" + name + "</td>" +
-        "<td><span class='mac-val' data-sort='" + wrEscape(mac) + "'>" + wrEscape(mac) + "</span>" +
-        "<span class='ip-val' style='" + ipColorStyle + "' data-sort='" + wrIpSort(ip) + "'>" + wrEscape(wrDisplayIp(ip) || '--') + "</span>" +
+        "<td><span class='mac-val' style='" + macColorStyle + "' data-sort='" + wrEscape(mac) + "'>" + wrEscape(mac) + "</span>" +
+        "<span class='ip-val' style='" + ipColorStyle + "' data-sort='" + wrIpSort(ip) + "'>" + wrEscape(wrDisplayIp(ip) || '--') + "</span></td>" +
         "<td data-sort='" + (Number.isFinite(rssi) ? rssi : -999) + "' class='rssi-container'>" +
             bars + " <span style='" + quality.style + "'>" + rssiText + "</span> " + trend + "</td>" +
         "<td data-sort='" + rateSort + "' style='" + quality.style + "text-align:center;'>" + wrEscape(rateText) + "</td>" +
