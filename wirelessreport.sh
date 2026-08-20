@@ -28,7 +28,7 @@
 #        shellcheck shell=sh disable=SC2086,SC2155,SC3043         #
 #=================================================================#
 
-SCRIPT_VERSION="3.1.7"
+SCRIPT_VERSION="3.1.8"
 INSTALL_DIR="/jffs/addons/wireless_report"
 REPORT_SCRIPT="$INSTALL_DIR/wirelessreport.sh"
 SYSTEM_MENU="/www/require/modules/menuTree.js"
@@ -311,7 +311,7 @@ wr_sha256() {
 }
 
 check_github() {
-    GITHUB="https://raw.githubusercontent.com/JB1366/Wireless_Report/main/wirelessreport.sh"
+    GITHUB="https://raw.githubusercontent.com/ExtremeFiretop/Wireless_Report/Development/wirelessreport.sh"
     REMOTE_TMP="/tmp/wr_remote.tmp"
     LOCAL_HASH=""; REMOTE_HASH=""
     if curl -sfL --retry 3 "$GITHUB" -o "$REMOTE_TMP" 2>/dev/null && [ -s "$REMOTE_TMP" ]; then
@@ -1950,15 +1950,196 @@ function wrNodeBandSsid(node, sta, client) {
     return '';
 }
 
+function wrExtractAssignedArray(source, name) {
+    // ajax_wificlients.asp returns JavaScript assignments such as
+    // dataarray1=[...] and wificlients1=[[...],...]. Extract the final
+    // assignment without executing the response as script.
+    source = String(source || '');
+    name = String(name || '');
+    var searchFrom = 0;
+    var result = null;
+
+    while (name) {
+        var hit = source.indexOf(name, searchFrom);
+        if (hit === -1) break;
+
+        var before = hit > 0 ? source[hit - 1] : '';
+        var after = source[hit + name.length] || '';
+        if (/[A-Za-z0-9_$]/.test(before) || /[A-Za-z0-9_$]/.test(after)) {
+            searchFrom = hit + name.length;
+            continue;
+        }
+
+        var pos = hit + name.length;
+        while (pos < source.length && /\s/.test(source[pos])) pos++;
+        if (source[pos] !== '=') {
+            searchFrom = hit + name.length;
+            continue;
+        }
+        pos++;
+        while (pos < source.length && /\s/.test(source[pos])) pos++;
+        if (source[pos] !== '[') {
+            searchFrom = hit + name.length;
+            continue;
+        }
+
+        var start = pos;
+        var depth = 0;
+        var quote = '';
+        var escaped = false;
+        var end = -1;
+
+        for (var i = start; i < source.length; i++) {
+            var ch = source[i];
+            if (quote) {
+                if (escaped) {
+                    escaped = false;
+                    continue;
+                }
+                if (ch.charCodeAt(0) === 92) {
+                    escaped = true;
+                    continue;
+                }
+                if (ch === quote) quote = '';
+                continue;
+            }
+            if (ch === '"' || ch === "'") {
+                quote = ch;
+                continue;
+            }
+            if (ch === '[') {
+                depth++;
+                continue;
+            }
+            if (ch === ']') {
+                depth--;
+                if (depth === 0) {
+                    end = i;
+                    break;
+                }
+            }
+        }
+
+        if (end === -1) break;
+        try {
+            result = JSON.parse(source.slice(start, end + 1));
+        } catch (e) {
+            console.warn('Wireless Report could not parse ' + name + ' from Wireless Log data', e);
+        }
+        searchFrom = end + 1;
+    }
+
+    return result;
+}
+
+async function wrGetPrimaryDriverSsidMap() {
+    // ASUS' native Wireless Log is backed by the wireless driver's per-VIF
+    // authenticated station lists. On affected 3006 builds this remains correct
+    // even when networkmap/get_clientlist() has cached the wrong SDN/SSID/VLAN.
+    var r = await fetch('/ajax_wificlients.asp?_wr=' + Date.now(), {
+        method: 'GET',
+        credentials: 'same-origin',
+        cache: 'no-store'
+    });
+    if (!r.ok) throw new Error('ajax_wificlients.asp HTTP ' + r.status);
+
+    var source = await r.text();
+    var units = new Set();
+    var unitMatcher = /\bwificlients([0-9]+)\s*=/g;
+    var unitMatch;
+    while ((unitMatch = unitMatcher.exec(source)) !== null) units.add(Number(unitMatch[1]));
+
+    var candidates = new Map();
+    units.forEach(function(unit) {
+        var radio = wrExtractAssignedArray(source, 'dataarray' + unit);
+        var clients = wrExtractAssignedArray(source, 'wificlients' + unit);
+        if (!Array.isArray(clients)) return;
+
+        var mainSsid = Array.isArray(radio) ? String(radio[0] || '').trim() : '';
+        clients.forEach(function(row) {
+            if (!Array.isArray(row)) return;
+            var mac = wrNormMac(row[0]);
+            if (!wrIsMac(mac)) return;
+
+            // ASUS leaves row[12]/row[13] empty for the main BSS. On a guest
+            // VIF they contain that VIF's SSID and VLAN respectively.
+            var guestSsid = String(row[12] || '').trim();
+            var ssid = guestSsid || mainSsid;
+            if (!ssid) return;
+
+            var list = candidates.get(mac) || [];
+            list.push({
+                ssid: ssid,
+                unit: unit,
+                guest: Boolean(guestSsid),
+                vlan: String(row[13] || '').trim()
+            });
+            candidates.set(mac, list);
+        });
+    });
+
+    // A station can briefly be visible on more than one VIF/radio while roaming
+    // (and MLO can expose multiple link identities). Only publish an association
+    // when the driver inventory contains one unambiguous row for that MAC.
+    var map = new Map();
+    candidates.forEach(function(list, mac) {
+        if (list.length === 1) map.set(mac, list[0]);
+    });
+    return map;
+}
+
+function wrPrimaryDriverSsid(item, driverMap) {
+    if (!item || item.node || item.meshLinkNode || !(driverMap instanceof Map)) return '';
+
+    var matches = [];
+    wrGetMloCandidates(item.mac, item.client, item.saved).forEach(function(mac) {
+        var found = driverMap.get(mac);
+        if (found) matches.push(found);
+    });
+
+    return matches.length === 1 ? String(matches[0].ssid || '').trim() : '';
+}
+
+function wrNodeMainSsidFromSta(item) {
+    // AiMesh stainfo conn_if is node-local. On the Broadcom station inventory
+    // used by the affected AX node, wlX.1 is the radio's main BSS; guest/VIF
+    // associations use later subunits. Trust only that exact, driver-reported
+    // main-BSS shape here so a stale networkmap Guest/SDN classification cannot
+    // override a station that is actually associated to the node's main WLAN.
+    // Anything else remains on the existing SSID path rather than guessing.
+    if (!item || !item.node || !item.sta) return '';
+
+    var iface = String(item.sta.conn_if || '').trim();
+    if (!/^wl[0-9]+\.1$/i.test(iface)) return '';
+
+    // Use stainfo's own band rather than live get_clientlist() hints; the latter
+    // belongs to the same networkmap record that can carry the bad SSID/SDN data.
+    var band = wrNormalizeBand(item.sta.sta_band);
+    if (band === '2G' || band === '2.4G') return wrFirst(item.node, ['ap2g_ssid']);
+    if (band === '5G') return wrFirst(item.node, ['ap5g_ssid']);
+    if (band === '5G1') return wrFirst(item.node, ['ap5g1_ssid']);
+    if (band === '5G2') return wrFirst(item.node, ['ap5g2_ssid', 'ap5g1_ssid']);
+    if (band === '6G') return wrFirst(item.node, ['ap6g_ssid']);
+    if (band === '6G1') return wrFirst(item.node, ['ap6g1_ssid']);
+    if (band === '6G2') return wrFirst(item.node, ['ap6g2_ssid', 'ap6g1_ssid']);
+    return '';
+}
+
 async function wrResolveClientSsids(items, allNodes, mainMac) {
-    // 3006 normally supplies get_clientlist().ssid directly, so preserve it.
-    // Affected 388 builds leave that field blank. For AiMesh-node clients,
-    // conn_if is NODE-local (for example wl1.1 on the node) and must never be
-    // blindly resolved against the primary router's NVRAM. For legacy guest
-    // clients, however, get_clientlist() exposes isWL/isGN even when stainfo is
-    // absent; use those live fields to address the synchronized primary guest
-    // SSID key (for example isWL=2,isGN=1 -> wl1.1_ssid). Non-guest node clients
-    // retain the existing parent-node band SSID fallback.
+    // On 3006/latest firmware prefer ASUS' driver-backed Wireless Log inventory
+    // for primary-router clients. For AiMesh-node clients, an exact node-local
+    // stainfo wlX.1 association is independently treated as the radio's main BSS
+    // and resolved from that node's advertised band SSID. All missing, malformed,
+    // ambiguous, or other VIF cases preserve the existing WR logic unchanged.
+    var primaryDriverSsids = new Map();
+    if (WR_DIAG_API === 'latest') {
+        try {
+            primaryDriverSsids = await wrGetPrimaryDriverSsidMap();
+        } catch (e) {
+            console.warn('Wireless Report driver-backed primary SSID lookup failed', e);
+        }
+    }
+
     var mainNode = (allNodes || []).find(function(node) {
         return wrNormMac(node && (node.mac || node.mac_addr)) === wrNormMac(mainMac);
     }) || null;
@@ -1972,6 +2153,20 @@ async function wrResolveClientSsids(items, allNodes, mainMac) {
         // associated to an advertised SSID. Keep that row intentionally blank.
         if (item.meshLinkNode) {
             item.resolvedSsid = '';
+            return;
+        }
+
+        var driverSsid = WR_DIAG_API === 'latest'
+            ? wrPrimaryDriverSsid(item, primaryDriverSsids)
+            : '';
+        if (driverSsid) {
+            item.resolvedSsid = driverSsid;
+            return;
+        }
+
+        var nodeMainSsid = wrNodeMainSsidFromSta(item);
+        if (nodeMainSsid) {
+            item.resolvedSsid = nodeMainSsid;
             return;
         }
 
@@ -2671,10 +2866,10 @@ async function loadWirelessReport() {
         items[itemIndex].sta = await wrResolveSta(items[itemIndex], staMaps);
     }
 
-    // SSID compatibility: preserve the client-level SSID on 3006. On affected
-    // 388 builds, recover missing node-client SSIDs from the PARENT NODE's AP
-    // inventory by stainfo band. Only primary-router clients may resolve conn_if
-    // against primary NVRAM, because node interface names are node-local.
+    // SSID compatibility: primary-router clients prefer the native Wireless Log's
+    // driver-backed VIF association. AiMesh-node clients with exact stainfo wlX.1
+    // main-BSS telemetry use the parent node's advertised band SSID. Everything
+    // else falls back to the existing client/NVRAM/legacy recovery paths.
     await wrResolveClientSsids(items, allNodes, mainMac);
 
     // Match v2.1.0's report-wide sample time so the Main, Node and All views show
