@@ -1069,23 +1069,23 @@ done
 IPPAD=${IPPAD:-1}; HOST_COLOR=${HOST_COLOR:-0}; PULSE_MINS=${PULSE_MINS:-15}
 ROUTER=$(nvram get productid); MAIN_NAME="${MAIN_NICK:-${ROUTER:-Main Router}}"
 MAIN_NAME="<span id='wr-main-name' class='router-style'>${MAIN_NAME}</span>"
-MAIN_TEMP="<span id='wr-main-cpu' class='stat-cool'>--</span>"
-MAIN_LOAD="<span id='wr-main-memory' class='stat-cool'>--</span>"
+MAIN_CPU="<span id='wr-main-cpu' class='stat-cool'>--</span>"
+MAIN_MEMORY="<span id='wr-main-memory' class='stat-cool'>--</span>"
 MAIN_DEVICE_TOTAL="<span id='wr-main-count' class='main-color'>0</span>"
 MAIN_UPTIME="<span id='wr-main-uptime' class='main-color'>--</span>"
-MAIN_BOOTTIME="<span id='wr-main-reboot' class='main-color'>--</span>"
+MAIN_REBOOT="<span id='wr-main-reboot' class='main-color'>--</span>"
 
 NODE_NAMES="<span id='wr-node-names' class='router-style'>AiMesh nodes</span>"
-NODE_TEMPS="<span id='wr-node-cpu' class='stat-cool'>--</span>"
-NODE_LOADS="<span id='wr-node-memory' class='stat-cool'>--</span>"
+NODE_CPU="<span id='wr-node-cpu' class='stat-cool'>--</span>"
+NODE_MEMORY="<span id='wr-node-memory' class='stat-cool'>--</span>"
 NODE_DEVICE_TOTAL="<span id='wr-node-count' class='stat-cool'>0</span>"
-NODE_UPTIMES="<span id='wr-node-diag'>Controller telemetry pending...</span>"
+NODE_FOOTER="<span id='wr-node-diag'>Controller telemetry pending...</span>"
 
 ALL_NAMES="<span id='wr-all-names' class='router-style'>Loading...</span>"
-ALL_TEMP="<span id='wr-all-main-cpu'>--</span>"
-ALL_LOAD="<span id='wr-all-main-memory'>--</span>"
+ALL_CPU="<span id='wr-all-cpu'>--</span>"
+ALL_MEMORY="<span id='wr-all-memory'>--</span>"
 ALL_DEVICES="<span id='wr-all-count' class='stat-cool'>0</span>"
-ALL_UPTIME="<span id='wr-all-uptime' class='main-color'>Controller telemetry pending...</span>"
+ALL_FOOTER="<span id='wr-all-footer' class='main-color'>Controller telemetry pending...</span>"
 
 GRAND_TOTAL_DEVICES="<span id='wr-grand-total' class='count-highlight'>0</span>"
 UPDATED_TIME="<span class='wr-updated-time total-count'>Loading controller data...</span>"
@@ -2847,11 +2847,11 @@ async function loadWirelessReport() {
     var allCpuCombined = [
         "<span class='" + wrMetricClass(mainHealth.cpuUsage) + "'>" + (mainHealth.cpuUsage !== null ? mainHealth.cpuUsage + "%" : "--") + "</span>"
     ].concat(cpuHtml);
-    wrSetHtml('wr-all-main-cpu', allCpuCombined.join(bullet));
+    wrSetHtml('wr-all-cpu', allCpuCombined.join(bullet));
     var allMemCombined = [
         "<span class='" + wrMetricClass(mainHealth.memoryUsage) + "'>" + (mainHealth.memoryUsage !== null ? mainHealth.memoryUsage + "%" : "--") + "</span>"
     ].concat(memHtml);
-    wrSetHtml('wr-all-main-memory', allMemCombined.join(bullet));
+    wrSetHtml('wr-all-memory', allMemCombined.join(bullet));
     var mainColoredCount = "<span class='main-color'>" + mainItems.length + "</span>";
     var allDeviceParts = [mainColoredCount].concat(nodeCountParts);
     wrSetHtml('wr-all-count', nodes.length > 1 && nodeCountParts.length ? items.length + " <span class='right-arrow'>—›</span> " + allDeviceParts.join(bullet) : items.length);
@@ -2859,7 +2859,7 @@ async function loadWirelessReport() {
     allNames = allNames.concat(nodeNamesHtml);
     wrSetHtml('wr-all-names', allNames.join(bullet));
     var allDiagParts = [mainDiag].concat(nodeDiagParts.slice());
-    wrSetHtml('wr-all-uptime', allDiagParts.length ? allDiagParts.join('<br>') : 'No diagnostic telemetry available.');
+    wrSetHtml('wr-all-footer', allDiagParts.length ? allDiagParts.join('<br>') : 'No diagnostic telemetry available.');
     // ----------------------------------------------
 
     var nodeCol = document.getElementById('nodeCol');
@@ -2881,7 +2881,7 @@ async function loadWirelessReport() {
     }
 
     // Apply it dynamically to your metric elements
-    ['wr-all-main-cpu', 'wr-all-main-memory', 'wr-node-cpu', 'wr-node-memory'].forEach(function(id) {
+    ['wr-all-cpu', 'wr-all-memory', 'wr-node-cpu', 'wr-node-memory'].forEach(function(id) {
         var el = document.getElementById(id);
         if (el) {
             el.style.cssText += tempStyle;
@@ -3334,8 +3334,8 @@ document.addEventListener('mouseout', function(e) {
                                     $UPDATED_TIME
                                     <hr class="separator-line">
                                     <div class="temp-load-row">
-                                        <span>CPU: $MAIN_TEMP</span>
-                                        <span>Memory: $MAIN_LOAD</span>
+                                        <span>CPU: $MAIN_CPU</span>
+                                        <span>Memory: $MAIN_MEMORY</span>
                                         <span>Devices: $MAIN_DEVICE_TOTAL</span>
                                     </div>
                                 </div>
@@ -3354,7 +3354,7 @@ document.addEventListener('mouseout', function(e) {
                                         <tr>
                                             <td colspan="7" class="uptime-row">
                                                 <span>Uptime: $MAIN_UPTIME</span>
-                                                <span>Reboot: $MAIN_BOOTTIME</span>
+                                                <span>Reboot: $MAIN_REBOOT</span>
                                             </td>
                                         </tr>
                                     </tfoot>
@@ -3369,8 +3369,8 @@ document.addEventListener('mouseout', function(e) {
                                     $UPDATED_TIME
                                     <hr class="separator-line">
                                     <div class="temp-load-row">
-                                        <span>CPU: $NODE_TEMPS</span>
-                                        <span>Memory: $NODE_LOADS</span>
+                                        <span>CPU: $NODE_CPU</span>
+                                        <span>Memory: $NODE_MEMORY</span>
                                         <span>Devices: $NODE_DEVICE_TOTAL</span>
                                     </div>
                                 </div>
@@ -3388,7 +3388,7 @@ document.addEventListener('mouseout', function(e) {
                                     <tfoot>
                                         <tr>
                                             <td colspan="7" class="uptime-row">
-                                                $NODE_UPTIMES
+                                                $NODE_FOOTER
                                             </td>
                                         </tr>
                                     </tfoot>
@@ -3401,8 +3401,8 @@ document.addEventListener('mouseout', function(e) {
                                 $UPDATED_TIME
                                 <hr class="separator-line">
                                 <div class="temp-load-row">
-                                    <span>CPU: $ALL_TEMP</span>
-                                    <span>Memory: $ALL_LOAD</span>
+                                    <span>CPU: $ALL_CPU</span>
+                                    <span>Memory: $ALL_MEMORY</span>
                                     <span>Devices: $ALL_DEVICES</span>
                                 </div>
                             </div>
@@ -3420,7 +3420,7 @@ document.addEventListener('mouseout', function(e) {
                                 <tfoot>
                                     <tr>
                                         <td colspan="7" class="uptime-row">
-                                            $ALL_UPTIME
+                                            $ALL_FOOTER
                                         </td>
                                     </tr>
                                 </tfoot>
