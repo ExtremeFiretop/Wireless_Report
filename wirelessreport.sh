@@ -28,7 +28,7 @@
 #        shellcheck shell=sh disable=SC2086,SC2155,SC3043         #
 #=================================================================#
 
-SCRIPT_VERSION="3.1.8"
+SCRIPT_VERSION="3.1.9"
 INSTALL_DIR="/jffs/addons/wireless_report"
 REPORT_SCRIPT="$INSTALL_DIR/wirelessreport.sh"
 SYSTEM_MENU="/www/require/modules/menuTree.js"
@@ -2125,13 +2125,37 @@ function wrPrimaryDriverSsid(item, driverMap) {
     return matches.length === 1 ? String(matches[0].ssid || '').trim() : '';
 }
 
+function wrNodeMainSsidFromSta(item) {
+    // AiMesh stainfo conn_if is node-local. On the Broadcom station inventory
+    // used by the affected AX node, wlX.1 is the radio's main BSS; guest/VIF
+    // associations use later subunits. Trust only that exact, driver-reported
+    // main-BSS shape here so a stale networkmap Guest/SDN classification cannot
+    // override a station that is actually associated to the node's main WLAN.
+    // Anything else remains on the existing SSID path rather than guessing.
+    if (!item || !item.node || !item.sta) return '';
+
+    var iface = String(item.sta.conn_if || '').trim();
+    if (!/^wl[0-9]+\.1$/i.test(iface)) return '';
+
+    // Use stainfo's own band rather than live get_clientlist() hints; the latter
+    // belongs to the same networkmap record that can carry the bad SSID/SDN data.
+    var band = wrNormalizeBand(item.sta.sta_band);
+    if (band === '2G' || band === '2.4G') return wrFirst(item.node, ['ap2g_ssid']);
+    if (band === '5G') return wrFirst(item.node, ['ap5g_ssid']);
+    if (band === '5G1') return wrFirst(item.node, ['ap5g1_ssid']);
+    if (band === '5G2') return wrFirst(item.node, ['ap5g2_ssid', 'ap5g1_ssid']);
+    if (band === '6G') return wrFirst(item.node, ['ap6g_ssid']);
+    if (band === '6G1') return wrFirst(item.node, ['ap6g1_ssid']);
+    if (band === '6G2') return wrFirst(item.node, ['ap6g2_ssid', 'ap6g1_ssid']);
+    return '';
+}
+
 async function wrResolveClientSsids(items, allNodes, mainMac) {
     // On 3006/latest firmware prefer ASUS' driver-backed Wireless Log inventory
-    // for primary-router clients. It identifies the actual VIF that currently
-    // authenticates each station, avoiding stale networkmap SDN/SSID mappings.
-    // If that source is missing, malformed or ambiguous, preserve the existing
-    // get_clientlist/NVRAM logic unchanged. AiMesh-node clients remain on the
-    // existing path because their wireless interfaces are node-local.
+    // for primary-router clients. For AiMesh-node clients, an exact node-local
+    // stainfo wlX.1 association is independently treated as the radio's main BSS
+    // and resolved from that node's advertised band SSID. All missing, malformed,
+    // ambiguous, or other VIF cases preserve the existing WR logic unchanged.
     var primaryDriverSsids = new Map();
     if (WR_DIAG_API === 'latest') {
         try {
@@ -2162,6 +2186,12 @@ async function wrResolveClientSsids(items, allNodes, mainMac) {
             : '';
         if (driverSsid) {
             item.resolvedSsid = driverSsid;
+            return;
+        }
+
+        var nodeMainSsid = wrNodeMainSsidFromSta(item);
+        if (nodeMainSsid) {
+            item.resolvedSsid = nodeMainSsid;
             return;
         }
 
@@ -2855,11 +2885,10 @@ async function loadWirelessReport() {
         items[itemIndex].sta = await wrResolveSta(items[itemIndex], staMaps);
     }
 
-    // SSID compatibility: on 3006 primary-router clients prefer the native
-    // Wireless Log's driver-backed VIF association, then fall back to the existing
-    // client/NVRAM path. Affected 388 builds retain their legacy SSID recovery.
-    // AiMesh-node interface names remain node-local and are never resolved through
-    // the primary router's driver/NVRAM inventory.
+    // SSID compatibility: primary-router clients prefer the native Wireless Log's
+    // driver-backed VIF association. AiMesh-node clients with exact stainfo wlX.1
+    // main-BSS telemetry use the parent node's advertised band SSID. Everything
+    // else falls back to the existing client/NVRAM/legacy recovery paths.
     await wrResolveClientSsids(items, allNodes, mainMac);
 
     // Match v2.1.0's report-wide sample time so the Main, Node and All views show
