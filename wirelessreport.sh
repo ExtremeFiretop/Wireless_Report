@@ -671,7 +671,7 @@ set_colors() {
         echo -e "${BL}=================================================="
         echo -e "${NC}                Set Device Colors                 "
         echo -e "${BL}=================================================="
-        echo -e "${NC}\n${BL} Current Device Configuration:\n"
+        echo -e "${NC}\n Current Device Configuration:\n"
         local main_display_name="${MAIN_NICK:-$main_name}"
         local main_display_color=$(hex_to_ansi "$m_color_hex")
         local formatted_main_ip=$(printf "(%s)" "$main_ip")
@@ -711,21 +711,21 @@ set_colors() {
                 target_hex=$(echo "$working_colors" | awk -v col="$node_choice" '{print $col}')
             fi
             local target_prompt_color=$(hex_to_ansi "$target_hex")
-            echo -e "\nSelect a new color for ${target_prompt_color}[${target_name}]${NC}:\n"
-            echo -e "${NB}   (1) Neon-Blue (#0096ff)"
-            echo -e "${LG}   (2) Lime-Green (#30d158)"
-            echo -e "${MP}   (3) Medium-Purple (#bf40bf)"
-            echo -e "${YW}   (4) Yellow (#ffd60a)"
-            echo -e "${SB}   (5) SkyBlue (#64d2ff)"
-            echo -e "${OR}   (6) Orange (#ff9500)"
-            echo -e "${RD}   (7) Red (#ff453a)"
-            echo -e "${WT}   (8) White (#ffffff)"
-            echo -e "${PK}   (9) Light-Pink (#ff70a6)"
-            echo -e "${MT}  (10) Mint-Green (#64ffda)"
+            echo -e "\n ${NC}Select a new color for ${target_prompt_color}[${target_name}]${NC}:\n"
+            echo -e "${NB}  (1) Neon-Blue (#0096ff)"
+            echo -e "${LG}  (2) Lime-Green (#30d158)"
+            echo -e "${MP}  (3) Medium-Purple (#bf40bf)"
+            echo -e "${YW}  (4) Yellow (#ffd60a)"
+            echo -e "${SB}  (5) SkyBlue (#64d2ff)"
+            echo -e "${OR}  (6) Orange (#ff9500)"
+            echo -e "${RD}  (7) Red (#ff453a)"
+            echo -e "${WT}  (8) White (#ffffff)"
+            echo -e "${PK}  (9) Light-Pink (#ff70a6)"
+            echo -e "${MT} (10) Mint-Green (#64ffda)"
             echo -e "${NC}"
             local selected_hex=""
             while true; do
-                printf "${NC}Choose option ${BL}(1-10): "; read -r color_choice
+                printf "${NC} Choose option ${BL}(1-10): "; read -r color_choice
                 case "$color_choice" in
                     1) selected_hex="#0096ff"; break ;;
                     2) selected_hex="#30d158"; break ;;
