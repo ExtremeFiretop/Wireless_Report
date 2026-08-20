@@ -311,7 +311,7 @@ wr_sha256() {
 }
 
 check_github() {
-    GITHUB="https://raw.githubusercontent.com/ExtremeFiretop/Wireless_Report/Development/wirelessreport.sh"
+    GITHUB="https://raw.githubusercontent.com/JB1366/Wireless_Report/main/wirelessreport.sh"
     REMOTE_TMP="/tmp/wr_remote.tmp"
     LOCAL_HASH=""; REMOTE_HASH=""
     if curl -sfL --retry 3 "$GITHUB" -o "$REMOTE_TMP" 2>/dev/null && [ -s "$REMOTE_TMP" ]; then
