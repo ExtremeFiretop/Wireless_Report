@@ -1022,11 +1022,6 @@ restart_httpd() { service restart_httpd >/dev/null 2>&1; killall -HUP httpd >/de
 
 pause() { printf "\nPress ${BL}[Enter]${NC} to return..."; read -r discard; }
 
-get_hostcolor() {
-    if [ "$HOST_COLOR" = "1" ]; then IP_COLOR=""; MAC_COLOR="color: #64d2ff;"
-    else IP_COLOR="color: #64d2ff; "MAC_COLOR=""; fi
-}
-
 mesh_init; check_github; hex_to_ansi
 
 run_report() {
@@ -1101,7 +1096,7 @@ RSSI_BOXES="<div class='rssi-quality-box rssi-excl'>Excellent: <span style='back
     <div class='rssi-quality-box rssi-fair'>Fair: <span style='background:#ffd60a;' class='rssi-font wr-rssi-fair'>0</span></div>
     <div class='rssi-quality-box rssi-poor'>Poor: <span style='background:#ff453a;' class='rssi-font wr-rssi-poor'>0</span></div>"
 
-set_theme; check_version header_box; get_hostcolor
+set_theme; check_version header_box
 
 #=================#
 #  Generate HTML  #
@@ -1178,8 +1173,8 @@ cat <<HTML >> "$WEB_PAGE"
     ${THEME_CSS}
 	.report_table tbody tr:hover td { background-color: rgba(0, 123, 255, 0.15) !important; }
 	table.report_table { width: 100%; border-collapse: collapse; }
-	table.report_table .mac-val { $MAC_COLOR; }
-	table.report_table .ip-val { $IP_COLOR; }
+	table.report_table .mac-val {}
+	table.report_table .ip-val {}
 	table.report_table.show-ip .mac-val { display: none !important; }
 	table.report_table.show-ip .ip-val { display: inline !important; }
 	table.report_table.show-mac .mac-val { display: inline !important; }
@@ -1281,8 +1276,8 @@ $NODE_COLOR_JS
 var WR_CONFIG = {
     mainColor: "$MAIN_COLOR",
     nodeColors: String("$NODE_COLORS").trim().split(/\s+/).filter(Boolean),
-    hostColor: Number("$HOST_COLOR") || 0,
-    pulseMins: Number("$PULSE_MINS"),
+    hostColor: Number("${HOST_COLOR:-0}") || 0,
+    pulseMins: Number("${PULSE_MINS:-15}") || 15,
     reportUnit: String("${REPORT_UNIT:-USA}"),
     runtimeTracking: Number("${RTIME:-1}") || 0,
     ipPad: Number("${IPPAD:-1}") || 0,
@@ -2442,6 +2437,8 @@ function wrRenderRow(item, history, known, firstHistoryLoad) {
     var quality = wrQuality(rssi);
     var trend = wrGetTrend(item, rssi, history);
     var isNew = !firstHistoryLoad && !known[mac] ? 'new-device-row' : '';
+    var ipColorStyle = (WR_CONFIG.hostColor === 1) ? "" : "color: #64d2ff;";
+    var macColorStyle = (WR_CONFIG.hostColor === 1) ? "color: #64d2ff;" : "";
     var nodeMarker = '';
     if (item.node) {
         var markerColor = wrNodeColor(item.nodeIndex, item.node);
@@ -2477,7 +2474,7 @@ function wrRenderRow(item, history, known, firstHistoryLoad) {
     return "<tr class='" + isNew + "'>" +
         "<td style='text-align:left;'>" + name + "</td>" +
         "<td><span class='mac-val' data-sort='" + wrEscape(mac) + "'>" + wrEscape(mac) + "</span>" +
-        "<span class='ip-val' data-sort='" + wrIpSort(ip) + "'>" + wrEscape(wrDisplayIp(ip) || '--') + "</span></td>" +
+        "<span class='ip-val' style='" + ipColorStyle + "' data-sort='" + wrIpSort(ip) + "'>" + wrEscape(wrDisplayIp(ip) || '--') + "</span>" +
         "<td data-sort='" + (Number.isFinite(rssi) ? rssi : -999) + "' class='rssi-container'>" +
             bars + " <span style='" + quality.style + "'>" + rssiText + "</span> " + trend + "</td>" +
         "<td data-sort='" + rateSort + "' style='" + quality.style + "text-align:center;'>" + wrEscape(rateText) + "</td>" +
