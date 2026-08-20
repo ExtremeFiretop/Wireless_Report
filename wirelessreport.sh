@@ -619,12 +619,12 @@ set_nicknames() {
 
 hex_to_ansi() {
     NB='\033[38;5;39m'; LG='\033[38;5;82m'; MP='\033[38;5;133m'; RD='\033[38;5;196m'; PK='\033[38;5;211m'
-    YL='\033[38;5;220m'; SB='\033[38;5;75m'; OR='\033[38;5;208m'; WT='\033[38;5;231m'; MT='\033[38;5;86m'
+    YW='\033[38;5;220m'; SB='\033[38;5;75m'; OR='\033[38;5;208m'; WT='\033[38;5;231m'; MT='\033[38;5;86m'
     case "$1" in
         "#0096ff") echo -e "$NB" ;;
         "#30d158") echo -e "$LG" ;;
         "#bf40bf") echo -e "$MP" ;;
-        "#ffd60a") echo -e "$YL" ;;
+        "#ffd60a") echo -e "$YW" ;;
         "#64d2ff") echo -e "$SB" ;;
         "#ff9500") echo -e "$OR" ;;
         "#ff453a") echo -e "$RD" ;;
@@ -715,7 +715,7 @@ set_colors() {
             echo -e "${NB}   (1) Neon-Blue (#0096ff)"
             echo -e "${LG}   (2) Lime-Green (#30d158)"
             echo -e "${MP}   (3) Medium-Purple (#bf40bf)"
-            echo -e "${YL}   (4) Yellow (#ffd60a)"
+            echo -e "${YW}   (4) Yellow (#ffd60a)"
             echo -e "${SB}   (5) SkyBlue (#64d2ff)"
             echo -e "${OR}   (6) Orange (#ff9500)"
             echo -e "${RD}   (7) Red (#ff453a)"
