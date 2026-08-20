@@ -1357,6 +1357,7 @@ function update_time() {
     document.querySelectorAll('.wr-updated-time').forEach(function(el) {
         el.textContent = 'Updated: ' + formattedTime;
     });
+
     // Handle boot time calculation dynamically using the uptime span value
     const uptimeEl = document.getElementById('wr-main-uptime');
     const bootEl = document.getElementById('wr-main-reboot');
@@ -1524,28 +1525,6 @@ function wrParseUptime(raw) {
 }
 function wrPad2(value) {
     return String(value).padStart(2, '0');
-}
-
-function wrFormatDateTime(value) {
-    var d = value instanceof Date ? value : new Date(value);
-    if (!d || Number.isNaN(d.getTime())) return '--';
-    var y = d.getFullYear();
-    var month = wrPad2(d.getMonth() + 1);
-    var day = wrPad2(d.getDate());
-    var hh24 = d.getHours();
-    var minute = wrPad2(d.getMinutes());
-    var second = wrPad2(d.getSeconds());
-    switch (WR_CONFIG.dateFormat) {
-        case 'INTL':
-            return day + '/' + month + '/' + y + ' ' + wrPad2(hh24) + ':' + minute + ':' + second;
-        case 'ISO':
-            return y + '-' + month + '-' + day + ' ' + wrPad2(hh24) + ':' + minute + ':' + second;
-        case 'USA':
-        default:
-            var suffix = hh24 >= 12 ? 'PM' : 'AM';
-            var hh12 = hh24 % 12 || 12;
-            return month + '/' + day + '/' + y + ' ' + wrPad2(hh12) + ':' + minute + ':' + second + ' ' + suffix;
-    }
 }
 
 function wrMetricClass(value) {
@@ -2766,8 +2745,6 @@ async function loadWirelessReport() {
     }
     var mainHealth = { cpuUsage: mainCpu, memoryUsage: mainMemory };
 
-    // Comment out or remove this line in your JS so it doesn't overwrite your shell output:
-    // wrSetText('wr-main-reboot', Number.isFinite(uptimeSecs) ? wrFormatDateTime(new Date(Date.now() - uptimeSecs * 1000)) : '--');
     var mainNameEl = document.getElementById('wr-main-name');
     if (mainNameEl && !mainNameEl.textContent.trim()) mainNameEl.textContent = base.productid || 'Main Router';
 
