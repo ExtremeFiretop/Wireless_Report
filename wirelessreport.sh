@@ -1540,8 +1540,10 @@ function wrBandName(band) {
         '2G': '2.4G',
         '5G': '5G',
         '5G1': '5G-2',
+        '5G2': '5G-3',
         '6G': '6G',
-        '6G1': '6G-2'
+        '6G1': '6G-2',
+        '6G2': '6G-3'
     };
     return map[String(band || '')] || String(band || '');
 }
@@ -1620,26 +1622,33 @@ function wrItemRssi(item) {
     return wrNumber(item.client && item.client.rssi);
 }
 
-function wrBandHtml(sta, client, meshLinkNode) {
-    var band = '';
+function wrResolvedBandContext(sta, client, meshLinkNode, node) {
+    // Keep every BAND consumer on the same priority chain so the rendered table
+    // and RSSI history cannot disagree when stainfo is missing.
+    if (meshLinkNode) {
+        return { band: wrNormalizeBand(wrMeshUplinkBand(meshLinkNode)), mismatch: false };
+    }
+
+    var staBand = wrNormalizeBand(sta && sta.sta_band);
+    var clientBand = WR_DIAG_API === 'legacy' ? wrClientBandHint(client) : '';
+    if (!clientBand && !staBand && node) clientBand = wrNodeClientBandFallback(node, client);
+
+    var mismatch = Boolean(staBand && clientBand && staBand !== clientBand);
+    var selectedBand = mismatch ? clientBand : (staBand || clientBand);
+    if (!selectedBand) selectedBand = wrNormalizeBand(wrFirst(client, ['band', 'wlBand']));
+
+    return { band: selectedBand || '', mismatch: mismatch };
+}
+
+function wrBandHtml(sta, client, meshLinkNode, node) {
+    var resolved = wrResolvedBandContext(sta, client, meshLinkNode, node);
+    var normalizedBand = resolved.band;
+    var band = normalizedBand ? wrBandName(normalizedBand) : '';
     var width = '';
 
-    if (meshLinkNode) {
-        // Do not infer an AiMesh node's active backhaul from its pseudo-client
-        // isWL/band/stainfo fields. re_path is the source ASUS uses for uplink.
-        var meshBand = wrMeshUplinkBand(meshLinkNode);
-        band = meshBand ? wrBandName(meshBand) : '';
-    } else {
-        var staBand = wrNormalizeBand(sta && sta.sta_band);
-        var clientBand = WR_DIAG_API === 'legacy' ? wrClientBandHint(client) : '';
-        var mismatch = Boolean(staBand && clientBand && staBand !== clientBand);
-        var selectedBand = mismatch ? clientBand : (staBand || clientBand);
-        band = selectedBand ? wrBandName(selectedBand) : String(wrFirst(client, ['band', 'wlBand']) || '');
-
-        // A mismatched legacy stainfo sample can carry the other radio's channel
-        // width too. Do not display that width if the live client band disagrees.
-        width = sta && !mismatch ? wrWidth(sta.bw) : '';
-    }
+    // A mismatched legacy stainfo sample can carry the other radio's channel
+    // width too. Do not display that width if the live client band disagrees.
+    if (!meshLinkNode) width = sta && !resolved.mismatch ? wrWidth(sta.bw) : '';
 
     // Unknown telemetry is unknown; never manufacture a 2.4 GHz/20 MHz result.
     var label = (band + (width ? ' (' + width + ')' : '')).trim() || '--';
@@ -1715,14 +1724,9 @@ function wrPrepareRssiHistoryStorage() {
 }
 
 function wrRssiHistoryBand(item) {
-    if (item && item.meshLinkNode) {
-        var meshBand = wrMeshUplinkBand(item.meshLinkNode);
-        return meshBand ? wrBandName(meshBand) : '';
-    }
-    if (item && item.sta && item.sta.sta_band !== undefined) {
-        return wrBandName(item.sta.sta_band);
-    }
-    return wrBandName(wrFirst(item && item.client, ['band', 'wlBand']) || '');
+    if (!item) return '';
+    var resolved = wrResolvedBandContext(item.sta, item.client, item.meshLinkNode, item.node);
+    return resolved.band ? wrBandName(resolved.band) : '';
 }
 
 function wrRssiHistoryLocation(item) {
@@ -1816,17 +1820,24 @@ function wrSavedClient(saved, macRaw, mac) {
     return saved[macRaw] || saved[mac] || saved[String(mac).toLowerCase()] || {};
 }
 
-function wrLegacyClientRadioUnit(client) {
-    // Legacy get_clientlist().isWL numbers radios from 1 while ASUS wl units are
-    // zero-based. Keep this conversion in one place so IFACE and SSID fallbacks
-    // cannot disagree about which radio a client belongs to.
-    if (WR_DIAG_API !== 'legacy' || !client) return null;
+function wrClientRadioUnitFromIsWL(client) {
+    // Compatibility conversion for the legacy/dual-band fallback only. Modern
+    // AiMesh nodes can expose logical isWL values that do not equal physical wl
+    // unit + 1, so capability-aware node mapping is attempted before this path.
+    if (!client) return null;
 
     var wlRaw = client.isWL;
     var wl = Number(wlRaw);
     var wlValid = wlRaw !== undefined && wlRaw !== null && String(wlRaw).trim() !== '' &&
         Number.isFinite(wl) && Math.floor(wl) === wl && wl >= 1 && wl <= 4;
     return wlValid ? wl - 1 : null;
+}
+
+function wrLegacyClientRadioUnit(client) {
+    // Primary-router legacy fallbacks remain legacy-only because they can resolve
+    // reconstructed wlX[.Y] against the primary router's own NVRAM inventory.
+    if (WR_DIAG_API !== 'legacy') return null;
+    return wrClientRadioUnitFromIsWL(client);
 }
 
 function wrLegacyClientGuestIndex(client) {
@@ -1850,33 +1861,139 @@ function wrLegacyClientIfaceFallback(client) {
     return 'wl' + unit + (guest > 0 ? '.' + guest : '');
 }
 
-function wrNodeClientIfaceFallback(node, client) {
-    // Legacy 388 AiMesh can keep a client in get_clientlist() while omitting the
-    // node from stainfo entirely. Validate the one-based isWL radio against the
-    // node's zero-based band_info unit map, then append the live guest slot.
-    if (WR_DIAG_API !== 'legacy' || !node || !client) return '';
+function wrCapabilityBand(mask) {
+    var map = {
+        1: '2G',
+        2: '5G',
+        4: '5G1',
+        8: '5G2',
+        16: '6G',
+        32: '6G1',
+        64: '6G2'
+    };
+    var value = Number(mask);
+    return Object.prototype.hasOwnProperty.call(map, value) ? map[value] : '';
+}
 
-    var bandInfo = node.band_info;
-    if (!bandInfo || typeof bandInfo !== 'object') return '';
+function wrNodeCapabilityRadios(node) {
+    // 3006 nodes advertise an explicit logical-band -> VIF inventory in
+    // capability["26"].wifi_band. The VIF prefix carries the actual physical
+    // wl unit, which is safer than assuming isWL-1 on models with reordered radios.
+    var cap26 = node && node.capability && node.capability['26'];
+    var wifiBand = cap26 && cap26.wifi_band;
+    if (!wifiBand || typeof wifiBand !== 'object') return null;
 
-    var expectedUnit = wrLegacyClientRadioUnit(client);
-    if (expectedUnit === null) return '';
+    var radios = [];
+    Object.keys(wifiBand).forEach(function(key) {
+        var entry = wifiBand[key];
+        if (!entry || typeof entry !== 'object') return;
 
-    // Match by band_info[].unit, not by the object's key. Many 388 nodes expose
-    // {"0":{"unit":0},"1":{"unit":1}} while get_clientlist().isWL is
-    // one-based. The previous exact-key preference therefore mapped isWL=1 to
-    // unit 1/wl1 instead of the correct unit 0/wl0.
-    var hasExpectedUnit = Object.keys(bandInfo).some(function(key) {
-        var candidateUnit = Number(bandInfo[key] && bandInfo[key].unit);
-        return Number.isFinite(candidateUnit) && Math.floor(candidateUnit) === candidateUnit &&
-            candidateUnit === expectedUnit;
+        var band = wrCapabilityBand(entry.band);
+        if (!band) return;
+
+        var units = new Set();
+        var vifs = entry.vif;
+        if (vifs && typeof vifs === 'object') {
+            Object.keys(vifs).forEach(function(vifKey) {
+                var vif = vifs[vifKey] || {};
+                var prefix = String(vif.prefix || vifKey || '').trim();
+                var match = prefix.match(/^wl([0-9]+)(?:\.[0-9]+)?$/i);
+                if (match) units.add(Number(match[1]));
+            });
+        }
+
+        if (units.size !== 1) return;
+        radios.push({ band: band, unit: Array.from(units)[0] });
     });
-    if (!hasExpectedUnit) return '';
+
+    return radios;
+}
+
+function wrNodeClientBandHint(client) {
+    if (!client) return '';
+
+    // Prefer an explicit band when ASUS supplies one. Without that, only use the
+    // two isWL values already proven stable across the affected 388/3006 clients.
+    // Higher isWL values are intentionally left unresolved until their semantics
+    // are verified across tri-/quad-band and MLO hardware.
+    var named = wrNormalizeBand(wrFirst(client, ['band', 'wlBand']));
+    if (/^(?:2G|5G|5G1|5G2|6G|6G1|6G2)$/.test(named)) return named;
+
+    var raw = client.isWL;
+    if (raw === undefined || raw === null) return '';
+    var value = String(raw).trim();
+    if (value === '1') return '2G';
+    if (value === '2') return '5G';
+    return '';
+}
+
+function wrNodeBandInfoUnits(node) {
+    var bandInfo = node && node.band_info;
+    if (!bandInfo || typeof bandInfo !== 'object') return [];
+
+    var units = new Set();
+    Object.keys(bandInfo).forEach(function(key) {
+        var unit = Number(bandInfo[key] && bandInfo[key].unit);
+        if (Number.isFinite(unit) && Math.floor(unit) === unit && unit >= 0) units.add(unit);
+    });
+    return Array.from(units).sort(function(a, b) { return a - b; });
+}
+
+function wrNodeClientRadioContext(node, client) {
+    if (!node || !client) return null;
+
+    var bandHint = wrNodeClientBandHint(client);
+    var capabilityRadios = wrNodeCapabilityRadios(node);
+
+    if (capabilityRadios !== null) {
+        // Capability data is authoritative when present. Require one exact logical
+        // band match; if the inventory is malformed/ambiguous, return unknown
+        // rather than falling through to an unsafe physical-unit guess.
+        if (!bandHint) return null;
+        var matches = capabilityRadios.filter(function(radio) {
+            return radio.band === bandHint;
+        });
+        return matches.length === 1
+            ? { unit: matches[0].unit, band: matches[0].band, source: 'capability' }
+            : null;
+    }
+
+    // Older nodes do not expose capability[26]. Preserve the established 388
+    // behavior. On a latest controller, however, keep the ordinal fallback only
+    // for an unambiguously dual-radio node so tri-/quad-band hardware cannot be
+    // mis-mapped by isWL-1.
+    var expectedUnit = wrClientRadioUnitFromIsWL(client);
+    if (expectedUnit === null) return null;
+
+    var units = wrNodeBandInfoUnits(node);
+    if (units.indexOf(expectedUnit) === -1) return null;
+    if (WR_DIAG_API !== 'legacy' && !(units.length === 2 && expectedUnit <= 1)) return null;
+
+    return { unit: expectedUnit, band: bandHint, source: 'compat' };
+}
+
+function wrNodeClientRadioUnit(node, client) {
+    var context = wrNodeClientRadioContext(node, client);
+    return context ? context.unit : null;
+}
+
+function wrNodeClientIfaceFallback(node, client) {
+    // AiMesh can keep a client in get_clientlist() while omitting that station from
+    // stainfo entirely. Resolve the node-local physical radio from the node's own
+    // capability inventory first, then append the live isGN VIF slot. A real
+    // stainfo conn_if still always wins first.
+    var context = wrNodeClientRadioContext(node, client);
+    if (!context) return '';
 
     var guest = wrLegacyClientGuestIndex(client);
     if (guest === null) return '';
 
-    return 'wl' + expectedUnit + (guest > 0 ? '.' + guest : '');
+    return 'wl' + context.unit + (guest > 0 ? '.' + guest : '');
+}
+
+function wrNodeClientBandFallback(node, client) {
+    var context = wrNodeClientRadioContext(node, client);
+    return context && context.band ? context.band : '';
 }
 
 function wrStaIface(sta, client, node) {
@@ -1901,13 +2018,17 @@ function wrStaIface(sta, client, node) {
         if (idxValid) return 'wl' + idx + (vidxValid && vidx > 0 ? '.' + vidx : '');
     }
 
-    // If legacy stainfo has no usable interface data for an AiMesh-node client,
-    // derive the node-local wlX[.Y] from that node's band_info + live isWL/isGN.
+    // On latest firmware an explicit live-client interface is better evidence than
+    // any inferred node mapping. Preserve the established legacy ordering below.
+    var liveIface = String(wrFirst(client, ['ifname', 'interface']) || '').trim();
+    if (liveIface && WR_DIAG_API !== 'legacy') return liveIface;
+
+    // If stainfo has no usable interface data for an AiMesh-node client, derive
+    // the node-local wlX[.Y] from capability data (or the conservative legacy
+    // compatibility fallback when capability data is unavailable).
     var nodeFallback = wrNodeClientIfaceFallback(node, client);
     if (nodeFallback) return nodeFallback;
 
-    // Prefer an explicit live-client interface before inferring one.
-    var liveIface = String(wrFirst(client, ['ifname', 'interface']) || '').trim();
     if (liveIface) return liveIface;
 
     // Primary-router clients on affected 388 builds can also be completely absent
@@ -2654,7 +2775,7 @@ function wrRenderRow(item, history, known, firstHistoryLoad) {
         "<td data-sort='" + rateSort + "' style='" + quality.style + "text-align:center;'>" + wrEscape(rateText) + "</td>" +
         "<td><span class='ssid-val' data-sort='" + wrEscape(ssid) + "'>" + wrEscape(ssid || '--') + "</span>" +
         "<span class='iface-val' data-sort='" + wrEscape(iface) + "'>" + wrEscape(iface || '--') + "</span></td>" +
-        wrBandHtml(sta, c, item.meshLinkNode) +
+        wrBandHtml(sta, c, item.meshLinkNode, item.node) +
         "<td>" + wrFormatConnection(connected) + "</td>" +
         "</tr>";
 }
