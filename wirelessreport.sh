@@ -1779,7 +1779,7 @@ function wrGetTrend(item, rssi, history) {
                 var mm = String(d.getMonth() + 1).padStart(2, '0');
                 var dd = String(day).padStart(2, '0');
                 formattedTime = year + '-' + mm + '-' + dd + ' ' + hours + ':' + minutes + ':' + seconds;
-            } else if (typeof WR_CONFIG !== 'undefined' && WR_CONFIG.reportUnit === 'C') {
+            } else if (typeof WR_CONFIG !== 'undefined' && WR_CONFIG.reportUnit === 'INTL') {
                 formattedTime = day + '-' + month + ' ' + hours + ':' + minutes + ':' + seconds;
             } else {
                 formattedTime = month + '-' + day + ' ' + hours + ':' + minutes + ':' + seconds;
