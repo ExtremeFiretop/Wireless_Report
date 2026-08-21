@@ -1079,22 +1079,22 @@ done
 IPPAD=${IPPAD:-1}; HOST_COLOR=${HOST_COLOR:-0}; PULSE_MINS=${PULSE_MINS:-15}
 ROUTER=$(nvram get productid); MAIN_NAME="${MAIN_NICK:-${ROUTER:-Main Router}}"
 MAIN_NAME="<span id='wr-main-name' class='router-style'>${MAIN_NAME}</span>"
-MAIN_CPU="<span id='wr-main-cpu' class='stat-cool'>--</span>"
-MAIN_MEMORY="<span id='wr-main-memory' class='stat-cool'>--</span>"
-MAIN_DEVICE_TOTAL="<span id='wr-main-count' class='main-color'>0</span>"
-MAIN_UPTIME="<span id='wr-main-uptime' class='main-color'>--</span>"
-MAIN_REBOOT="<span id='wr-main-reboot' class='main-color'>--</span>"
+MAIN_CPU="CPU: <span id='wr-main-cpu' class='stat-cool'>--</span>"
+MAIN_MEMORY="Memory: <span id='wr-main-memory' class='stat-cool'>--</span>"
+MAIN_DEVICE_TOTAL="Devices: <span id='wr-main-count' class='main-color'>0</span>"
+MAIN_UPTIME="Uptime: <span id='wr-main-uptime' class='main-color'>--</span>"
+MAIN_REBOOT="Reboot: <span id='wr-main-reboot' class='main-color'>--</span>"
 
 NODE_NAMES="<span id='wr-node-names' class='router-style'>AiMesh nodes</span>"
 NODE_CPU="<span id='wr-node-cpu' class='stat-cool'>--</span>"
-NODE_MEMORY="<span id='wr-node-memory' class='stat-cool'>--</span>"
-NODE_DEVICE_TOTAL="<span id='wr-node-count' class='stat-cool'>0</span>"
+NODE_MEMORY="Memory: <span id='wr-node-memory' class='stat-cool'>--</span>"
+NODE_DEVICE_TOTAL="Devices: <span id='wr-node-count' class='stat-cool'>0</span>"
 NODE_FOOTER="<span id='wr-node-diag'>Controller telemetry pending...</span>"
 
 ALL_NAMES="<span id='wr-all-names' class='router-style'>Loading...</span>"
-ALL_CPU="<span id='wr-all-cpu'>--</span>"
-ALL_MEMORY="<span id='wr-all-memory'>--</span>"
-ALL_DEVICES="<span id='wr-all-count' class='stat-cool'>0</span>"
+ALL_CPU="CPU: <span id='wr-all-cpu'>--</span>"
+ALL_MEMORY="Memory: <span id='wr-all-memory'>--</span>"
+ALL_DEVICES="Devices: <span id='wr-all-count' class='stat-cool'>0</span>"
 ALL_FOOTER="<span id='wr-all-footer' class='main-color'>Controller telemetry pending...</span>"
 
 GRAND_TOTAL_DEVICES="<span id='wr-grand-total' class='count-highlight'>0</span>"
@@ -1355,6 +1355,7 @@ function update_time() {
     const minutes = String(now.getMinutes()).padStart(2, '0');
     const seconds = String(now.getSeconds()).padStart(2, '0');
     let formattedTime = '';
+
     if (WR_CONFIG.reportUnit === 'ISO') {
         const mm = String(now.getMonth() + 1).padStart(2, '0');
         const dd = String(day).padStart(2, '0');
@@ -1373,7 +1374,6 @@ function update_time() {
     const bootEl = document.getElementById('wr-main-reboot');
     if (bootEl && uptimeEl) {
         const uptimeText = uptimeEl.textContent.trim();
-        // Parse "1d 04h", "04h 15m", or "00h 15m" from wrFormatSeconds output
         let totalSeconds = 0;
         const dMatch = uptimeText.match(/(\d+)d/);
         const hMatch = uptimeText.match(/(\d+)h/);
@@ -1389,6 +1389,7 @@ function update_time() {
             const bHours = bootDate.getHours();
             const bMinutes = String(bootDate.getMinutes()).padStart(2, '0');
             let formattedBoot = '';
+
             if (WR_CONFIG.reportUnit === 'ISO') {
                 const bMm = String(bootDate.getMonth() + 1).padStart(2, '0');
                 const bDd = String(bDay).padStart(2, '0');
@@ -1708,7 +1709,7 @@ function wrRssiHistoryEntries(raw) {
         });
     }
 
-    // v2.2.0-v2.2.11 stored just one numeric RSSI value per MAC. Preserve that
+    // stored just one numeric RSSI value per MAC. Preserve that
     // value as the first browser-history sample when upgrading to the richer model.
     var legacy = wrNumber(raw);
     if (Number.isFinite(legacy)) {
@@ -1730,8 +1731,7 @@ function wrPrepareRssiHistoryStorage() {
     var current = wrRssiHistorySignature();
     var previous = localStorage.getItem(sigKey);
 
-    // On the first v2.2.12 load, keep/migrate the single-sample v2.2 history.
-    // After that, mirror v2.1.0 behavior: changing history settings starts clean.
+    // mirror v2.1.0 behavior: changing history settings starts clean.
     if (previous !== null && previous !== current) {
         localStorage.removeItem('wirelessReportRssiHistory');
     }
@@ -3231,6 +3231,7 @@ function wrRenderRow(item, history, known, firstHistoryLoad) {
     var ipColorStyle = (WR_CONFIG.hostColor === 1) ? "" : "color: #64d2ff;";
     var macColorStyle = (WR_CONFIG.hostColor === 1) ? "color: #64d2ff;" : "";
     var nodeMarker = '';
+
     if (item.node) {
         var markerColor = wrNodeColor(item.nodeIndex, item.node);
         var hiddenNodeNum = "<span class='hidden-node-number' style='display:none;'>" + (item.nodeIndex + 1) + "</span>";
@@ -3245,6 +3246,7 @@ function wrRenderRow(item, history, known, firstHistoryLoad) {
     } else {
         name = wrEscape(name);
     }
+
     var rxText = Number.isFinite(rx) && rx >= 0 ? rx : 1;
     if (rxText === 0) rxText = 1;
     var txText = Number.isFinite(tx) && tx >= 0 ? tx : 1;
@@ -3253,15 +3255,18 @@ function wrRenderRow(item, history, known, firstHistoryLoad) {
         rxText = 1;
         txText = 72;
     }
+
     if (rxText > txText) {
         var T = rxText;
         rxText = txText;
         txText = T;
     }
+
     var rateText = rxText + ' / ' + txText;
     var rateSort = txText;
     var rssiText = Number.isFinite(rssi) && rssi < 0 && rssi >= -120 ? rssi : '--';
     var bars = quality.bars ? "<span class='rssi_bars " + quality.cls + "'>" + quality.bars + "</span>" : '';
+
     return "<tr class='" + isNew + "'>" +
         "<td style='text-align:left;'>" + name + "</td>" +
         "<td><span class='mac-val' style='" + macColorStyle + "' data-sort='" + wrEscape(mac) + "'>" + wrEscape(mac) + "</span>" +
@@ -3671,7 +3676,6 @@ async function loadWirelessReport() {
 
     var bullet = " <span style='color:white;'>•</span> ";
 
-    // 1. Set the Node-only footer
     wrSetHtml('wr-node-names', nodeNamesHtml.length ? nodeNamesHtml.join(bullet) : 'No AiMesh nodes detected');
     wrSetHtml('wr-node-cpu', cpuHtml.length ? cpuHtml.join(bullet) : '--');
     wrSetHtml('wr-node-memory', memHtml.length ? memHtml.join(bullet) : '--');
@@ -3700,10 +3704,6 @@ async function loadWirelessReport() {
     var nodeCol = document.getElementById('nodeCol');
     if (nodeCol) nodeCol.style.display = nodes.length ? 'flex' : 'none';
 
-    // document.querySelectorAll('.wr-updated-time').forEach(function(el) {
-    //     el.textContent = 'Updated: ' + new Date().toLocaleString();
-    // });
-
     // Apply dynamic font sizing and alignment based on node count (TEMP_STYLE logic)
     var nodeCount = nodes.length;
     var tempStyle = "";
@@ -3715,7 +3715,6 @@ async function loadWirelessReport() {
         tempStyle = "text-align: center; justify-content: center;";
     }
 
-    // Apply it dynamically to your metric elements
     ['wr-all-cpu', 'wr-all-memory', 'wr-node-cpu', 'wr-node-memory'].forEach(function(id) {
         var el = document.getElementById(id);
         if (el) {
@@ -3808,7 +3807,6 @@ async function triggerRefresh() {
     }
 }
 
-// Automatically populate stats variables on page load so they aren't zero
 document.addEventListener("DOMContentLoaded", function() {
     if (typeof WR_CONFIG !== 'undefined' && WR_CONFIG.runtimeTracking) {
         var stats = wrLoadJson('wirelessReportRuntimeStats', { total: 0, count: 0, min: null, max: 0 });
@@ -3937,9 +3935,11 @@ function sortTable(n, tId, keepDir, forceDesc) {
                 var match = txt.match(/\d+/);
                 return match ? parseInt(match[0], 10) : -1;
             };
+
 			var getCleanTxt = function(cell) {
 				return cell.innerText.trim();
 			};
+
 			var isRightClick = (window.event && window.event.type === 'contextmenu');
 			var isNodeModeSaved = (localStorage.getItem('savedSortNodeMode_' + tId) === 'true');
 			if (isRightClick || isNodeModeSaved) {
@@ -3953,6 +3953,7 @@ function sortTable(n, tId, keepDir, forceDesc) {
 			var txtB = getCleanTxt(cellB);
 			return dir === "asc" ? txtA.localeCompare(txtB) : txtB.localeCompare(txtA);
 		}
+
         if (n === 1) {
             var sel = table.classList.contains('show-ip') ? '.ip-val' : '.mac-val';
             valA = cellA.querySelector(sel).getAttribute('data-sort');
@@ -4001,9 +4002,6 @@ function toggleWideView(forceState) {
     var next = (typeof forceState === 'boolean') ? forceState : !active;
     document.body.classList.toggle('wr-wide-mode', next);
     setWideButtonState(next);
-
-    /* Starting Wide View at the top makes the transition predictable.  Leaving
-       it restores the ordinary ASUS page without navigating or reloading. */
     var container = document.getElementById('wifiReportContainer');
     if (next && container) container.scrollTop = 0;
 }
@@ -4169,9 +4167,9 @@ document.addEventListener('mouseout', function(e) {
                                     $UPDATED_TIME
                                     <hr class="separator-line">
                                     <div class="temp-load-row">
-                                        <span>CPU: $MAIN_CPU</span>
-                                        <span>Memory: $MAIN_MEMORY</span>
-                                        <span>Devices: $MAIN_DEVICE_TOTAL</span>
+                                        $MAIN_CPU
+                                        $MAIN_MEMORY
+                                        $MAIN_DEVICE_TOTAL
                                     </div>
                                 </div>
                                 <table id="mainTable" class="report_table show-ip">
@@ -4188,8 +4186,8 @@ document.addEventListener('mouseout', function(e) {
                                     <tfoot>
                                         <tr>
                                             <td colspan="7" class="uptime-row">
-                                                <span>Uptime: $MAIN_UPTIME</span>
-                                                <span>Reboot: $MAIN_REBOOT</span>
+                                                $MAIN_UPTIME
+                                                $MAIN_REBOOT
                                             </td>
                                         </tr>
                                     </tfoot>
@@ -4204,9 +4202,9 @@ document.addEventListener('mouseout', function(e) {
                                     $UPDATED_TIME
                                     <hr class="separator-line">
                                     <div class="temp-load-row">
-                                        <span>CPU: $NODE_CPU</span>
-                                        <span>Memory: $NODE_MEMORY</span>
-                                        <span>Devices: $NODE_DEVICE_TOTAL</span>
+                                        $NODE_CPU
+                                        $NODE_MEMORY
+                                        $NODE_DEVICE_TOTAL
                                     </div>
                                 </div>
                                 <table id="nodeTable" class="report_table show-ip">
@@ -4236,9 +4234,9 @@ document.addEventListener('mouseout', function(e) {
                                 $UPDATED_TIME
                                 <hr class="separator-line">
                                 <div class="temp-load-row">
-                                    <span>CPU: $ALL_CPU</span>
-                                    <span>Memory: $ALL_MEMORY</span>
-                                    <span>Devices: $ALL_DEVICES</span>
+                                    $ALL_CPU
+                                    $ALL_MEMORY
+                                    $ALL_DEVICES
                                 </div>
                             </div>
                             <table id="allTable" class="report_table show-ip">
@@ -4280,8 +4278,6 @@ document.addEventListener('mouseout', function(e) {
     </div>
 </body>
 HTML
-    # Publish last: open pages only navigate once the complete replacement ASP
-    # is on disk. This NVRAM value is intentionally not committed to flash.
     nvram set wirelessreport_gen="$WR_GENERATION" >/dev/null 2>&1
 }
 case "$1" in
