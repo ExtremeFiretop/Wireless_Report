@@ -28,7 +28,7 @@
 #        shellcheck shell=sh disable=SC2086,SC2155,SC3043         #
 #=================================================================#
 
-SCRIPT_VERSION="3.1.8"
+SCRIPT_VERSION="3.1.9"
 INSTALL_DIR="/jffs/addons/wireless_report"
 REPORT_SCRIPT="$INSTALL_DIR/wirelessreport.sh"
 SYSTEM_MENU="/www/require/modules/menuTree.js"
@@ -373,13 +373,20 @@ get_usb() {
 
 mesh_init() {
 	VALID_NODES=""
-	local ASUS_NODES CFG_NODES MAIN_IP
+	local ASUS_DEVICE_LIST MAIN_IP
 	MAIN_IP=$(nvram get lan_ipaddr)
-	ASUS_NODES=$(nvram get asus_device_list | sed 's/</\n/g' | grep '>2$' | awk -F '>' '{print $2 "|" $3}')
-	CFG_NODES=$(nvram get cfg_device_list | sed 's/</\n/g' | grep '>0$' | awk -F '>' '{print $1 "|" $2}')
-	MESH_NODES=$(printf '%s\n%s\n' "$ASUS_NODES" "$CFG_NODES" | \
-		awk -F '|' -v main_ip="$MAIN_IP" '
-			NF >= 2 && $1 != "" && $2 != "" && $2 != main_ip && !seen[$2]++ { print $1 "|" $2 }
+	ASUS_DEVICE_LIST=$(nvram get asus_device_list)
+
+	# cfg_device_list contains multiple ASUS device roles (AiMesh nodes, APs,
+	# repeaters/media bridges, etc.), so its trailing 0/1 state must not be used
+	# as an AiMesh role discriminator. asus_device_list carries the persistent
+	# ASUS role in its final field: 1=primary and 2=AiMesh node on the validated
+	# layouts. Keep only role 2 entries and fail closed for every other role.
+	MESH_NODES=$(printf '%s\n' "$ASUS_DEVICE_LIST" | sed 's/</\n/g' | \
+		awk -F '>' -v main_ip="$MAIN_IP" '
+			NF >= 4 && $2 != "" && $3 != "" && $3 != main_ip && $NF == "2" && !seen[$3]++ {
+				print $2 "|" $3
+			}
 		' | sort -t . -k 4,4n)
 }
 
