@@ -1625,26 +1625,31 @@ function wrItemRssi(item) {
     return wrNumber(item.client && item.client.rssi);
 }
 
-function wrResolvedBandContext(sta, client, meshLinkNode, node) {
+function wrResolvedBandContext(sta, client, meshLinkNode, node, fallbackBand) {
     // Keep every BAND consumer on the same priority chain so the rendered table
-    // and RSSI history cannot disagree when stainfo is missing.
+    // and RSSI history cannot disagree when stainfo is missing. Controller API
+    // generation and node telemetry generation are deliberately separate: a
+    // 3006 controller can manage a 388 node whose live isWL semantics remain
+    // useful for rejecting stale stainfo radio samples.
     if (meshLinkNode) {
         return { band: wrNormalizeBand(wrMeshUplinkBand(meshLinkNode)), mismatch: false };
     }
 
     var staBand = wrNormalizeBand(sta && sta.sta_band);
-    var clientBand = WR_DIAG_API === 'legacy' ? wrClientBandHint(client) : '';
+    var useLegacyHint = node ? wrNodeLegacySemantics(node) : WR_DIAG_API === 'legacy';
+    var clientBand = useLegacyHint ? wrClientBandHint(client) : '';
     if (!clientBand && !staBand && node) clientBand = wrNodeClientBandFallback(node, client);
 
     var mismatch = Boolean(staBand && clientBand && staBand !== clientBand);
     var selectedBand = mismatch ? clientBand : (staBand || clientBand);
+    if (!selectedBand) selectedBand = wrNormalizeBand(fallbackBand);
     if (!selectedBand) selectedBand = wrNormalizeBand(wrFirst(client, ['band', 'wlBand']));
 
     return { band: selectedBand || '', mismatch: mismatch };
 }
 
-function wrBandHtml(sta, client, meshLinkNode, node) {
-    var resolved = wrResolvedBandContext(sta, client, meshLinkNode, node);
+function wrBandHtml(sta, client, meshLinkNode, node, fallbackBand) {
+    var resolved = wrResolvedBandContext(sta, client, meshLinkNode, node, fallbackBand);
     var normalizedBand = resolved.band;
     var band = normalizedBand ? wrBandName(normalizedBand) : '';
     var width = '';
@@ -1728,7 +1733,7 @@ function wrPrepareRssiHistoryStorage() {
 
 function wrRssiHistoryBand(item) {
     if (!item) return '';
-    var resolved = wrResolvedBandContext(item.sta, item.client, item.meshLinkNode, item.node);
+    var resolved = wrResolvedBandContext(item.sta, item.client, item.meshLinkNode, item.node, item.wrFallbackBand);
     return resolved.band ? wrBandName(resolved.band) : '';
 }
 
@@ -1823,6 +1828,88 @@ function wrSavedClient(saved, macRaw, mac) {
     return saved[macRaw] || saved[mac] || saved[String(mac).toLowerCase()] || {};
 }
 
+function wrNodeFirmwareFamily(node) {
+    // The diagnostic endpoint is selected by the controller, but client-radio
+    // semantics belong to the individual AiMesh node. Prefer the node's own
+    // firmware family and use capability[26] only as a positive latest-family
+    // fallback when ASUS omits an identifiable firmware string.
+    var fw = String(wrFirst(node, ['fwver', 'firmware', 'newfwver']) || '').trim();
+    if (/^3\.0\.0\.4\./.test(fw)) return 'legacy';
+    if (/^3\.0\.0\.6\./.test(fw)) return 'latest';
+
+    var cap26 = node && node.capability && node.capability['26'];
+    if (cap26 && cap26.wifi_band && typeof cap26.wifi_band === 'object') return 'latest';
+    return '';
+}
+
+function wrNodeLegacySemantics(node) {
+    var family = wrNodeFirmwareFamily(node);
+    if (family) return family === 'legacy';
+    // Preserve legacy-controller compatibility for older node inventories that do
+    // not expose a recognizable firmware string. Never use a latest controller
+    // alone as evidence that a node itself has latest telemetry semantics.
+    return WR_DIAG_API === 'legacy';
+}
+
+function wrPositiveGuestIndex(client) {
+    if (!client) return null;
+    var raw = client.isGN === true ? 1 : client.isGN;
+    if (raw === undefined || raw === null || String(raw).trim() === '') return null;
+    var value = Number(raw);
+    if (!Number.isFinite(value) || Math.floor(value) !== value || value <= 0 || value > 9) return null;
+    return value;
+}
+
+function wrIfaceUnit(iface) {
+    var match = String(iface || '').trim().match(/^wl([0-9]+)(?:\.[0-9]+)?$/i);
+    return match ? Number(match[1]) : null;
+}
+
+function wrSsidEquivalent(a, b) {
+    // get_clientlist() has been observed truncating otherwise-correct SSIDs by
+    // one character. Accept only symmetric prefix matches long enough to be
+    // meaningful; callers still require a unique match before using the result.
+    a = String(a || '').trim();
+    b = String(b || '').trim();
+    if (!a || !b) return false;
+    if (a === b) return true;
+    if (Math.min(a.length, b.length) < 8) return false;
+    return a.indexOf(b) === 0 || b.indexOf(a) === 0;
+}
+
+function wrNodeFrontHaulSsid(node, band) {
+    band = wrNormalizeBand(band);
+    if (band === '2G') return wrFirst(node, ['ap2g_ssid_fh', 'ap2g_ssid']);
+    if (band === '5G') return wrFirst(node, ['ap5g_ssid_fh', 'ap5g_ssid']);
+    if (band === '5G1') return wrFirst(node, ['ap5g1_ssid_fh', 'ap5g1_ssid']);
+    if (band === '5G2') return wrFirst(node, ['ap5g2_ssid_fh', 'ap5g2_ssid', 'ap5g1_ssid_fh', 'ap5g1_ssid']);
+    if (band === '6G') return wrFirst(node, ['ap6g_ssid_fh', 'ap6g_ssid']);
+    if (band === '6G1') return wrFirst(node, ['ap6g1_ssid_fh', 'ap6g1_ssid']);
+    if (band === '6G2') return wrFirst(node, ['ap6g2_ssid_fh', 'ap6g2_ssid', 'ap6g1_ssid_fh', 'ap6g1_ssid']);
+    return '';
+}
+
+function wrNodeFrontHauls(node) {
+    if (!node) return [];
+    var defs = [
+        ['2G', 'ap2g_fh'],
+        ['5G', 'ap5g_fh'],
+        ['5G1', 'ap5g1_fh'],
+        ['5G2', 'ap5g2_fh'],
+        ['6G', 'ap6g_fh'],
+        ['6G1', 'ap6g1_fh'],
+        ['6G2', 'ap6g2_fh']
+    ];
+    return defs.map(function(def) {
+        var bssid = wrNormMac(node[def[1]] || '');
+        return {
+            band: def[0],
+            bssid: bssid,
+            ssid: String(wrNodeFrontHaulSsid(node, def[0]) || '').trim()
+        };
+    }).filter(function(entry) { return wrIsMac(entry.bssid); });
+}
+
 function wrClientRadioUnitFromIsWL(client) {
     // Compatibility conversion for the legacy/dual-band fallback only. Modern
     // AiMesh nodes can expose logical isWL values that do not equal physical wl
@@ -1843,25 +1930,17 @@ function wrLegacyClientRadioUnit(client) {
     return wrClientRadioUnitFromIsWL(client);
 }
 
-function wrLegacyClientGuestIndex(client) {
-    if (!client) return null;
-
-    var guestRaw = client.isGN === true ? 1 : client.isGN;
-    if (guestRaw === undefined || guestRaw === null || String(guestRaw).trim() === '') return 0;
-
-    var guest = Number(guestRaw);
-    if (!Number.isFinite(guest) || Math.floor(guest) !== guest || guest < 0 || guest > 9) return null;
-    return guest;
-}
-
 function wrLegacyClientIfaceFallback(client) {
+    // For legacy primary clients, a positive isGN is an observed VIF suffix and
+    // can still reconstruct wlX.Y from the validated legacy isWL ordinal. Blank
+    // isGN does not identify a main-BSS suffix and is intentionally left to the
+    // authoritative FH-BSSID -> wifi_detect fallback instead of returning bare wlX.
     var unit = wrLegacyClientRadioUnit(client);
     if (unit === null) return '';
 
-    var guest = wrLegacyClientGuestIndex(client);
+    var guest = wrPositiveGuestIndex(client);
     if (guest === null) return '';
-
-    return 'wl' + unit + (guest > 0 ? '.' + guest : '');
+    return 'wl' + unit + '.' + guest;
 }
 
 function wrCapabilityBand(mask) {
@@ -1915,10 +1994,10 @@ function wrNodeCapabilityRadios(node) {
 function wrNodeClientBandHint(client) {
     if (!client) return '';
 
-    // Prefer an explicit band when ASUS supplies one. Without that, only use the
-    // two isWL values already proven stable across the affected 388/3006 clients.
-    // Higher isWL values are intentionally left unresolved until their semantics
-    // are verified across tri-/quad-band and MLO hardware.
+    // Prefer an explicit named band. Without that, only isWL=1/2 are treated as
+    // cross-generation band hints. Modern BE clients have been observed using
+    // higher logical isWL values (including 4 and 5) for the same 6 GHz radio,
+    // so those values must not be translated into a physical radio or band here.
     var named = wrNormalizeBand(wrFirst(client, ['band', 'wlBand']));
     if (/^(?:2G|5G|5G1|5G2|6G|6G1|6G2)$/.test(named)) return named;
 
@@ -1942,10 +2021,10 @@ function wrNodeBandInfoUnits(node) {
     return Array.from(units).sort(function(a, b) { return a - b; });
 }
 
-function wrNodeClientRadioContext(node, client) {
+function wrNodeClientRadioContext(node, client, preferredBand) {
     if (!node || !client) return null;
 
-    var bandHint = wrNodeClientBandHint(client);
+    var bandHint = wrNormalizeBand(preferredBand) || wrNodeClientBandHint(client);
     var capabilityRadios = wrNodeCapabilityRadios(node);
 
     if (capabilityRadios !== null) {
@@ -1961,18 +2040,19 @@ function wrNodeClientRadioContext(node, client) {
             : null;
     }
 
-    // Older nodes do not expose capability[26]. Preserve the established 388
-    // behavior. On a latest controller, however, keep the ordinal fallback only
-    // for an unambiguously dual-radio node so tri-/quad-band hardware cannot be
-    // mis-mapped by isWL-1.
     var expectedUnit = wrClientRadioUnitFromIsWL(client);
     if (expectedUnit === null) return null;
 
     var units = wrNodeBandInfoUnits(node);
     if (units.indexOf(expectedUnit) === -1) return null;
-    if (WR_DIAG_API !== 'legacy' && !(units.length === 2 && expectedUnit <= 1)) return null;
 
-    return { unit: expectedUnit, band: bandHint, source: 'compat' };
+    // A node's firmware determines whether the ordinal isWL -> wlX conversion is
+    // valid, not the controller's diagnostic endpoint. Preserve all validated 388
+    // units even behind a 3006 primary. Unknown/latest no-capability nodes remain
+    // conservative and only use the established dual-radio 2G/5G mapping.
+    if (!wrNodeLegacySemantics(node) && !(units.length === 2 && expectedUnit <= 1)) return null;
+
+    return { unit: expectedUnit, band: bandHint, source: wrNodeLegacySemantics(node) ? 'legacy' : 'compat' };
 }
 
 function wrNodeClientRadioUnit(node, client) {
@@ -1980,18 +2060,17 @@ function wrNodeClientRadioUnit(node, client) {
     return context ? context.unit : null;
 }
 
-function wrNodeClientIfaceFallback(node, client) {
-    // AiMesh can keep a client in get_clientlist() while omitting that station from
-    // stainfo entirely. Resolve the node-local physical radio from the node's own
-    // capability inventory first, then append the live isGN VIF slot. A real
-    // stainfo conn_if still always wins first.
-    var context = wrNodeClientRadioContext(node, client);
-    if (!context) return '';
-
-    var guest = wrLegacyClientGuestIndex(client);
+function wrNodeClientIfaceFallback(node, client, preferredBand) {
+    // A positive isGN value is an observed VIF slot and can safely be appended
+    // after the node's physical radio has been resolved. Blank/zero isGN carries
+    // no suffix semantics: captures prove normal front-haul clients can be .1 on
+    // 388 nodes and .2 on 3006 nodes, so blank isGN must use discovered FH data.
+    var guest = wrPositiveGuestIndex(client);
     if (guest === null) return '';
 
-    return 'wl' + context.unit + (guest > 0 ? '.' + guest : '');
+    var context = wrNodeClientRadioContext(node, client, preferredBand);
+    if (!context) return '';
+    return 'wl' + context.unit + '.' + guest;
 }
 
 function wrNodeClientBandFallback(node, client) {
@@ -1999,17 +2078,17 @@ function wrNodeClientBandFallback(node, client) {
     return context && context.band ? context.band : '';
 }
 
-function wrStaIface(sta, client, node) {
+function wrStaIface(sta, client, node, fallbackIface) {
     // Prefer ASUS' explicit interface string whenever stainfo supplies it.
     var direct = String(sta && sta.conn_if || '').trim();
     if (direct) return direct;
 
-    // 388-series conn_diag can return a valid station sample (RSSI/rates/uptime)
-    // with conn_if blank while still supplying the radio/virtual-interface
-    // indexes. Reconstruct the same ASUS wlX[.Y] form from that row instead of
-    // showing an empty IFACE. Keep this compatibility reconstruction legacy-only
-    // so the working 3006/latest path is unchanged.
-    if (WR_DIAG_API === 'legacy' && sta) {
+    // conn_if_idx/vidx belong to the station's reporting node. A 388 node behind
+    // a 3006 controller still uses legacy index semantics, so key this decision
+    // to the node family rather than WR_DIAG_API. Primary-router reconstruction
+    // remains controller-family based because the primary owns the endpoint.
+    var legacyIndexes = node ? wrNodeLegacySemantics(node) : WR_DIAG_API === 'legacy';
+    if (legacyIndexes && sta) {
         var idxRaw = sta.conn_if_idx;
         var vidxRaw = sta.conn_if_vidx;
         var idx = Number(idxRaw);
@@ -2021,22 +2100,22 @@ function wrStaIface(sta, client, node) {
         if (idxValid) return 'wl' + idx + (vidxValid && vidx > 0 ? '.' + vidx : '');
     }
 
-    // On latest firmware an explicit live-client interface is better evidence than
-    // any inferred node mapping. Preserve the established legacy ordering below.
     var liveIface = String(wrFirst(client, ['ifname', 'interface']) || '').trim();
-    if (liveIface && WR_DIAG_API !== 'legacy') return liveIface;
+    if (liveIface && !legacyIndexes) return liveIface;
 
-    // If stainfo has no usable interface data for an AiMesh-node client, derive
-    // the node-local wlX[.Y] from capability data (or the conservative legacy
-    // compatibility fallback when capability data is unavailable).
-    var nodeFallback = wrNodeClientIfaceFallback(node, client);
+    // Explicit positive isGN can reconstruct a guest VIF once the physical radio
+    // is known. Blank isGN deliberately cannot synthesize bare wlX or wlX.1/.2.
+    var nodeFallback = wrNodeClientIfaceFallback(node, client, sta && sta.sta_band);
     if (nodeFallback) return nodeFallback;
+
+    // Asynchronous authoritative discovery (FH BSSID/driver BSSID -> wifi_detect)
+    // is prepared on the item before render and supplied here as the final safe
+    // recovery before legacy primary-only inference.
+    fallbackIface = String(fallbackIface || '').trim();
+    if (/^wl[0-9]+(?:\.[0-9]+)?$/i.test(fallbackIface)) return fallbackIface;
 
     if (liveIface) return liveIface;
 
-    // Primary-router clients on affected 388 builds can also be completely absent
-    // from stainfo while get_clientlist() still supplies isWL/isGN. Reconstruct the
-    // primary wlX[.Y] so IFACE and the matching NVRAM SSID do not remain blank.
     if (!node) {
         var primaryFallback = wrLegacyClientIfaceFallback(client);
         if (primaryFallback) return primaryFallback;
@@ -2045,33 +2124,38 @@ function wrStaIface(sta, client, node) {
     return '';
 }
 
-function wrStaSsidNvramKey(sta, client) {
-    var iface = wrStaIface(sta, client);
+function wrStaSsidNvramKey(sta, client, fallbackIface) {
+    var iface = wrStaIface(sta, client, null, fallbackIface);
     if (!/^wl[0-9]+(?:\.[0-9]+)?$/i.test(iface)) return '';
     return iface.toLowerCase() + '_ssid';
 }
 
 function wrLegacyGuestSsidNvramKey(client) {
-    // Reuse the same one-based isWL -> zero-based wlX mapping as the IFACE
-    // fallback so a node can never display one interface while resolving the
-    // SSID from a different radio's NVRAM key.
-    var iface = wrLegacyClientIfaceFallback(client);
-    if (!/^wl[0-9]+\.[0-9]+$/i.test(iface)) return '';
-    return iface.toLowerCase() + '_ssid';
+    // This key addresses the PRIMARY router's NVRAM namespace, not the node's
+    // local wlX numbering. Preserve the established legacy-controller fallback,
+    // where the synchronized primary/node radio ordering has already been used
+    // successfully. A 388 node behind a 3006 primary must not substitute its
+    // node-local isWL ordinal into the primary's potentially reordered BE/AX wlX
+    // namespace; that mixed-generation case stays unknown unless an authoritative
+    // primary-band -> VIF translation is available.
+    if (WR_DIAG_API !== 'legacy') return '';
+
+    var guest = wrPositiveGuestIndex(client);
+    if (guest === null) return '';
+    var unit = wrLegacyClientRadioUnit(client);
+    if (unit === null) return '';
+    return 'wl' + unit + '.' + guest + '_ssid';
 }
 
 function wrNodeBandSsid(node, sta, client) {
     if (!node) return '';
-    var band = WR_DIAG_API === 'legacy' ? wrClientBandHint(client) : '';
+    // Do not replace a guest/SDN SSID with the radio's normal front-haul SSID.
+    if (wrPositiveGuestIndex(client) !== null) return '';
+
+    var band = wrNodeLegacySemantics(node) ? wrClientBandHint(client) : '';
     if (!band) band = wrNormalizeBand(sta && sta.sta_band);
-    if (band === '2G' || band === '2.4G') return wrFirst(node, ['ap2g_ssid']);
-    if (band === '5G') return wrFirst(node, ['ap5g_ssid']);
-    if (band === '5G1') return wrFirst(node, ['ap5g1_ssid']);
-    if (band === '5G2') return wrFirst(node, ['ap5g2_ssid', 'ap5g1_ssid']);
-    if (band === '6G') return wrFirst(node, ['ap6g_ssid']);
-    if (band === '6G1') return wrFirst(node, ['ap6g1_ssid']);
-    if (band === '6G2') return wrFirst(node, ['ap6g2_ssid', 'ap6g1_ssid']);
-    return '';
+    if (!band) band = wrNodeClientBandFallback(node, client);
+    return wrNodeFrontHaulSsid(node, band);
 }
 
 function wrExtractAssignedArray(source, name) {
@@ -2156,10 +2240,12 @@ function wrExtractAssignedArray(source, name) {
     return result;
 }
 
-async function wrGetPrimaryDriverSsidMap() {
+async function wrGetPrimaryDriverInventory() {
     // ASUS' native Wireless Log is backed by the wireless driver's per-VIF
-    // authenticated station lists. On affected 3006 builds this remains correct
-    // even when networkmap/get_clientlist() has cached the wrong SDN/SSID/VLAN.
+    // authenticated station lists. Preserve the existing driver-backed SSID
+    // behavior and also retain each radio's AP BSSID so missing-stainfo IFACE/BAND
+    // can be discovered through an exact wifi_detect query without assuming radio
+    // order on tri-/quad-band AX/BE hardware.
     var r = await fetch('/ajax_wificlients.asp?_wr=' + Date.now(), {
         method: 'GET',
         credentials: 'same-origin',
@@ -2173,6 +2259,7 @@ async function wrGetPrimaryDriverSsidMap() {
     var unitMatch;
     while ((unitMatch = unitMatcher.exec(source)) !== null) units.add(Number(unitMatch[1]));
 
+    var radios = new Map();
     var candidates = new Map();
     units.forEach(function(unit) {
         var radio = wrExtractAssignedArray(source, 'dataarray' + unit);
@@ -2180,6 +2267,13 @@ async function wrGetPrimaryDriverSsidMap() {
         if (!Array.isArray(clients)) return;
 
         var mainSsid = Array.isArray(radio) ? String(radio[0] || '').trim() : '';
+        var apBssid = Array.isArray(radio) ? wrNormMac(radio[5] || '') : '';
+        radios.set(unit, {
+            unit: unit,
+            ssid: mainSsid,
+            bssid: wrIsMac(apBssid) ? apBssid : ''
+        });
+
         clients.forEach(function(row) {
             if (!Array.isArray(row)) return;
             var mac = wrNormMac(row[0]);
@@ -2196,71 +2290,304 @@ async function wrGetPrimaryDriverSsidMap() {
                 ssid: ssid,
                 unit: unit,
                 guest: Boolean(guestSsid),
-                vlan: String(row[13] || '').trim()
+                vlan: String(row[13] || '').trim(),
+                apBssid: wrIsMac(apBssid) ? apBssid : '',
+                mainSsid: mainSsid
             });
             candidates.set(mac, list);
         });
     });
 
-    // A station can briefly be visible on more than one VIF/radio while roaming
-    // (and MLO can expose multiple link identities). Only publish an association
-    // when the driver inventory contains one unambiguous row for that MAC.
-    var map = new Map();
+    var clients = new Map();
     candidates.forEach(function(list, mac) {
-        if (list.length === 1) map.set(mac, list[0]);
+        if (list.length === 1) clients.set(mac, list[0]);
     });
-    return map;
+    return { clients: clients, radios: radios };
+}
+
+async function wrGetPrimaryDriverSsidMap() {
+    return (await wrGetPrimaryDriverInventory()).clients;
+}
+
+function wrPrimaryDriverAssociation(item, driverMap) {
+    if (!item || item.node || item.meshLinkNode || !(driverMap instanceof Map)) return null;
+
+    // MLO candidates can occasionally point at equivalent driver rows. Collapse
+    // identical associations by their radio/VIF identity and reject genuinely
+    // ambiguous multi-radio results rather than selecting one arbitrarily.
+    var unique = new Map();
+    wrGetMloCandidates(item.mac, item.client, item.saved).forEach(function(mac) {
+        var found = driverMap.get(mac);
+        if (!found) return;
+        var sig = [found.unit, found.ssid, found.guest ? 1 : 0, found.vlan, found.apBssid].join('|');
+        unique.set(sig, found);
+    });
+    return unique.size === 1 ? Array.from(unique.values())[0] : null;
 }
 
 function wrPrimaryDriverSsid(item, driverMap) {
-    if (!item || item.node || item.meshLinkNode || !(driverMap instanceof Map)) return '';
+    var found = wrPrimaryDriverAssociation(item, driverMap);
+    return found ? String(found.ssid || '').trim() : '';
+}
 
-    var matches = [];
-    wrGetMloCandidates(item.mac, item.client, item.saved).forEach(function(mac) {
-        var found = driverMap.get(mac);
-        if (found) matches.push(found);
-    });
+function wrDecodeAsusRuleList(raw) {
+    // appGet/nvram data has been observed both as literal <...> rule strings and
+    // as numeric entities without semicolons (&#60 / &#62). Decode only the rule
+    // delimiters we need; do not execute or broadly HTML-decode router content.
+    return String(raw || '')
+        .split('&#60;').join('<').split('&#62;').join('>')
+        .split('&#60').join('<').split('&#62').join('>');
+}
 
-    return matches.length === 1 ? String(matches[0].ssid || '').trim() : '';
+function wrParseApWifiRuleList(raw) {
+    var decoded = wrDecodeAsusRuleList(raw);
+    if (!decoded) return [];
+    return decoded.split('<').filter(Boolean).map(function(entry) {
+        var fields = entry.split('>');
+        var ifaces = String(fields[1] || '').split(',').map(function(value) {
+            return String(value || '').trim();
+        }).filter(function(iface) {
+            return /^wl[0-9]+(?:\.[0-9]+)?$/i.test(iface);
+        });
+        return {
+            profile: String(fields[0] || '').trim(),
+            ifaces: ifaces,
+            sdnIdx: String(fields[2] || '').trim()
+        };
+    }).filter(function(rule) { return rule.ifaces.length > 0; });
+}
+
+function wrPrimaryGuestIface(association, client, radio, apWifiRules) {
+    if (!association || !association.guest || !radio || !radio.iface) return '';
+    var unit = wrIfaceUnit(radio.iface);
+    if (unit === null) return '';
+
+    // ap_wifi_rl's third field is the SDN index in the measured 3006 layout.
+    // Only trust a live SDN index when the driver's VLAN agrees with the live
+    // client VLAN (when both are available), then require one matching interface
+    // on the physical radio discovered from the driver's AP BSSID.
+    var driverVlan = String(association.vlan || '').trim();
+    var liveVlan = String(wrFirst(client, ['vlan_id', 'vlanId']) || '').trim();
+    var vlanAgrees = !driverVlan || !liveVlan || driverVlan === liveVlan;
+    var sdnIdx = vlanAgrees ? String(wrFirst(client, ['sdn_idx', 'sdnIdx']) || '').trim() : '';
+
+    if (sdnIdx && Array.isArray(apWifiRules)) {
+        var matches = new Set();
+        apWifiRules.forEach(function(rule) {
+            if (!rule || String(rule.sdnIdx) !== sdnIdx) return;
+            (rule.ifaces || []).forEach(function(iface) {
+                if (wrIfaceUnit(iface) === unit) matches.add(iface);
+            });
+        });
+        if (matches.size === 1) return Array.from(matches)[0];
+    }
+
+    // Positive isGN values were measured as the actual VIF suffix on both node
+    // and primary 3006 clients. Use this only after the physical unit came from
+    // the authoritative driver AP-BSSID -> wifi_detect mapping.
+    var guest = wrPositiveGuestIndex(client);
+    return guest === null ? '' : 'wl' + unit + '.' + guest;
+}
+
+async function wrResolveNodeFrontHaul(item) {
+    if (!item || !item.node || !item.nodeMac || item.meshLinkNode) return null;
+    if (wrPositiveGuestIndex(item.client) !== null) return null;
+
+    var frontHauls = wrNodeFrontHauls(item.node);
+    if (!frontHauls.length) return null;
+
+    var selected = null;
+    var staBand = wrNormalizeBand(item.sta && item.sta.sta_band);
+    var legacyBand = wrNodeLegacySemantics(item.node) ? wrClientBandHint(item.client) : '';
+    var trustedBand = staBand && legacyBand && staBand !== legacyBand
+        ? legacyBand
+        : (staBand || legacyBand || wrNodeClientBandHint(item.client));
+
+    // Radio telemetry outranks Network Map SSID because the latter is the source
+    // known to retain stale/truncated SDN metadata. This mirrors stale-stainfo
+    // rejection on legacy nodes: when legacy live band and stainfo disagree, use
+    // the validated live legacy band to select the node's advertised FH BSSID.
+    if (trustedBand) {
+        var bandMatches = frontHauls.filter(function(fh) { return fh.band === trustedBand; });
+        if (bandMatches.length === 1) selected = bandMatches[0];
+    }
+
+    if (!selected) {
+        var liveSsid = String(wrFirst(item.client, ['ssid']) || '').trim();
+        var savedSsid = String(wrFirst(item.saved, ['ssid']) || '').trim();
+        var ssid = liveSsid || savedSsid;
+        if (ssid) {
+            var ssidMatches = frontHauls.filter(function(fh) {
+                return fh.ssid && wrSsidEquivalent(ssid, fh.ssid);
+            });
+            if (ssidMatches.length === 1) selected = ssidMatches[0];
+        }
+    }
+
+    if (selected) {
+        try {
+            var detected = await wrWifiDetectBssid(item.nodeMac, selected.bssid);
+            if (!detected) return null;
+            return {
+                band: detected.band || selected.band,
+                iface: detected.iface,
+                bssid: selected.bssid,
+                ssid: selected.ssid,
+                source: 'fh-bssid'
+            };
+        } catch (e) {
+            console.warn('Wireless Report FH wifi_detect lookup failed for ' + selected.bssid, e);
+            return null;
+        }
+    }
+
+    // A legacy node can expose a blank client SSID while isWL still identifies
+    // the physical radio. If no band label selected an FH entry, discover the
+    // advertised FH mappings and require exactly one whose actual wl unit equals
+    // the validated legacy ordinal. This preserves tri-radio 388 recovery without
+    // pretending the ordinal itself tells us whether that radio is 5G-2 or 6G.
+    if (wrNodeLegacySemantics(item.node)) {
+        var expectedUnit = wrClientRadioUnitFromIsWL(item.client);
+        if (expectedUnit !== null && wrNodeBandInfoUnits(item.node).indexOf(expectedUnit) !== -1) {
+            var unitMatches = [];
+            for (var i = 0; i < frontHauls.length; i++) {
+                try {
+                    var found = await wrWifiDetectBssid(item.nodeMac, frontHauls[i].bssid);
+                    if (found && wrIfaceUnit(found.iface) === expectedUnit) {
+                        unitMatches.push({ fh: frontHauls[i], detected: found });
+                    }
+                } catch (e) {
+                    console.warn('Wireless Report legacy FH wifi_detect lookup failed for ' + frontHauls[i].bssid, e);
+                }
+            }
+            if (unitMatches.length === 1) {
+                var match = unitMatches[0];
+                return {
+                    band: match.detected.band || match.fh.band,
+                    iface: match.detected.iface,
+                    bssid: match.fh.bssid,
+                    ssid: match.fh.ssid,
+                    source: 'fh-unit'
+                };
+            }
+        }
+    }
+    return null;
+}
+
+async function wrResolveFallbackTelemetry(items, mainMac, mainNode, primaryInventory, apWifiRuleRaw) {
+    primaryInventory = primaryInventory || { clients: new Map(), radios: new Map() };
+    var driverMap = primaryInventory.clients instanceof Map ? primaryInventory.clients : new Map();
+    var apWifiRules = wrParseApWifiRuleList(apWifiRuleRaw);
+
+    // Keep exact topology discovery sequential. wifi_detect can be a constrained
+    // diagnostic CGI just like stainfo; the cache makes later clients/refreshes
+    // reuse the first successful BSSID mapping without additional requests.
+    for (var i = 0; i < items.length; i++) {
+        var item = items[i];
+        if (!item || item.meshLinkNode) continue;
+
+        if (item.node) {
+            var nodeFh = await wrResolveNodeFrontHaul(item);
+            if (nodeFh) {
+                item.wrFrontHaul = nodeFh;
+                item.wrFallbackBand = nodeFh.band || '';
+                item.wrFallbackIface = nodeFh.iface || '';
+                // For an exact station interface, SSID correction must first prove
+                // that conn_if is this discovered FH BSS (wrNodeMainSsidFromSta).
+                // Only missing-interface cases may consume the FH SSID directly.
+                if (!String(item.sta && item.sta.conn_if || '').trim()) {
+                    item.wrFallbackSsid = nodeFh.ssid || '';
+                }
+            }
+            continue;
+        }
+
+        if (WR_DIAG_API === 'legacy') {
+            // A legacy primary can have the same blank-isGN ambiguity as a legacy
+            // node. Treat its get_cfg_clientlist entry as the BSS owner and use
+            // the identical advertised-FH BSSID discovery instead of bare wlX.
+            if (mainNode && wrPositiveGuestIndex(item.client) === null) {
+                var primaryFhItem = Object.assign({}, item, { node: mainNode, nodeMac: mainMac });
+                var primaryFh = await wrResolveNodeFrontHaul(primaryFhItem);
+                if (primaryFh) {
+                    item.wrFallbackBand = primaryFh.band || '';
+                    item.wrFallbackIface = primaryFh.iface || '';
+                    if (!String(item.sta && item.sta.conn_if || '').trim()) {
+                        item.wrFallbackSsid = primaryFh.ssid || '';
+                    }
+                }
+            }
+            continue;
+        }
+
+        if (WR_DIAG_API !== 'latest') continue;
+        var association = wrPrimaryDriverAssociation(item, driverMap);
+        if (!association) continue;
+        item.wrPrimaryDriver = association;
+
+        // Existing exact stainfo remains authoritative. Only spend a wifi_detect
+        // lookup when IFACE/BAND recovery is actually needed.
+        var staIface = String(item.sta && item.sta.conn_if || '').trim();
+        var staBand = wrNormalizeBand(item.sta && item.sta.sta_band);
+        if (staIface && staBand) continue;
+        if (!association.apBssid) continue;
+
+        try {
+            var radio = await wrWifiDetectBssid(mainMac, association.apBssid);
+            if (!radio) continue;
+            item.wrFallbackBand = radio.band || '';
+
+            if (!association.guest) {
+                item.wrFallbackIface = radio.iface || '';
+            } else {
+                item.wrFallbackIface = wrPrimaryGuestIface(
+                    association, item.client, radio, apWifiRules
+                );
+            }
+        } catch (e) {
+            console.warn('Wireless Report primary driver BSSID lookup failed for ' + association.apBssid, e);
+        }
+    }
 }
 
 function wrNodeMainSsidFromSta(item) {
-    // AiMesh stainfo conn_if is node-local. On the Broadcom station inventory
-    // used by the affected AX node, wlX.1 is the radio's main BSS; guest/VIF
-    // associations use later subunits. Trust only that exact, driver-reported
-    // main-BSS shape here so a stale networkmap Guest/SDN classification cannot
-    // override a station that is actually associated to the node's main WLAN.
-    // Anything else remains on the existing SSID path rather than guessing.
     if (!item || !item.node || !item.sta) return '';
 
     var iface = String(item.sta.conn_if || '').trim();
-    if (!/^wl[0-9]+\.1$/i.test(iface)) return '';
-
-    // Use stainfo's own band rather than live get_clientlist() hints; the latter
-    // belongs to the same networkmap record that can carry the bad SSID/SDN data.
     var band = wrNormalizeBand(item.sta.sta_band);
-    if (band === '2G' || band === '2.4G') return wrFirst(item.node, ['ap2g_ssid']);
-    if (band === '5G') return wrFirst(item.node, ['ap5g_ssid']);
-    if (band === '5G1') return wrFirst(item.node, ['ap5g1_ssid']);
-    if (band === '5G2') return wrFirst(item.node, ['ap5g2_ssid', 'ap5g1_ssid']);
-    if (band === '6G') return wrFirst(item.node, ['ap6g_ssid']);
-    if (band === '6G1') return wrFirst(item.node, ['ap6g1_ssid']);
-    if (band === '6G2') return wrFirst(item.node, ['ap6g2_ssid', 'ap6g1_ssid']);
+
+    // When asynchronous FH discovery has already identified the station's exact
+    // front-haul BSS, compare interfaces directly. This is generation-independent
+    // and correctly handles .1 on the tested 388 AX92U and .2 on the 3006 BE92U.
+    if (item.wrFrontHaul && item.wrFrontHaul.iface && iface === item.wrFrontHaul.iface) {
+        return String(item.wrFrontHaul.ssid || wrNodeFrontHaulSsid(item.node, band) || '').trim();
+    }
+
+    // Preserve the established v3.1.9 exact wlX.1 stale-SSID repair when an
+    // authoritative FH mapping could not be prepared. Blank isGN itself never
+    // implies .1; this compatibility path starts from an exact stainfo conn_if.
+    // When FH discovery did succeed and points elsewhere (for example .2 on the
+    // tested BE92U), the mismatch above intentionally prevents this fallback.
+    if (!item.wrFrontHaul && /^wl[0-9]+\.1$/i.test(iface)) {
+        return wrNodeFrontHaulSsid(item.node, band);
+    }
     return '';
 }
 
-async function wrResolveClientSsids(items, allNodes, mainMac) {
+async function wrResolveClientSsids(items, allNodes, mainMac, primaryDriverSsids) {
     // On 3006/latest firmware prefer ASUS' driver-backed Wireless Log inventory
-    // for primary-router clients. For AiMesh-node clients, an exact node-local
-    // stainfo wlX.1 association is independently treated as the radio's main BSS
-    // and resolved from that node's advertised band SSID. All missing, malformed,
-    // ambiguous, or other VIF cases preserve the existing WR logic unchanged.
-    var primaryDriverSsids = new Map();
-    if (WR_DIAG_API === 'latest') {
-        try {
-            primaryDriverSsids = await wrGetPrimaryDriverSsidMap();
-        } catch (e) {
-            console.warn('Wireless Report driver-backed primary SSID lookup failed', e);
+    // for primary-router clients. AiMesh-node main/FH SSIDs can be recognized by
+    // the authoritative BSSID -> wifi_detect interface prepared before this pass;
+    // legacy exact wlX.1 remains only as a compatibility fallback.
+    if (!(primaryDriverSsids instanceof Map)) {
+        primaryDriverSsids = new Map();
+        if (WR_DIAG_API === 'latest') {
+            try {
+                primaryDriverSsids = await wrGetPrimaryDriverSsidMap();
+            } catch (e) {
+                console.warn('Wireless Report driver-backed primary SSID lookup failed', e);
+            }
         }
     }
 
@@ -2294,6 +2621,11 @@ async function wrResolveClientSsids(items, allNodes, mainMac) {
             return;
         }
 
+        if (item.wrFallbackSsid) {
+            item.resolvedSsid = item.wrFallbackSsid;
+            return;
+        }
+
         var direct = wrFirst(item.client, ['ssid']) || wrFirst(item.saved, ['ssid']);
         item.resolvedSsid = direct || '';
         if (item.resolvedSsid) return;
@@ -2316,7 +2648,7 @@ async function wrResolveClientSsids(items, allNodes, mainMac) {
         // Primary-router interface names belong to the primary, so an exact
         // <conn_if>_ssid lookup is valid here and retains guest/virtual SSIDs.
         primaryMissing.push(item);
-        var key = wrStaSsidNvramKey(item.sta, item.client);
+        var key = wrStaSsidNvramKey(item.sta, item.client, item.wrFallbackIface);
         if (key) primaryKeys.add(key);
     });
 
@@ -2343,7 +2675,7 @@ async function wrResolveClientSsids(items, allNodes, mainMac) {
         var sta = item.sta;
         // Preserve the live client hint here too: when stainfo is absent, the
         // primary IFACE fallback needs isWL/isGN to recover wlX[.Y].
-        var key = wrStaSsidNvramKey(sta, item.client);
+        var key = wrStaSsidNvramKey(sta, item.client, item.wrFallbackIface);
         var fromIface = key ? String(nvramSsids[key] || '').trim() : '';
         if (fromIface) {
             item.resolvedSsid = fromIface;
@@ -2353,7 +2685,7 @@ async function wrResolveClientSsids(items, allNodes, mainMac) {
         // Never replace a virtual-interface SSID with the main radio's SSID if
         // the exact primary NVRAM lookup failed. For a non-virtual interface,
         // the primary's advertised band SSID is a safe final fallback.
-        var iface = wrStaIface(sta, item.client);
+        var iface = wrStaIface(sta, item.client, null, item.wrFallbackIface);
         var vidx = wrNumber(sta && sta.conn_if_vidx);
         var isVirtual = iface.indexOf('.') !== -1 || (Number.isFinite(vidx) && vidx > 0);
         if (!isVirtual) item.resolvedSsid = wrNodeBandSsid(mainNode, sta, item.client) || '';
@@ -2448,6 +2780,15 @@ async function wrDiag388(db, content, filter) {
 var WR_DIAG_API = 'unknown'; // unknown | latest | legacy
 var WR_DIAG_PROBE_PROMISE = null;
 
+// wifi_detect BSSID mappings describe router/node BSS topology, not an
+// individual station. Cache successful exact lookups for the lifetime of the
+// generated page. A changed BSSID naturally creates a new cache key, while
+// promise sharing prevents simultaneous clients from duplicating the same CGI
+// request during the first refresh.
+var WR_WIFI_BSSID_CACHE = new Map();
+var WR_WIFI_BSSID_PENDING = new Map();
+var WR_WIFI_BSSID_FAILURES = new Map();
+
 function wrDiagRequestKey(db, content, filter) {
     return String(db) + '\n' + String(content) + '\n' + String(filter || '');
 }
@@ -2501,6 +2842,70 @@ async function wrDiag(db, content, filter) {
     return probe.api === 'legacy'
         ? wrDiag388(db, content, filter)
         : wrDiagLatest(db, content, filter);
+}
+
+async function wrWifiDetectBssid(nodeMac, bssid) {
+    var targetNode = wrNormMac(nodeMac);
+    var targetBssid = wrNormMac(bssid);
+    if (!wrIsMac(targetNode) || !wrIsMac(targetBssid)) return null;
+
+    var key = targetNode + '|' + targetBssid;
+    if (WR_WIFI_BSSID_CACHE.has(key)) return WR_WIFI_BSSID_CACHE.get(key);
+    if (WR_WIFI_BSSID_PENDING.has(key)) return WR_WIFI_BSSID_PENDING.get(key);
+
+    // Do not turn one transient/empty topology lookup into N identical CGI calls
+    // for N clients on the same BSS. Suppress failures briefly, then allow a later
+    // refresh to retry without requiring a page reload.
+    var failedAt = Number(WR_WIFI_BSSID_FAILURES.get(key) || 0);
+    if (failedAt && Date.now() - failedAt < 5000) return null;
+
+    var promise = (async function() {
+        try {
+            var columns = ['data_time', 'node_type', 'node_ip', 'node_mac', 'band', 'ifname', 'mac'];
+            var filter =
+                'node_mac>txt>' + targetNode + '>0;' +
+                'mac>txt>' + targetBssid + '>0;';
+            var data = await wrDiag('wifi_detect', columns.join(';'), filter);
+            var rows = data && Array.isArray(data.contents) ? data.contents : [];
+            var best = null;
+
+            rows.forEach(function(row) {
+                if (!Array.isArray(row)) return;
+                var rowNode = wrNormMac(row[3]);
+                var rowMac = wrNormMac(row[6]);
+                var iface = String(row[5] || '').trim();
+                if (rowNode !== targetNode || rowMac !== targetBssid ||
+                    !/^wl[0-9]+(?:\.[0-9]+)?$/i.test(iface)) return;
+
+                var candidate = {
+                    time: Number(row[0]) || 0,
+                    nodeMac: rowNode,
+                    bssid: rowMac,
+                    band: wrNormalizeBand(row[4]),
+                    iface: iface
+                };
+                if (!best || candidate.time > best.time) best = candidate;
+            });
+
+            if (best) {
+                WR_WIFI_BSSID_CACHE.set(key, best);
+                WR_WIFI_BSSID_FAILURES.delete(key);
+            } else {
+                WR_WIFI_BSSID_FAILURES.set(key, Date.now());
+            }
+            return best;
+        } catch (e) {
+            WR_WIFI_BSSID_FAILURES.set(key, Date.now());
+            throw e;
+        }
+    })();
+
+    WR_WIFI_BSSID_PENDING.set(key, promise);
+    try {
+        return await promise;
+    } finally {
+        WR_WIFI_BSSID_PENDING.delete(key);
+    }
 }
 
 function wrNodeDiagFromRow(row) {
@@ -2702,6 +3107,9 @@ function wrIndexSta(rows) {
 
 function wrLooksWireless(c) {
     if (!c) return false;
+    // Network Map can retain an old SSID/RSSI/rates/isWL tuple after a station
+    // disconnects. An explicit offline state therefore wins over those cached
+    // fields; driver/stainfo absence must not be backfilled from stale telemetry.
     if (c.isOnline !== undefined && (c.isOnline === false || String(c.isOnline) === '0')) return false;
     if (c.isWL !== undefined && c.isWL !== null && c.isWL !== '') {
         var w = Number(c.isWL);
@@ -2727,7 +3135,7 @@ function wrRenderRow(item, history, known, firstHistoryLoad) {
     var ip = rawIp.length > 15 ? rawIp.slice(0, 15) : rawIp;
     var name = rawName.length > 20 ? rawName.slice(0, 20) : rawName;
     var ssid = rawSsid;
-    var iface = wrStaIface(sta, c, item.node);
+    var iface = wrStaIface(sta, c, item.node, item.wrFallbackIface);
     var rssi = wrItemRssi(item);
     var rx = sta && sta.sta_rx !== undefined ? Math.round(wrNumber(sta.sta_rx)) : Math.round(wrNumber(c.curRx));
     var tx = sta && sta.sta_tx !== undefined ? Math.round(wrNumber(sta.sta_tx)) : Math.round(wrNumber(c.curTx));
@@ -2778,7 +3186,7 @@ function wrRenderRow(item, history, known, firstHistoryLoad) {
         "<td data-sort='" + rateSort + "' style='" + quality.style + "text-align:center;'>" + wrEscape(rateText) + "</td>" +
         "<td><span class='ssid-val' data-sort='" + wrEscape(ssid) + "'>" + wrEscape(ssid || '--') + "</span>" +
         "<span class='iface-val' data-sort='" + wrEscape(iface) + "'>" + wrEscape(iface || '--') + "</span></td>" +
-        wrBandHtml(sta, c, item.meshLinkNode, item.node) +
+        wrBandHtml(sta, c, item.meshLinkNode, item.node, item.wrFallbackBand) +
         "<td>" + wrFormatConnection(connected) + "</td>" +
         "</tr>";
 }
@@ -2853,7 +3261,12 @@ async function wrResolveSta(item, staMaps) {
     if (!nodeMac) return null;
     var map = staMaps.get(nodeMac);
     var candidates = wrGetMloCandidates(item.mac, item.client, item.saved);
-    var expectedBand = WR_DIAG_API === 'legacy' ? wrClientBandHint(item.client) : '';
+    var expectedBand = '';
+    if (item.node) {
+        if (wrNodeLegacySemantics(item.node)) expectedBand = wrClientBandHint(item.client);
+    } else if (WR_DIAG_API === 'legacy') {
+        expectedBand = wrClientBandHint(item.client);
+    }
     var best = null;
     if (map) {
         candidates.forEach(function(candidate) {
@@ -2900,6 +3313,7 @@ async function loadWirelessReport() {
         'get_clientlist_from_json_database();' +
         'nvram_get(productid);' +
         'nvram_get(lan_hwaddr);' +
+        'nvram_get(ap_wifi_rl);' +
         'uptime();'
     );
 
@@ -2990,11 +3404,28 @@ async function loadWirelessReport() {
         items[itemIndex].sta = await wrResolveSta(items[itemIndex], staMaps);
     }
 
-    // SSID compatibility: primary-router clients prefer the native Wireless Log's
-    // driver-backed VIF association. AiMesh-node clients with exact stainfo wlX.1
-    // main-BSS telemetry use the parent node's advertised band SSID. Everything
-    // else falls back to the existing client/NVRAM/legacy recovery paths.
-    await wrResolveClientSsids(items, allNodes, mainMac);
+    // Reuse one driver-backed Wireless Log snapshot for both primary SSID and
+    // missing-stainfo telemetry recovery. Node BSS topology is discovered from
+    // advertised FH BSSIDs. Primary radio topology is discovered from dataarrayN
+    // AP BSSIDs. Both routes use exact wifi_detect and cached results instead of
+    // assuming wl order or a universal .1/.2 main-BSS suffix.
+    var mainInventoryNode = allNodes.find(function(node) {
+        return wrNormMac(node && (node.mac || node.mac_addr)) === mainMac;
+    }) || null;
+    var primaryDriverInventory = { clients: new Map(), radios: new Map() };
+    if (WR_DIAG_API === 'latest') {
+        try {
+            primaryDriverInventory = await wrGetPrimaryDriverInventory();
+        } catch (e) {
+            console.warn('Wireless Report driver-backed primary inventory lookup failed', e);
+        }
+    }
+    await wrResolveFallbackTelemetry(items, mainMac, mainInventoryNode, primaryDriverInventory, base.ap_wifi_rl);
+
+    // SSID compatibility reuses the same current driver snapshot. For nodes, the
+    // discovered FH interface also generalizes the v3.1.9 stale-main-SSID repair
+    // beyond wlX.1 while retaining that exact legacy fallback for older nodes.
+    await wrResolveClientSsids(items, allNodes, mainMac, primaryDriverInventory.clients);
 
     // Match v2.1.0's report-wide sample time so the Main, Node and All views show
     // the same timestamp for a given refresh and the persisted sample matches it.
