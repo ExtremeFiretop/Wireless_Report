@@ -1073,22 +1073,22 @@ done
 IPPAD=${IPPAD:-1}; HOST_COLOR=${HOST_COLOR:-0}; PULSE_MINS=${PULSE_MINS:-15}
 ROUTER=$(nvram get productid); MAIN_NAME="${MAIN_NICK:-${ROUTER:-Main Router}}"
 MAIN_NAME="<span id='wr-main-name' class='router-style'>${MAIN_NAME}</span>"
-MAIN_CPU="CPU: <span id='wr-main-cpu' class='stat-cool'>--</span>"
-MAIN_MEMORY="Memory: <span id='wr-main-memory' class='stat-cool'>--</span>"
-MAIN_DEVICE_TOTAL="Devices: <span id='wr-main-count' class='main-color'>0</span>"
-MAIN_UPTIME="Uptime: <span id='wr-main-uptime' class='main-color'>--</span>"
-MAIN_REBOOT="Reboot: <span id='wr-main-reboot' class='main-color'>--</span>"
+MAIN_CPU="<span id='wr-main-cpu' class='stat-cool'>--</span>"
+MAIN_MEMORY="<span id='wr-main-memory' class='stat-cool'>--</span>"
+MAIN_DEVICE_TOTAL="<span id='wr-main-count' class='main-color'>0</span>"
+MAIN_UPTIME="<span id='wr-main-uptime' class='main-color'>--</span>"
+MAIN_REBOOT="<span id='wr-main-reboot' class='main-color'>--</span>"
 
 NODE_NAMES="<span id='wr-node-names' class='router-style'>AiMesh nodes</span>"
-NODE_CPU="CPU: <span id='wr-node-cpu' class='stat-cool'>--</span>"
-NODE_MEMORY="Memory: <span id='wr-node-memory' class='stat-cool'>--</span>"
-NODE_DEVICE_TOTAL="Devices: <span id='wr-node-count' class='stat-cool'>0</span>"
+NODE_CPU="<span id='wr-node-cpu' class='stat-cool'>--</span>"
+NODE_MEMORY="<span id='wr-node-memory' class='stat-cool'>--</span>"
+NODE_DEVICE_TOTAL="<span id='wr-node-count' class='stat-cool'>0</span>"
 NODE_FOOTER="<span id='wr-node-diag'>Controller telemetry pending...</span>"
 
 ALL_NAMES="<span id='wr-all-names' class='router-style'>Loading...</span>"
-ALL_CPU="CPU: <span id='wr-all-cpu'>--</span>"
-ALL_MEMORY="Memory: <span id='wr-all-memory'>--</span>"
-ALL_DEVICES="Devices: <span id='wr-all-count' class='stat-cool'>0</span>"
+ALL_CPU="<span id='wr-all-cpu'>--</span>"
+ALL_MEMORY="<span id='wr-all-memory'>--</span>"
+ALL_DEVICES="<span id='wr-all-count' class='stat-cool'>0</span>"
 ALL_FOOTER="<span id='wr-all-footer' class='main-color'>Controller telemetry pending...</span>"
 
 GRAND_TOTAL_DEVICES="<span id='wr-grand-total' class='count-highlight'>0</span>"
@@ -4161,9 +4161,9 @@ document.addEventListener('mouseout', function(e) {
                                     $UPDATED_TIME
                                     <hr class="separator-line">
                                     <div class="temp-load-row">
-                                        $MAIN_CPU
-                                        $MAIN_MEMORY
-                                        $MAIN_DEVICE_TOTAL
+                                        <span>CPU: $MAIN_CPU</span>
+                                        <span>Memory: $MAIN_MEMORY</span>
+                                        <span>Devices: $MAIN_DEVICE_TOTAL</span>
                                     </div>
                                 </div>
                                 <table id="mainTable" class="report_table show-ip">
@@ -4180,8 +4180,8 @@ document.addEventListener('mouseout', function(e) {
                                     <tfoot>
                                         <tr>
                                             <td colspan="7" class="uptime-row">
-                                                $MAIN_UPTIME
-                                                $MAIN_REBOOT
+                                                <span>Uptime: $MAIN_UPTIME</span>
+                                                <span>Reboot: $MAIN_REBOOT</span>
                                             </td>
                                         </tr>
                                     </tfoot>
@@ -4196,9 +4196,9 @@ document.addEventListener('mouseout', function(e) {
                                     $UPDATED_TIME
                                     <hr class="separator-line">
                                     <div class="temp-load-row">
-                                        $NODE_CPU
-                                        $NODE_MEMORY
-                                        $NODE_DEVICE_TOTAL
+                                        <span>CPU: $NODE_CPU</span>
+                                        <span>Memory: $NODE_MEMORY</span>
+                                        <span>Devices: $NODE_DEVICE_TOTAL</span>
                                     </div>
                                 </div>
                                 <table id="nodeTable" class="report_table show-ip">
@@ -4228,9 +4228,9 @@ document.addEventListener('mouseout', function(e) {
                                 $UPDATED_TIME
                                 <hr class="separator-line">
                                 <div class="temp-load-row">
-                                    $ALL_CPU
-                                    $ALL_MEMORY
-                                    $ALL_DEVICES
+                                    <span>CPU: $ALL_CPU</span>
+                                    <span>Memory: $ALL_MEMORY</span>
+                                    <span>Devices: $ALL_DEVICES</span>
                                 </div>
                             </div>
                             <table id="allTable" class="report_table show-ip">
