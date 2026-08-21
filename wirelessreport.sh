@@ -164,7 +164,8 @@ version_compare() {
 menu_vars() {
     if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
     freeze2() { printf "\033[2A\033[J"; }; freeze3() { printf "\033[3A\033[J"; }
-	UL='\033[4m'; WH='\e[1;37m'; YL='\033[0;33m'; NC='\033[0m'
+	trap 'printf "\033[0m"' 0; trap 'exit 130' INT TERM HUP
+    UL='\033[4m'; WH='\e[1;37m'; YL='\033[0;33m'; NC='\033[0m'
     BL='\033[38;5;39m'; GR='\033[0;32m'; RD='\033[0;31m'
     JB1366="${GR}${UL}https://github.com/JB1366/Wireless_Report${NC}"
 	N0="${BL}(0)${NC}"; N1="${BL}(1)${NC}"; N2="${BL}(2)${NC}"; N3="${BL}(3)${NC}"; N4="${BL}(4)${NC}"
@@ -311,7 +312,7 @@ wr_sha256() {
 }
 
 check_github() {
-    GITHUB="https://raw.githubusercontent.com/ExtremeFiretop/Wireless_Report/Development/wirelessreport.sh"
+    GITHUB="https://raw.githubusercontent.com/JB1366/Wireless_Report/main/wirelessreport.sh"
     REMOTE_TMP="/tmp/wr_remote.tmp"
     LOCAL_HASH=""; REMOTE_HASH=""
     if curl -sfL --retry 3 "$GITHUB" -o "$REMOTE_TMP" 2>/dev/null && [ -s "$REMOTE_TMP" ]; then
@@ -848,7 +849,8 @@ set_options() {
                     freeze2; continue ;;
             esac
         done
-        run_report
+        if [ "$RR" = "0" ]; then RR="1"; continue
+        else run_report; fi
     done
 }
 
@@ -889,7 +891,7 @@ rssi_submenu() {
                     break ;;
                 c|C)
                     unset CUR_RS_HIST CUR_ENTRIES CUR_DATE
-                    return 0 ;;
+                    RR="0"; return 0 ;;
                 e|E)
                     RS_HIST="$CUR_RS_HIST"
                     RS_HIST_ENTRIES="$CUR_ENTRIES"
@@ -942,11 +944,12 @@ theme_submenu() {
                     else  echo 'THEME="ASUS_WEBUI"' >> "$CONFIG"; fi
                     break ;;
                 e|E)
-                    return 0 ;;
+                    RR="0"; return 0 ;;
                 *)
                     freeze2; continue ;;
             esac
         done
+        run_report
     done
 }
 
