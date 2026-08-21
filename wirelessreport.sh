@@ -1086,7 +1086,7 @@ MAIN_UPTIME="Uptime: <span id='wr-main-uptime' class='main-color'>--</span>"
 MAIN_REBOOT="Reboot: <span id='wr-main-reboot' class='main-color'>--</span>"
 
 NODE_NAMES="<span id='wr-node-names' class='router-style'>AiMesh nodes</span>"
-NODE_CPU="<span id='wr-node-cpu' class='stat-cool'>--</span>"
+NODE_CPU="CPU: <span id='wr-node-cpu' class='stat-cool'>--</span>"
 NODE_MEMORY="Memory: <span id='wr-node-memory' class='stat-cool'>--</span>"
 NODE_DEVICE_TOTAL="Devices: <span id='wr-node-count' class='stat-cool'>0</span>"
 NODE_FOOTER="<span id='wr-node-diag'>Controller telemetry pending...</span>"
