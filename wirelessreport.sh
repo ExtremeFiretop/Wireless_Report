@@ -1249,7 +1249,7 @@ cat <<HTML >> "$WEB_PAGE"
     body.wr-wide-mode table.report_table th:nth-child(6), #popoutModal table.report_table th:nth-child(6) { min-width: 75px; }
     body.wr-wide-mode table.report_table th:nth-child(7), #popoutModal table.report_table th:nth-child(7) { min-width: 75px; }
     .popout-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:9999; align-items: center; justify-content: center; backdrop-filter: blur(8px); }
-    .popout-content { background: rgba(0, 0, 0, 0.2); width: calc(100vw - 24px); max-width: none; height: calc(100vh - 24px); max-height: none; margin: 12px; padding:12px; box-sizing: border-box; border-radius:15px; border:1px solid rgba(0, 150, 255, 0.4); position: relative; overflow-y: auto; box-shadow: 0 0 40px rgba(0,0,0,0.6); backdrop-filter: blur(20px); overflow-x: hidden !important; }
+    .popout-content { background: rgba(0, 0, 0, 0.2); width: fit-content; max-width: 98vw; max-height: 95vh; margin: auto; padding: 12px; box-sizing: border-box; border-radius: 15px; border: 1px solid rgba(0, 150, 255, 0.4); position: relative; overflow-y: auto; box-shadow: 0 0 40px rgba(0,0,0,0.6); backdrop-filter: blur(20px); overflow-x: hidden !important; }
     .popout-close-x { position: absolute; top: 8px; right: 20px; color: #fff; font-size: 30px; font-weight: bold; }
     .popout-grid { display: flex; width: 100%; gap: 10px; margin-top: 2px; align-items: flex-start; justify-content: center; }
     .popout-grid > .report-column, .popout-grid > .popout-main-wrapper { flex: 1 1 0; min-width: 0; max-width: none; overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
