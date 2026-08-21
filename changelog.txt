@@ -4,8 +4,10 @@
 
 v3.1.8-made AiMesh missing-stainfo radio recovery capability-aware on 3006 nodes, unified BAND/history fallback resolution, and completed higher-band display aliases.
       -fixed missing AiMesh-node IFACE/BAND when ASUS omits a client from stainfo by validating live isWL/isGN against the parent node band_info on both 388 and 3006 nodes.
-      -fixed stale AiMesh-node SSIDs by trusting exact node stainfo wlX.1 main-BSS associations before networkmap, while retaining the v3.1.8 primary driver-backed fallback.
+      -fixed stale AiMesh-node SSIDs by trusting exact node stainfo wlX.1 main-BSS associations before networkmap, while retaining the primary driver-backed fallback.
       -prefer driver-backed Wireless Log VIF/SSID data for 3006 primary-router clients, with existing networkmap/NVRAM logic as fallback.
+      -update ansi yellow in shell install menu.
+	-fixed main fw detection display.
 v3.1.7-minor updates.
 v3.1.6-added node/all-devices footer telemetry. fixed inflated primary-router CPU reporting by using sys_detect telemetry like AiMesh nodes, with a short counter-sample fallback.
 v3.1.5-fixed missing 388-series primary-router IFACEs/SSIDs and aligned AiMesh node IFACE radio mapping with one-based isWL semantics.
