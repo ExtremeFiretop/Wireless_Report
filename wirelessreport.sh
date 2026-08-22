@@ -253,12 +253,6 @@ do_update() {
         mv "$TEMP_SCRIPT" "$REPORT_SCRIPT"
         chmod +x "$REPORT_SCRIPT" 2>/dev/null
         inject_menu
-
-        # the following 3-lines get deleted after a couple weeks, only for transition.
-        SE_FILE="/jffs/scripts/service-event"; sed -i "/wireless_report/d" "$SE_FILE"
-        get_usb
-        case "$USB_PATH" in *wirelessreport*) rm -rf "$USB_PATH" 2>/dev/null ;; esac
-
         return 0
     else
         rm -f "$TEMP_SCRIPT"
@@ -339,41 +333,6 @@ check_github() {
     fi
     rm -f "$REMOTE_TMP"
 }
-# this function gets deleted after a couple weeks, only for transition.
-get_usb() {
-	if [ -n "$USB_PATH" ]; then return; fi
-	read -r uptime_val _ < /proc/uptime
-	local BUP="${uptime_val%%.*}"
-    local mount
-    local FOUND=0
-    local attempt=0
-    while [ "$attempt" -lt 2 ]; do
-        for mount in /tmp/mnt/*; do
-            [ -d "$mount" ] || continue
-            if [ -d "$mount/wirelessreport" ]; then
-                USB_PATH="$mount/wirelessreport"
-                FOUND=1
-                break 2
-            fi
-        done
-        attempt=$((attempt + 1))
-        if [ "$FOUND" -eq 0 ] && [ "$BUP" -lt 300 ] && [ "$attempt" -eq 1 ]; then sleep 2
-        else break; fi
-    done
-    if [ "$FOUND" -eq 1 ] && [ -d "$INSTALL_DIR/data" ] && [ ! -L "$INSTALL_DIR/data" ]; then
-        [ -n "$(ls -A "$INSTALL_DIR/data")" ] && cp -a "$INSTALL_DIR/data/." "$USB_PATH/"
-        rm -rf "$INSTALL_DIR/data"
-    fi
-    if [ "$FOUND" -eq 0 ]; then
-        local ROOT_PATH
-        ROOT_PATH=$(ls -d /tmp/mnt/*/ 2>/dev/null | grep -v "defaults" | head -n 1 | sed 's/\/$//')
-        if [ -n "$ROOT_PATH" ]; then
-            USB_PATH="$ROOT_PATH/wirelessreport"
-        else
-            USB_PATH="$INSTALL_DIR/data"
-        fi
-    fi
-}
 
 mesh_init() {
 	VALID_NODES=""
@@ -448,12 +407,6 @@ do_uninstall() {
 	restart_httpd
     nvram unset wirelessreport_gen >/dev/null 2>&1
 	sed -i "\|$REPORT_SCRIPT|d" "$SS_FILE"
-
-    # the following 3-lines get deleted after a couple weeks, only for transition.
-	get_usb; SE_FILE="/jffs/scripts/service-event"
-    sed -i "/wireless_report/d" "$SE_FILE"
-    case "$USB_PATH" in *wirelessreport*) rm -rf "$USB_PATH" 2>/dev/null ;; esac
-
     restart_httpd
 	rm -rf "$INSTALL_DIR" "$WEB_PAGE" 2>/dev/null
 	logger -p user.info -t "Wireless_Report" "(v$SCRIPT_VERSION) successfully uninstalled."
@@ -1226,8 +1179,6 @@ cat <<HTML >> "$WEB_PAGE"
     .button-refresh .button-trigger:not([style*="--highlow-text"]):after { display: none !important; }
     .button-refresh:not([style*="--avg-text"]):before,
     .button-refresh:not([style*="--avg-text"]):after { display: block !important; visibility: hidden !important; opacity: 0 !important; content: "" !important; }
-    /* Wide View keeps the normal ASUS page available, but lets the report itself use
-    the complete browser viewport when more horizontal room is useful. */
     body.wr-wide-mode { overflow: hidden !important; }
     body.wr-wide-mode #wifiReportContainer { position: fixed !important; inset: 0 !important; z-index: 9000 !important; width: 100vw !important; height: 100vh !important; max-width: none !important; margin: 0 !important; padding: 4px 18px 24px 18px !important; box-sizing: border-box !important; overflow: auto !important; background: rgba(0,0,0,0.98); }
     body.wr-wide-mode #wifiReportContainer .grid-container,
@@ -1238,8 +1189,6 @@ cat <<HTML >> "$WEB_PAGE"
     body.wr-wide-mode #wifiReportContainer table.report_table thead th { font-size: 13px; }
     body.wr-wide-mode #wifiReportContainer .router-style { font-size: 22px; }
     body.wr-wide-mode #btnWide { color: #0096ff; border-color: #0096ff; box-shadow: 0 0 25px rgba(0,150,255,0.6); background: rgba(0,150,255,0.15); }
-    /* Roomier column hints for Wide View and Side-by-Side.  These are minimums,
-       not fixed widths, so larger displays can continue to expand naturally. */
     body.wr-wide-mode table.report_table th:nth-child(1), #popoutModal table.report_table th:nth-child(1) { min-width: 100px; }
     body.wr-wide-mode table.report_table th:nth-child(2), #popoutModal table.report_table th:nth-child(2) { min-width: 100px; }
     body.wr-wide-mode table.report_table th:nth-child(3), #popoutModal table.report_table th:nth-child(3) { min-width: 75px; }
@@ -3767,6 +3716,7 @@ document.addEventListener("DOMContentLoaded", function() {
         var stats = wrLoadJson('wirelessReportRuntimeStats', { total: 0, count: 0, min: null, max: 0 });
         if (stats.count > 0) {
             var avg = stats.total / stats.count;
+
             var wrapper = document.querySelector('.button-refresh');
             var btn = document.querySelector('.button-trigger');
             if (wrapper) wrapper.style.setProperty('--avg-text', '"Avg: ' + avg.toFixed(2) + 's over ' + stats.count + ' scans"');
