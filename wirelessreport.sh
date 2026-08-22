@@ -89,7 +89,7 @@ install_menu() {
 			case "$choice" in
 				1) do_install; break ;;
 				2|3|4|5|6|7|8)
-                    freeze || continue
+                    froze || continue
 					case "$choice" in
 						2) do_uninstall ;;
 						3) set_date_time ;;
@@ -101,15 +101,15 @@ install_menu() {
 					esac
 					break ;;
 				e|E) clear; hasta; exit 0 ;;
-				*) freeze2; continue ;;
+				*) freeze 2; continue ;;
 			esac
 		done
 	done
 }
 
 check_version() {
-    local mode="$1" version_cmp=""; freeze() { return 0; }
-    if [ ! -f "$REPORT_SCRIPT" ]; then STATE="NOT_INSTALLED"; freeze() { freeze2; return 1; }
+    local mode="$1" version_cmp=""; froze() { return 0; }
+    if [ ! -f "$REPORT_SCRIPT" ]; then STATE="NOT_INSTALLED"; froze() { freeze 2; return 1; }
     elif [ -z "$REMOTE_VERSION" ]; then STATE="OFFLINE"
     else
         version_cmp=$(version_compare "$SCRIPT_VERSION" "$REMOTE_VERSION")
@@ -167,7 +167,6 @@ version_compare() {
 
 menu_vars() {
     if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
-    freeze2() { printf "\033[2A\033[J"; }; freeze3() { printf "\033[3A\033[J"; }
 	trap 'printf "\033[0m"' 0; trap 'exit 130' INT TERM HUP
     UL='\033[4m'; WH='\e[1;37m'; YL='\033[0;33m'; NC='\033[0m'
     BL='\033[38;5;39m'; GR='\033[0;32m'; RD='\033[0;31m'
@@ -217,7 +216,7 @@ do_install() {
         while true; do
             check_version do_install
             printf "Do you want to $UP (y/n): "; read -r update
-            case "$update" in [yY]) break ;; [nN]) return ;; *) printf "\033[4A\033[J" ;; esac; done
+            case "$update" in [yY]) break ;; [nN]) return ;; *) freeze 4 ;; esac; done
     fi
     do_update || return 1
     echo -e "\n${GR}[+] Downloading latest version (${NC}v$REMOTE_VERSION${GR})${NC}"
@@ -389,7 +388,7 @@ do_uninstall() {
     echo -e "\n${RD}[!] WARNING: Removing Wireless Report...${NC}\n"
     while true; do
         printf "Are you sure? (y/n): "; read -r confirm
-        case "$confirm" in [yY]) break ;; [nN]) return ;; *) printf "\033[1A\033[J" ;; esac; done
+        case "$confirm" in [yY]) break ;; [nN]) return ;; *) freeze ;; esac; done
 	if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
 	if mount | grep -q "menuTree.js"; then
 		umount -l "$SYSTEM_MENU" >/dev/null 2>&1
@@ -439,7 +438,7 @@ set_date_time() {
                 2) NEW_UNIT="INTL" ;;
                 3) NEW_UNIT="ISO" ;;
                 e|E) return ;;
-                *) freeze2; continue ;;
+                *) freeze 2; continue ;;
             esac
             sed -i '/REPORT_UNIT=/d' "$CONFIG"
             echo "REPORT_UNIT=\"$NEW_UNIT\"" >> "$CONFIG"
@@ -569,7 +568,7 @@ set_nicknames() {
                 e|E)
                     return ;;
                 *)
-                    freeze2; continue ;;
+                    freeze 2; continue ;;
             esac
         done
         run_report
@@ -656,7 +655,7 @@ set_colors() {
             printf "\n ${NC}Select a Device number to change color ${BL}(0-$total_nodes): "; read -r node_choice
             case "$node_choice" in c|C) return 0 ;; e|E) break 2 ;; esac
             if ! [ "$node_choice" -ge 0 ] 2>/dev/null || ! [ "$node_choice" -le "$total_nodes" ] 2>/dev/null; then
-                freeze2; continue
+                freeze 2; continue
             fi
             local target_name="" target_hex=""
             if [ "$node_choice" -eq 0 ]; then
@@ -696,7 +695,7 @@ set_colors() {
                     8) selected_hex="#ffffff"; break ;;
                     9) selected_hex="#ff70a6"; break ;;
                     10) selected_hex="#64ffda"; break ;;
-                    *) printf "\033[1A\033[2K\r"; continue ;;
+                    *) freeze; continue ;;
                 esac
             done
             if [ "$node_choice" -eq 0 ]; then
@@ -760,7 +759,7 @@ set_theme() {
                 e|E)
                     return 0 ;;
                 *)
-                    freeze2; continue ;;
+                    freeze 2; continue ;;
             esac
         done
         run_report
@@ -795,7 +794,7 @@ set_options() {
                     while true; do
                         echo -e "\n (${GR}0${NC}) disable (${GR}15${NC}) def (${GR}1440${NC}) max "
                         printf " ${BL}Enter alert interval in mins:${GR} "; read -r user_mins
-                        case "$user_mins" in ""|*[!0-9]*) freeze3; continue ;; esac
+                        case "$user_mins" in ""|*[!0-9]*) freeze 3; continue ;; esac
                         if [ "$user_mins" -le 1440 ]; then
                             if grep -q "PULSE_MINS=" "$CONFIG"; then
                                 sed -i "s/PULSE_MINS=.*/PULSE_MINS=\"$user_mins\"/" "$CONFIG"
@@ -804,7 +803,7 @@ set_options() {
                             fi
                             break 2
                         fi
-                        freeze3
+                        freeze 3
                     done
                     pause; break ;;
                 3)
@@ -837,7 +836,7 @@ set_options() {
                 e|E)
                     return 0 ;;
                 *)
-                    freeze2; continue ;;
+                    freeze 2; continue ;;
             esac
         done
         run_report
@@ -868,12 +867,12 @@ set_rssi() {
                 2)
                     while true; do
                         printf "\n ${NC}Enter new depth (${BL}5-20${NC}) [Current: $CE]: "; read -r new_depth
-                        case "$new_depth" in *[!0-9]*|"") freeze2; continue ;; esac
+                        case "$new_depth" in *[!0-9]*|"") freeze 2; continue ;; esac
                         if [ "$new_depth" -ge 5 ] && [ "$new_depth" -le 20 ]; then
                             CUR_ENTRIES="$new_depth"
                             break 2
                         else
-                            freeze2; continue
+                            freeze 2; continue
                         fi
                     done ;;
                 3)
@@ -899,7 +898,7 @@ set_rssi() {
                     run_report
                     pause; return 0 ;;
                 *)
-                    freeze2; continue ;;
+                    freeze 2; continue ;;
             esac
         done
     done
@@ -976,6 +975,8 @@ echo -e "${NC}\n\n\n" #=========================================================
 restart_httpd() { service restart_httpd >/dev/null 2>&1; killall -HUP httpd >/dev/null 2>&1; }
 
 pause() { printf "\nPress ${BL}[Enter]${NC} to return..."; read -r discard; }
+
+freeze() { printf "\033[%dA\033[J" "${1:-1}"; }
 
 mesh_init; check_github; hex_to_ansi
 
