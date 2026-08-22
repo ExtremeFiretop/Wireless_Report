@@ -51,17 +51,17 @@ $\color{blue}{\text{Note:}}$ At this stage, Wireless Report is active and ready 
 \
 $\color{blue}{\Large\text{OPTIONAL CONFIGURATION:}}$<br>
 
-$\color{green}{\text{Option (3):}}$ Date/Time Settings: Toggle different date/time formats. Default is $\color{green}{\text{(1)}}$, if you do nothing.<br>
+$\color{green}{\text{Option (3):}}$ Set Date/Time: Toggle different date/time formats. Default is $\color{green}{\text{(1)}}$, if you do nothing.<br>
 
 ![Instructions2](https://raw.githubusercontent.com/JB1366/Wireless_Report/main/images/Instructions2.png)<br>
 \
 \
-$\color{green}{\text{Option (4):}}$ Edit Device Nicknames: By default, the report uses your device model numbers (e.g., GT-BE98_PRO). Use this option to give your hardware friendly names (up to 25 characters).<br>
+$\color{green}{\text{Option (4):}}$ Set Device Nicknames: By default, the report uses your device model numbers (e.g., GT-BE98_PRO). Use this option to give your hardware friendly names (up to 25 characters).<br>
 
 ![Instructions3](https://raw.githubusercontent.com/JB1366/Wireless_Report/main/images/Instructions3.png)<br>
 \
 \
-$\color{green}{\text{Option (5):}}$ Edit Device Colors: Customize individual device colors to suit your preference. By default, standard color coding is used.<br>
+$\color{green}{\text{Option (5):}}$ Set Device Colors: Customize individual device colors to suit your preference. By default, standard color coding is used.<br>
 
 ![Instructions12](https://raw.githubusercontent.com/JB1366/Wireless_Report/main/images/Instructions12.png)<br>
 \
@@ -85,13 +85,12 @@ $\color{green}{\text{Option (7):}}$ Set Options
 ![Instructions4](https://raw.githubusercontent.com/JB1366/Wireless_Report/main/images/Instructions4.png)<br>
 \
 \
-$\color{green}{\text{Option (8):}}$ Configure RSSI History: Hover over any RSSI value to display a trend indicator with your configured history (up to 20 readings).
+$\color{green}{\text{Option (8):}}$ Configure RSSI History
+* $\color{blue}{\text{Toggle RSSI Tooltips:}}$ Hover over any RSSI value to display a trend indicator with your configured history (up to 20 readings).<br>
 
 ![Instructions14](https://raw.githubusercontent.com/JB1366/Wireless_Report/main/images/Instructions14.png)<br>
 \
 \
-
-
 $\color{blue}{\Large\text{VIEWING THE REPORT}}$<br>
 To access your data, navigate to Advanced Settings > Wireless in the ASUS WebGUI and select the Wireless Report tab on the far right.<br>
 \
