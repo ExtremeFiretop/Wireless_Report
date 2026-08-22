@@ -66,11 +66,14 @@ $\color{green}{\text{Option (5):}}$ Edit Device Colors: Customize individual dev
 ![Instructions12](https://raw.githubusercontent.com/JB1366/Wireless_Report/main/images/Instructions12.png)<br>
 \
 \
-$\color{green}{\text{Option (6):}}$ Set Options
+$\color{green}{\text{Option (6):}}$ Set Theme: Switch between Original, Darkmode, and Asus WebUI theme styles.
+
+![Instructions13](https://raw.githubusercontent.com/JB1366/Wireless_Report/main/images/Instructions13.png)<br>
+\
+\
+$\color{green}{\text{Option (7):}}$ Set Options
  * $\color{blue}{\text{Toggle Runtime Tracking:}}$ Measures and displays the total duration of script scans across your router and nodes. Toggling this setting will also reset the execution counter.
  * $\color{blue}{\text{Configure Uptime Alert Pulse:}}$ Sets the frequency interval (Default: 15 mins, Max: 1440 mins) for checking and reporting system uptime fluctuations or heartbeat alerts.<br>
- * $\color{blue}{\text{Toggle RSSI Tooltips:}}$ Hover over any RSSI value to display a trend indicator with your configured history (up to 20 readings).<br>
- * $\color{blue}{\text{Set Theme:}}$ Switch between Original, Darkmode, and Asus WebUI theme styles.<br>
  * $\color{blue}{\text{Toggle IP Padding:}}$ Automatically aligns IP columns for a cleaner, unified dashboard layout across complex network setups. <br>
    * $\color{green}{\text{Mode 1:}}$ 192.168.50.3 --> 192.168.50.003 (Pads Last Octet Only) (Default)
    * $\color{green}{\text{Disabled:}}$ 192.168.50.003 --> 192.168.50.3 (Standard IP Display)
@@ -80,6 +83,13 @@ $\color{green}{\text{Option (6):}}$ Set Options
    * $\color{green}{\text{Colored Hostnames:}}$ The entire hostname text dynamically takes on the color of its connected node. The tracking superscripts are seamlessly hidden using invisible styling, preserving your right-click table sorting perfectly without breaking the visual layout.
 
 ![Instructions4](https://raw.githubusercontent.com/JB1366/Wireless_Report/main/images/Instructions4.png)<br>
+\
+\
+$\color{green}{\text{Option (8):}}$ Configure RSSI History: Hover over any RSSI value to display a trend indicator with your configured history (up to 20 readings).
+
+![Instructions14](https://raw.githubusercontent.com/JB1366/Wireless_Report/main/images/Instructions14.png)<br>
+\
+\
 
 
 $\color{blue}{\Large\text{VIEWING THE REPORT}}$<br>
