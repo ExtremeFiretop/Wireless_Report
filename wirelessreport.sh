@@ -1337,29 +1337,40 @@ function wrRemoveLiveCacheBuster() {
     } catch (_) {}
 }
 
+function formatDateTimeStamp(d, includeSeconds) {
+    const day = d.getDate();
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const month = months[d.getMonth()];
+    const year = d.getFullYear();
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    const seconds = String(d.getSeconds()).padStart(2, '0');
+
+    let timeStr = hours + ':' + minutes;
+    if (includeSeconds) {
+        timeStr += ':' + seconds;
+    }
+
+    if (typeof WR_CONFIG !== 'undefined' && WR_CONFIG.reportUnit === 'ISO') {
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(day).padStart(2, '0');
+        return year + '-' + mm + '-' + dd + ' ' + timeStr;
+    } else if (typeof WR_CONFIG !== 'undefined' && WR_CONFIG.reportUnit === 'INTL') {
+        return day + '-' + month + ' ' + timeStr;
+    } else {
+        return month + '-' + day + ' ' + timeStr;
+    }
+}
+
 function update_time() {
     const now = new Date();
-    const day = now.getDate();
-    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    const month = months[now.getMonth()];
-    const year = now.getFullYear();
-    const hours = now.getHours();
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    const seconds = String(now.getSeconds()).padStart(2, '0');
-    let formattedTime = '';
+    let formattedTime = formatDateTimeStamp(now, true);
 
-    if (WR_CONFIG.reportUnit === 'ISO') {
-        const mm = String(now.getMonth() + 1).padStart(2, '0');
-        const dd = String(day).padStart(2, '0');
-        formattedTime = year + '-' + mm + '-' + dd + ' ' + String(hours).padStart(2, '0') + ':' + minutes + ':' + seconds;
-    } else if (WR_CONFIG.reportUnit === 'INTL') {
-        formattedTime = day + '-' + month + ' ' + hours + ':' + minutes + ':' + seconds;
-    } else {
-        formattedTime = month + '-' + day + ' ' + hours + ':' + minutes + ':' + seconds;
-    }
     document.querySelectorAll('.wr-updated-time').forEach(function(el) {
         el.textContent = 'Updated: ' + formattedTime;
     });
+
+    window._lastFormattedTime = formattedTime;
 
     // Handle boot time calculation dynamically using the uptime span value
     const uptimeEl = document.getElementById('wr-main-uptime');
@@ -1373,25 +1384,10 @@ function update_time() {
         if (dMatch) totalSeconds += parseInt(dMatch[1], 10) * 86400;
         if (hMatch) totalSeconds += parseInt(hMatch[1], 10) * 3600;
         if (mMatch) totalSeconds += parseInt(mMatch[1], 10) * 60;
+
         if (totalSeconds > 0) {
             const bootDate = new Date(now.getTime() - (totalSeconds * 1000));
-            const bDay = bootDate.getDate();
-            const bMonth = months[bootDate.getMonth()];
-            const bYear = bootDate.getFullYear();
-            const bHours = bootDate.getHours();
-            const bMinutes = String(bootDate.getMinutes()).padStart(2, '0');
-            let formattedBoot = '';
-
-            if (WR_CONFIG.reportUnit === 'ISO') {
-                const bMm = String(bootDate.getMonth() + 1).padStart(2, '0');
-                const bDd = String(bDay).padStart(2, '0');
-                formattedBoot = bYear + '-' + bMm + '-' + bDd + ' ' + String(bHours).padStart(2, '0') + ':' + bMinutes;
-            } else if (WR_CONFIG.reportUnit === 'INTL') {
-                formattedBoot = bDay + '-' + bMonth + ' ' + bHours + ':' + bMinutes;
-            } else {
-                formattedBoot = bMonth + '-' + bDay + ' ' + bHours + ':' + bMinutes;
-            }
-            bootEl.textContent = formattedBoot;
+            bootEl.textContent = formatDateTimeStamp(bootDate, false);
         }
     }
 }
@@ -1773,33 +1769,18 @@ function wrGetTrend(item, rssi, history) {
     var depth = Math.max(5, Math.min(20, Number(WR_CONFIG.rssiHistoryEntries) || 5));
     if (display.length > depth) display = display.slice(display.length - depth);
     var tooltip = display.map(function(entry) {
-        var text = String(entry.rssi) +
-            ' [' + wrEscape(entry.name || '--') + ']' +
-            ' [' + wrEscape(entry.band || '--') + ']';
-        if (WR_CONFIG.rssiHistoryDate && Number.isFinite(wrNumber(entry.time))) {
-            var d = new Date(Number(entry.time));
-            var day = d.getDate();
-            var months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-            var month = months[d.getMonth()];
-            var year = d.getFullYear();
-            var hours = String(d.getHours()).padStart(2, '0');
-            var minutes = String(d.getMinutes()).padStart(2, '0');
-            var seconds = String(d.getSeconds()).padStart(2, '0');
-            var formattedTime = '';
-            if (typeof WR_CONFIG !== 'undefined' && WR_CONFIG.reportUnit === 'ISO') {
-                var mm = String(d.getMonth() + 1).padStart(2, '0');
-                var dd = String(day).padStart(2, '0');
-                formattedTime = year + '-' + mm + '-' + dd + ' ' + hours + ':' + minutes + ':' + seconds;
-            } else if (typeof WR_CONFIG !== 'undefined' && WR_CONFIG.reportUnit === 'INTL') {
-                formattedTime = day + '-' + month + ' ' + hours + ':' + minutes + ':' + seconds;
-            } else {
-                formattedTime = month + '-' + day + ' ' + hours + ':' + minutes + ':' + seconds;
-            }
-            text += ' ' + wrEscape(formattedTime);
-        }
-        return "<span style='" + wrRssiHistoryStyle(entry.rssi) + "'>" + text + "</span>";
-    }).join('<br>');
-    return icon + "<span class='rssi-tooltip'>" + tooltip + "</span>";
+    var text = String(entry.rssi) +
+        ' [' + wrEscape(entry.name || '--') + ']' +
+        ' [' + wrEscape(entry.band || '--') + ']';
+
+    // use new function formatDateTimeStamp
+    if (WR_CONFIG.rssiHistoryDate && Number.isFinite(wrNumber(entry.time))) {
+        var d = new Date(Number(entry.time));
+        text += ' ' + wrEscape(formatDateTimeStamp(d, true));
+    }
+    return "<span style='" + wrRssiHistoryStyle(entry.rssi) + "'>" + text + "</span>";
+}).join('<br>');
+return icon + "<span class='rssi-tooltip'>" + tooltip + "</span>";
 }
 
 function wrStoreRssiHistory(item, rssi, history) {
