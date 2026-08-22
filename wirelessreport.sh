@@ -75,10 +75,12 @@ install_menu() {
 		echo -e "                                                       "
 		echo -e "  $N1  Install/Update                                  "
 		echo -e "  $N2  Uninstall                                       "
-		echo -e "  $N3  Edit Date/Time ($DU) ($CT)                      "
-		echo -e "  $N4  Edit Device Nicknames                           "
-        echo -e "  $N5  Edit Device Colors                              "
-		echo -e "  $N6  Configure Display Options ($TM_STAT)            "
+		echo -e "  $N3  Set Date/Time ($DU) ($CT)                       "
+		echo -e "  $N4  Set Device Nicknames                            "
+        echo -e "  $N5  Set Device Colors                               "
+		echo -e "  $N6  Set Theme ($TM_STAT)                            "
+        echo -e "  $N7  Set Options                                     "
+        echo -e "  $N8  Configure RSSI History ($RH_STAT)               "
 		echo -e "  $NE  Exit                                            "
 		echo -e "                                                       "
 		echo -e "${BL}=================================================="
@@ -86,14 +88,16 @@ install_menu() {
 			printf "\n ${NC}Selection: ${BL}"; read -r choice
 			case "$choice" in
 				1) do_install; break ;;
-				2|3|4|5|6)
+				2|3|4|5|6|7|8)
                     freeze || continue
 					case "$choice" in
 						2) do_uninstall ;;
 						3) set_date_time ;;
 						4) set_nicknames ;;
 						5) set_colors ;;
-						6) set_options ;;
+						6) set_theme ;;
+                        7) set_options ;;
+                        8) set_rssi ;;
 					esac
 					break ;;
 				e|E) clear; hasta; exit 0 ;;
@@ -771,6 +775,45 @@ set_colors() {
     pause
 }
 
+set_theme() {
+    while true; do
+        show_header
+        echo -e "${BL}=================================================="
+        echo -e "${NC}  Set Theme                    Current: $TM_STAT  "
+        echo -e "${BL}=================================================="
+        echo -e "                                                       "
+        echo -e "  $N1 Original Theme                                   "
+        echo -e "  $N2 Darkmode Theme                                   "
+        echo -e "  $N3 Asus WebUI Theme                                 "
+        echo -e "                                                       "
+        echo -e "  $NE Exit back to main menu                           "
+        echo -e "                                                       "
+        echo -e "${BL}=================================================="
+        while true; do
+            printf "\n ${NC}Selection: ${BL}"; read -r theme_choice
+            case "$theme_choice" in
+                1)
+                    if grep -q "^THEME=" "$CONFIG"; then sed -i "s/^THEME=.*/THEME=\"ORIGINAL\"/" "$CONFIG"
+                    else echo 'THEME="ORIGINAL"' >> "$CONFIG"; fi
+                    break ;;
+                2)
+                    if grep -q "^THEME=" "$CONFIG"; then sed -i "s/^THEME=.*/THEME=\"DARKMODE\"/" "$CONFIG"
+                    else echo 'THEME="DARKMODE"' >> "$CONFIG"; fi
+                    break ;;
+                3)
+                    if grep -q "^THEME=" "$CONFIG"; then sed -i "s/^THEME=.*/THEME=\"ASUS_WEBUI\"/" "$CONFIG"
+                    else  echo 'THEME="ASUS_WEBUI"' >> "$CONFIG"; fi
+                    break ;;
+                e|E)
+                    return 0 ;;
+                *)
+                    freeze2; continue ;;
+            esac
+        done
+        run_report
+    done
+}
+
 set_options() {
     while true; do
         show_header
@@ -780,10 +823,8 @@ set_options() {
         echo -e "                                                       "
         echo -e "  $N1  Toggle Runtime Tracking: ($RT_STAT)             "
         echo -e "  $N2  Configure Uptime Alert Pulse: ($UP_STAT)        "
-        echo -e "  $N3  Configure RSSI History: ($RH_STAT)              "
-        echo -e "  $N4  Set Theme: ($TM_STAT)                           "
-        echo -e "  $N5  Toggle IP Padding: ($PD_STAT)                   "
-        echo -e "  $N6  Toggle Node Hostname Display: ($HN_STAT)        "
+        echo -e "  $N3  Toggle IP Padding: ($PD_STAT)                   "
+        echo -e "  $N4  Toggle Node Hostname Display: ($HN_STAT)        "
         echo -e "                                                       "
         echo -e "  $NE  Exit back to main menu                          "
         echo -e "                                                       "
@@ -814,10 +855,6 @@ set_options() {
                     done
                     pause; break ;;
                 3)
-                    rssi_submenu; break ;;
-                4)
-                    theme_submenu; break ;;
-                5)
                     if grep -q "IPPAD=" "$CONFIG"; then
                         if [ "$IPPAD" = "1" ]; then
                             echo -e "\n${RD}[-] Disabled:${NC} 192.168.050.003 --> ${RD}192.168.50.3${NC}"
@@ -836,7 +873,7 @@ set_options() {
                         NEW_PAD="0"; pause
                     fi
                     break ;;
-                6)
+                4)
                     if grep -q "HOST_COLOR=" "$CONFIG"; then
                         if [ "$HOST_COLOR" = "1" ]; then NEW_HC="0"; else NEW_HC="1"; fi
                         sed -i "s/HOST_COLOR=.*/HOST_COLOR=\"$NEW_HC\"/" "$CONFIG"
@@ -850,12 +887,11 @@ set_options() {
                     freeze2; continue ;;
             esac
         done
-        if [ "$RR" = "0" ]; then RR="1"; continue
-        else run_report; fi
+        run_report
     done
 }
 
-rssi_submenu() {
+set_rssi() {
     while true; do
         show_header
         echo -e "${BL}=================================================="
@@ -892,7 +928,7 @@ rssi_submenu() {
                     break ;;
                 c|C)
                     unset CUR_RS_HIST CUR_ENTRIES CUR_DATE
-                    RR="0"; return 0 ;;
+                    return 0 ;;
                 e|E)
                     RS_HIST="$CUR_RS_HIST"
                     RS_HIST_ENTRIES="$CUR_ENTRIES"
@@ -907,6 +943,7 @@ rssi_submenu() {
                     done
                     echo -e "\n${GR}[+] RSSI history configuration saved.${NC}"
                     unset CUR_RS_HIST CUR_ENTRIES CUR_DATE
+                    run_report
                     pause; return 0 ;;
                 *)
                     freeze2; continue ;;
@@ -915,46 +952,7 @@ rssi_submenu() {
     done
 }
 
-theme_submenu() {
-    while true; do
-        show_header
-        echo -e "${BL}=================================================="
-        echo -e "${NC}  Set Theme                    Current: $TM_STAT  "
-        echo -e "${BL}=================================================="
-        echo -e "                                                       "
-        echo -e "  $N1 Original Theme                                   "
-        echo -e "  $N2 Darkmode Theme                                   "
-        echo -e "  $N3 Asus WebUI Theme                                 "
-        echo -e "                                                       "
-        echo -e "  $NE Exit back to Set Options                         "
-        echo -e "                                                       "
-        echo -e "${BL}=================================================="
-        while true; do
-            printf "\n ${NC}Selection: ${BL}"; read -r theme_choice
-            case "$theme_choice" in
-                1)
-                    if grep -q "^THEME=" "$CONFIG"; then sed -i "s/^THEME=.*/THEME=\"ORIGINAL\"/" "$CONFIG"
-                    else echo 'THEME="ORIGINAL"' >> "$CONFIG"; fi
-                    break ;;
-                2)
-                    if grep -q "^THEME=" "$CONFIG"; then sed -i "s/^THEME=.*/THEME=\"DARKMODE\"/" "$CONFIG"
-                    else echo 'THEME="DARKMODE"' >> "$CONFIG"; fi
-                    break ;;
-                3)
-                    if grep -q "^THEME=" "$CONFIG"; then sed -i "s/^THEME=.*/THEME=\"ASUS_WEBUI\"/" "$CONFIG"
-                    else  echo 'THEME="ASUS_WEBUI"' >> "$CONFIG"; fi
-                    break ;;
-                e|E)
-                    RR="0"; return 0 ;;
-                *)
-                    freeze2; continue ;;
-            esac
-        done
-        run_report
-    done
-}
-
-set_theme() {
+get_theme() {
     THEME="${THEME:-ORIGINAL}"
     case "$THEME" in
         "ASUS_WEBUI")
@@ -1100,7 +1098,7 @@ RSSI_BOXES="<div class='rssi-quality-box rssi-excl'>Excellent: <span style='back
     <div class='rssi-quality-box rssi-fair'>Fair: <span style='background:#ffd60a;' class='rssi-font wr-rssi-fair'>0</span></div>
     <div class='rssi-quality-box rssi-poor'>Poor: <span style='background:#ff453a;' class='rssi-font wr-rssi-poor'>0</span></div>"
 
-set_theme; check_version header_box
+get_theme; check_version header_box
 
 #=================#
 #  Generate HTML  #
