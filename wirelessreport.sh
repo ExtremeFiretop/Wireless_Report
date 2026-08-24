@@ -284,6 +284,10 @@ ScriptUpdateFromAMTM() {
     fi
     if [ "$1" = "check" ]; then return 0; fi
 	BRANCH="0"
+    if [ -f "$CONFIG" ]; then
+        if grep -q "^BRANCH=" "$CONFIG"; then sed -i 's/^BRANCH=.*/BRANCH="0"/' "$CONFIG"
+        else echo 'BRANCH="0"' >> "$CONFIG"; fi
+    fi
     if check_github && do_update; then
         echo -e "  [+] Downloading latest version (v$REMOTE_VERSION)\n\n"
         echo -e "  [✓] Wireless Report successfully updated.\n"
