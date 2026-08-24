@@ -840,6 +840,8 @@ set_options() {
                     else
                         echo "BRANCH=\"$BRANCH\"" >> "$CONFIG"
                     fi
+                    unset REMOTE_VERSION REMOTE_HASH LOCAL_HASH
+                    check_github
                     break ;;
                 e|E)
                     return 0 ;;
