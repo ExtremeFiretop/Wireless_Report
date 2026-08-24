@@ -123,11 +123,11 @@ check_version() {
         header_box)
             case "$STATE" in
                 OUTDATED)      HOVER_TEXT="Current v$SCRIPT_VERSION$DEV <br> New Version v$REMOTE_VERSION available"
-                               VERSION_HASH=" $DEV [$REMOTE_VERSION]"; HEADER_TITLE="header-title2" ;;
+                               VERSION_HASH="$DEV [$REMOTE_VERSION]"; HEADER_TITLE="header-title2" ;;
                 HASH_DIFF)     HOVER_TEXT="Current v$SCRIPT_VERSION$DEV <br> Hash Update available"
-                               VERSION_HASH=" $DEV [Hash]"; HEADER_TITLE="header-title2" ;;
+                               VERSION_HASH="$DEV [Hash]"; HEADER_TITLE="header-title2" ;;
                 UP_TO_DATE|*)  HOVER_TEXT="Current v$SCRIPT_VERSION$DEV"
-                               VERSION_HASH=" $DEV"; HEADER_TITLE="header-title" ;;
+                               VERSION_HASH="$DEV"; HEADER_TITLE="header-title" ;;
             esac ;;
         do_install)
             case "$STATE" in
@@ -167,7 +167,7 @@ version_compare() {
 
 menu_vars() {
     if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
-    DEV=""; if [ "$BRANCH" = "1" ]; then DEV=" [DEV]"; fi
+    DEV=""; if [ "$BRANCH" = "1" ]; then DEV="D"; fi
 	trap 'printf "\033[0m"' 0; trap 'exit 130' INT TERM HUP
     UL='\033[4m'; WH='\e[1;37m'; YL='\033[0;33m'; NC='\033[0m'
     BL='\033[38;5;39m'; GR='\033[0;32m'; RD='\033[0;31m'
@@ -843,7 +843,7 @@ set_options() {
                     else
                         echo "BRANCH=\"$BRANCH\"" >> "$CONFIG"
                     fi
-                    DEV=""; if [ "$BRANCH" = "1" ]; then DEV=" [DEV]"; fi
+                    DEV=""; if [ "$BRANCH" = "1" ]; then DEV="D"; fi
                     unset REMOTE_VERSION REMOTE_HASH LOCAL_HASH
                     check_github
                     break ;;
@@ -1037,7 +1037,7 @@ for node in $MESH_NODES; do
 done
 
 IPPAD=${IPPAD:-1}; HOST_COLOR=${HOST_COLOR:-0}; PULSE_MINS=${PULSE_MINS:-15}
-DEV=""; if [ "$BRANCH" = "1" ]; then DEV=" [DEV]"; fi
+DEV=""; if [ "$BRANCH" = "1" ]; then DEV="D"; fi
 ROUTER=$(nvram get productid); MAIN_NAME="${MAIN_NICK:-${ROUTER:-Main Router}}"
 MAIN_NAME="<span id='wr-main-name' class='router-style'>${MAIN_NAME}</span>"
 MAIN_CPU="<span id='wr-main-cpu' class='stat-cool'>--</span>"
