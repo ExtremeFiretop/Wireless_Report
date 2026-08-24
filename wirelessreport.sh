@@ -28,7 +28,7 @@
 #        shellcheck shell=sh disable=SC2086,SC2155,SC3043         #
 #=================================================================#
 
-SCRIPT_VERSION="3.2.1"
+SCRIPT_VERSION="3.2.0"
 INSTALL_DIR="/jffs/addons/wireless_report"
 REPORT_SCRIPT="$INSTALL_DIR/wirelessreport.sh"
 CONFIG="$INSTALL_DIR/webui.conf"
@@ -122,20 +122,20 @@ check_version() {
     case "$mode" in
         header_box)
             case "$STATE" in
-                OUTDATED)      HOVER_TEXT="Current v$SCRIPT_VERSION$DEV <br> New Version v$REMOTE_VERSION available"
-                               VERSION_HASH="$DEV [$REMOTE_VERSION]"; HEADER_TITLE="header-title2" ;;
-                HASH_DIFF)     HOVER_TEXT="Current v$SCRIPT_VERSION$DEV <br> Hash Update available"
-                               VERSION_HASH="$DEV [Hash]"; HEADER_TITLE="header-title2" ;;
-                UP_TO_DATE|*)  HOVER_TEXT="Current v$SCRIPT_VERSION$DEV"
-                               VERSION_HASH="$DEV"; HEADER_TITLE="header-title" ;;
+                OUTDATED)      HOVER_TEXT="Current v$SCRIPT_VERSION <br> New Version v$REMOTE_VERSION available"
+                               VERSION_HASH=" [$REMOTE_VERSION]"; HEADER_TITLE="header-title2" ;;
+                HASH_DIFF)     HOVER_TEXT="Current v$SCRIPT_VERSION <br> Hash Update available"
+                               VERSION_HASH=" [Hash]"; HEADER_TITLE="header-title2" ;;
+                UP_TO_DATE|*)  HOVER_TEXT="Current v$SCRIPT_VERSION"
+                               VERSION_HASH=""; HEADER_TITLE="header-title" ;;
             esac ;;
         do_install)
             case "$STATE" in
                 OUTDATED)      echo -e "\n${GR}[i] A new version (${NC}v$REMOTE_VERSION${GR}) is available!${NC}\n"
                                UP="update version?" ;;
-                HASH_DIFF)     echo -e "\n${GR}[i] There is a Hash Update for (${NC}v$SCRIPT_VERSION$DEV${GR}).${NC}\n"
+                HASH_DIFF)     echo -e "\n${GR}[i] There is a Hash Update for (${NC}v$SCRIPT_VERSION${GR}).${NC}\n"
                                UP="update Hash?" ;;
-                UP_TO_DATE|*)  echo -e "\n${GR}[i] You are already on the latest version (${NC}v$SCRIPT_VERSION$DEV${GR}).${NC}\n"
+                UP_TO_DATE|*)  echo -e "\n${GR}[i] You are already on the latest version (${NC}v$SCRIPT_VERSION${GR}).${NC}\n"
                                UP="reinstall/overwrite anyway?";;
             esac ;;
         *)
@@ -167,7 +167,6 @@ version_compare() {
 
 menu_vars() {
     if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
-    DEV=""; if [ "$BRANCH" = "1" ]; then DEV="D"; fi
 	trap 'printf "\033[0m"' 0; trap 'exit 130' INT TERM HUP
     UL='\033[4m'; WH='\e[1;37m'; YL='\033[0;33m'; NC='\033[0m'
     BL='\033[38;5;39m'; GR='\033[0;32m'; RD='\033[0;31m'
@@ -176,7 +175,7 @@ menu_vars() {
 	NE="${BL}(e)${NC}"; NQ="${BL}(c)${NC}"; ON="${GR}ON${NC}"; OFF="${RD}OFF${NC}"; echo -e "${BL}"
     : "${MAIN_COLOR:=#0096ff}"
     : "${NODE_COLORS:=#30d158 #bf40bf #ffd60a #64d2ff #ff9500 #ff453a #ffffff #ff70a6 #64ffda}"
-	STATUS=" ${BL}STATUS:${NC}"; CURRENT="${GR}Current: v$SCRIPT_VERSION$DEV${NC}"
+	STATUS=" ${BL}STATUS:${NC}"; CURRENT="${GR}Current: v$SCRIPT_VERSION${NC}"
     SS_FILE="/jffs/scripts/services-start"
     DU="${REPORT_UNIT:-USA}"; DATE_USA="${GR}$(date +"%b-%-d %-H:%M:%S")${NC}"
     DATE_INTL="${GR}$(date +"%-d-%b %-H:%M:%S")${NC}"; DATE_ISO="${GR}$(date +"%Y-%m-%d %H:%M:%S")${NC}"
@@ -205,7 +204,6 @@ menu_vars() {
 	HOST_COLOR=${HOST_COLOR:-0}
 	if [ "$HOST_COLOR" = "1" ]; then HN_STAT="${BL}Colored${NC}"
 	else HN_STAT="${GR}Numbered${NC}"; fi
-    GH_STAT="$([ "${BRANCH:-0}" = "1" ] && echo "${GR}Development${NC}" || echo "${BL}Main${NC}")"
 }
 
 do_install() {
@@ -283,18 +281,15 @@ ScriptUpdateFromAMTM() {
         return 1
     fi
     if [ "$1" = "check" ]; then return 0; fi
-	BRANCH="0"
-    if [ -f "$CONFIG" ]; then
-        if grep -q "^BRANCH=" "$CONFIG"; then sed -i 's/^BRANCH=.*/BRANCH="0"/' "$CONFIG"
-        else echo 'BRANCH="0"' >> "$CONFIG"; fi
-    fi
-    if check_github && do_update; then
+	check_github
+    if do_update; then
         echo -e "  [+] Downloading latest version (v$REMOTE_VERSION)\n\n"
         echo -e "  [✓] Wireless Report successfully updated.\n"
-        logger -p user.info -t "Wireless_Report" "AMTM Update: (v$REMOTE_VERSION) successfully installed."
-        return 0
+		logger -p user.info -t "Wireless_Report" "AMTM Update: (v$REMOTE_VERSION) successfully installed."
+		return 0
+    else
+        return 1
     fi
-    return 1
 }
 
 wr_sha256() {
@@ -312,11 +307,9 @@ wr_sha256() {
 }
 
 check_github() {
-    BRANCH="${BRANCH:-0}"
-    if [ "$BRANCH" = "1" ]; then BRANCH_NAME="Development"
-    else BRANCH_NAME="main"; fi
-    GITHUB="https://raw.githubusercontent.com/JB1366/Wireless_Report/$BRANCH_NAME/wirelessreport.sh"
-    REMOTE_TMP="/tmp/wr_remote.tmp"; LOCAL_HASH=""; REMOTE_HASH=""
+    GITHUB="https://raw.githubusercontent.com/JB1366/Wireless_Report/main/wirelessreport.sh"
+    REMOTE_TMP="/tmp/wr_remote.tmp"
+    LOCAL_HASH=""; REMOTE_HASH=""
     if curl -sfL --retry 3 "$GITHUB" -o "$REMOTE_TMP" 2>/dev/null && [ -s "$REMOTE_TMP" ]; then
         REMOTE_VERSION=$(grep "SCRIPT_VERSION=" "$REMOTE_TMP" | head -n 1 | cut -d'"' -f2 | tr -cd '0-9.')
         LOCAL_HASH=$(wr_sha256 "$REPORT_SCRIPT" 2>/dev/null)
@@ -781,7 +774,6 @@ set_options() {
         echo -e "  $N2  Configure Uptime Alert Pulse: ($UP_STAT)        "
         echo -e "  $N3  Toggle IP Padding: ($PD_STAT)                   "
         echo -e "  $N4  Toggle Node Hostname Display: ($HN_STAT)        "
-        echo -e "  $N5  Toggle Github Branch: ($GH_STAT)                "
         echo -e "                                                       "
         echo -e "  $NE  Exit back to main menu                          "
         echo -e "                                                       "
@@ -838,18 +830,6 @@ set_options() {
                         echo 'HOST_COLOR="1"' >> "$CONFIG"
                     fi
                     break ;;
-                5)
-                    while true; do
-                        printf "\n ${NC}This toggles Github Branches - ${BL}PROCEED?${NC} (y/n): "; read -r toggle
-                        case "$toggle" in [yY]) break ;; [nN]) break 2 ;; *) freeze 2 ;; esac; done
-                    if [ "${BRANCH:-0}" = "1" ]; then BRANCH="0"; else BRANCH="1"; fi
-                    if grep -q "^BRANCH=" "$CONFIG"; then sed -i "s/^BRANCH=.*/BRANCH=\"$BRANCH\"/" "$CONFIG"
-                    else echo "BRANCH=\"$BRANCH\"" >> "$CONFIG"; fi
-                    DEV=""; if [ "$BRANCH" = "1" ]; then DEV="D"; fi
-                    check_github
-                    printf "\nPress ${BL}[Enter]${NC} to apply changes & restart script..."; read -r discard
-                    if do_update; then exec "$REPORT_SCRIPT" install "$@"
-                    else echo -e "${RD}Error: Branch update failed!${NC}" >&2; exit 1; fi ;;
                 e|E)
                     return 0 ;;
                 *)
@@ -1040,7 +1020,6 @@ for node in $MESH_NODES; do
 done
 
 IPPAD=${IPPAD:-1}; HOST_COLOR=${HOST_COLOR:-0}; PULSE_MINS=${PULSE_MINS:-15}
-DEV=""; if [ "$BRANCH" = "1" ]; then DEV="D"; fi
 ROUTER=$(nvram get productid); MAIN_NAME="${MAIN_NICK:-${ROUTER:-Main Router}}"
 MAIN_NAME="<span id='wr-main-name' class='router-style'>${MAIN_NAME}</span>"
 MAIN_CPU="<span id='wr-main-cpu' class='stat-cool'>--</span>"
