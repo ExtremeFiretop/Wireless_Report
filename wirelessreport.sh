@@ -204,6 +204,7 @@ menu_vars() {
 	HOST_COLOR=${HOST_COLOR:-0}
 	if [ "$HOST_COLOR" = "1" ]; then HN_STAT="${BL}Colored${NC}"
 	else HN_STAT="${GR}Numbered${NC}"; fi
+    GH_STAT="$([ "${BRANCH:-0}" = "1" ] && echo "${GR}Development${NC}" || echo "${BL}Main${NC}")"
 }
 
 do_install() {
@@ -281,15 +282,14 @@ ScriptUpdateFromAMTM() {
         return 1
     fi
     if [ "$1" = "check" ]; then return 0; fi
-	check_github
-    if do_update; then
+	BRANCH="0"
+    if check_github && do_update; then
         echo -e "  [+] Downloading latest version (v$REMOTE_VERSION)\n\n"
         echo -e "  [✓] Wireless Report successfully updated.\n"
-		logger -p user.info -t "Wireless_Report" "AMTM Update: (v$REMOTE_VERSION) successfully installed."
-		return 0
-    else
-        return 1
+        logger -p user.info -t "Wireless_Report" "AMTM Update: (v$REMOTE_VERSION) successfully installed."
+        return 0
     fi
+    return 1
 }
 
 wr_sha256() {
@@ -307,9 +307,10 @@ wr_sha256() {
 }
 
 check_github() {
-    GITHUB="https://raw.githubusercontent.com/JB1366/Wireless_Report/main/wirelessreport.sh"
-    REMOTE_TMP="/tmp/wr_remote.tmp"
-    LOCAL_HASH=""; REMOTE_HASH=""
+    BRANCH="${BRANCH:-0}"
+    BRANCH_NAME=$([ "$BRANCH" = "1" ] && echo "Development" || echo "main")
+    GITHUB="https://raw.githubusercontent.com/JB1366/Wireless_Report/$BRANCH_NAME/wirelessreport.sh"
+    REMOTE_TMP="/tmp/wr_remote.tmp"; LOCAL_HASH=""; REMOTE_HASH=""
     if curl -sfL --retry 3 "$GITHUB" -o "$REMOTE_TMP" 2>/dev/null && [ -s "$REMOTE_TMP" ]; then
         REMOTE_VERSION=$(grep "SCRIPT_VERSION=" "$REMOTE_TMP" | head -n 1 | cut -d'"' -f2 | tr -cd '0-9.')
         LOCAL_HASH=$(wr_sha256 "$REPORT_SCRIPT" 2>/dev/null)
@@ -774,6 +775,7 @@ set_options() {
         echo -e "  $N2  Configure Uptime Alert Pulse: ($UP_STAT)        "
         echo -e "  $N3  Toggle IP Padding: ($PD_STAT)                   "
         echo -e "  $N4  Toggle Node Hostname Display: ($HN_STAT)        "
+        echo -e "  $N5  Github Branch: ($GH_STAT)                       "
         echo -e "                                                       "
         echo -e "  $NE  Exit back to main menu                          "
         echo -e "                                                       "
@@ -828,6 +830,15 @@ set_options() {
                         sed -i "s/HOST_COLOR=.*/HOST_COLOR=\"$NEW_HC\"/" "$CONFIG"
                     else
                         echo 'HOST_COLOR="1"' >> "$CONFIG"
+                    fi
+                    break ;;
+                5)
+                    # Toggle BRANCH between 0 (Main) and 1 (Development)
+                    BRANCH="$([ "${BRANCH:-0}" = "1" ] && echo "0" || echo "1")"
+                    if grep -q "^BRANCH=" "$CONFIG"; then
+                        sed -i "s/^BRANCH=.*/BRANCH=\"$BRANCH\"/" "$CONFIG"
+                    else
+                        echo "BRANCH=\"$BRANCH\"" >> "$CONFIG"
                     fi
                     break ;;
                 e|E)
