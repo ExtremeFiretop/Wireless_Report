@@ -845,7 +845,7 @@ set_options() {
                     fi
                     DEV=""; if [ "$BRANCH" = "1" ]; then DEV="D"; fi
                     unset REMOTE_VERSION REMOTE_HASH LOCAL_HASH
-                    check_github
+                    check_github; do_update
                     break ;;
                 e|E)
                     return 0 ;;
