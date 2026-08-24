@@ -236,8 +236,7 @@ do_install() {
     if [ ! -f "$SS_FILE" ]; then echo "#!/bin/sh" > "$SS_FILE"; fi
     sed -i "\|$REPORT_SCRIPT|d" "$SS_FILE" 2>/dev/null
     echo "$REPORT_SCRIPT inject & # Inject Wireless Report" >> "$SS_FILE"
-    chmod +x "$SS_FILE"
-    install=""; SCRIPT_VERSION="$REMOTE_VERSION"
+    chmod +x "$SS_FILE"; SCRIPT_VERSION="$REMOTE_VERSION"
     logger -p user.info -t "Wireless_Report" "(v$SCRIPT_VERSION) successfully installed."
     echo -e "${GR}[✓] SUCCESS: Installation complete!${NC}\n"
     echo -e "${YL}[i] To access Report, navigate to Advanced Settings > Wireless "
@@ -401,13 +400,13 @@ do_uninstall() {
 		umount -l "/www/user/$INSTALLED_PAGE" >/dev/null 2>&1
 		rm -f /www/user/"${INSTALLED_PAGE}" >/dev/null 2>&1
 	fi
-    nvram unset wirelessreport_gen >/dev/null 2>&1
 	sed -i "\|$REPORT_SCRIPT|d" "$SS_FILE"
-    restart_httpd
 	rm -rf "$INSTALL_DIR" "$WEB_PAGE" 2>/dev/null
 	logger -p user.info -t "Wireless_Report" "(v$SCRIPT_VERSION) successfully uninstalled."
+    restart_httpd
     unset RTIME CUR_DATE RS_HIST_DATE RS_HIST CUR_RS_HIST CUR_ENTRIES REPORT_UNIT
     unset THEME IPPAD PULSE_MINS DISPLAY_UNIT HOST_COLOR MAIN_COLOR NODE_COLORS
+    nvram unset wirelessreport_gen >/dev/null 2>&1
 	echo -e "${GR}[+] Success: Wireless Report uninstalled.${NC}\n"
 	pause
 }
@@ -645,8 +644,9 @@ set_colors() {
                 "$idx" "$display_color" "$node_display_name" "$formatted_ip"
             idx=$((idx + 1))
         done
-        echo -e "\n  $NQ Cancel and Discard Changes"
-        echo -e "  $NE Exit and Save Changes"
+        echo -e "" #==================================================#
+        echo -e "  $NQ Cancel and Discard Changes                     "
+        echo -e "  $NE Exit and Save Changes                          "
         echo -e "\n${BL}==============================================${NC}"
         while true; do
             printf "\n ${NC}Select a Device number to change color ${BL}(0-$total_nodes): "; read -r node_choice
@@ -719,8 +719,8 @@ set_colors() {
     }
     update_config_var "MAIN_COLOR" "$m_color_hex"
     update_config_var "NODE_COLORS" "$working_colors"
-    run_report
     echo -e "\n${BL}Device colors successfully saved to CONFIG.${NC}"
+    run_report
     pause
 }
 
