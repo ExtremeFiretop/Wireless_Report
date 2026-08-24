@@ -28,7 +28,7 @@
 #        shellcheck shell=sh disable=SC2086,SC2155,SC3043         #
 #=================================================================#
 
-SCRIPT_VERSION="3.2.0"
+SCRIPT_VERSION="3.2.1"
 INSTALL_DIR="/jffs/addons/wireless_report"
 REPORT_SCRIPT="$INSTALL_DIR/wirelessreport.sh"
 CONFIG="$INSTALL_DIR/webui.conf"
@@ -842,13 +842,9 @@ set_options() {
                     while true; do
                         printf "\n ${NC}This toggles Github Branches - ${BL}PROCEED?${NC} (y/n): "; read -r toggle
                         case "$toggle" in [yY]) break ;; [nN]) break 2 ;; *) freeze 2 ;; esac; done
-                    if [ "${BRANCH:-0}" = "1" ]; then BRANCH="0"
-                    else BRANCH="1"; fi
-                    if grep -q "^BRANCH=" "$CONFIG"; then
-                        sed -i "s/^BRANCH=.*/BRANCH=\"$BRANCH\"/" "$CONFIG"
-                    else
-                        echo "BRANCH=\"$BRANCH\"" >> "$CONFIG"
-                    fi
+                    if [ "${BRANCH:-0}" = "1" ]; then BRANCH="0"; else BRANCH="1"; fi
+                    if grep -q "^BRANCH=" "$CONFIG"; then sed -i "s/^BRANCH=.*/BRANCH=\"$BRANCH\"/" "$CONFIG"
+                    else echo "BRANCH=\"$BRANCH\"" >> "$CONFIG"; fi
                     DEV=""; if [ "$BRANCH" = "1" ]; then DEV="D"; fi
                     check_github
                     printf "\nPress ${BL}[Enter]${NC} to apply changes & restart script..."; read -r discard
