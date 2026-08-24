@@ -781,7 +781,7 @@ set_options() {
         echo -e "  $N2  Configure Uptime Alert Pulse: ($UP_STAT)        "
         echo -e "  $N3  Toggle IP Padding: ($PD_STAT)                   "
         echo -e "  $N4  Toggle Node Hostname Display: ($HN_STAT)        "
-        echo -e "  $N5  Github Branch: ($GH_STAT)                       "
+        echo -e "  $N5  Toggle Github Branch: ($GH_STAT)                "
         echo -e "                                                       "
         echo -e "  $NE  Exit back to main menu                          "
         echo -e "                                                       "
@@ -839,7 +839,9 @@ set_options() {
                     fi
                     break ;;
                 5)
-                    # Toggle BRANCH between 0 (Main) and 1 (Development)
+                    while true; do
+                        printf "\n ${NC}This toggles Github Branches - ${BL}PROCEED?${NC} (y/n): "; read -r toggle
+                        case "$toggle" in [yY]) break ;; [nN]) break 2 ;; *) freeze 2 ;; esac; done
                     if [ "${BRANCH:-0}" = "1" ]; then BRANCH="0"
                     else BRANCH="1"; fi
                     if grep -q "^BRANCH=" "$CONFIG"; then
@@ -849,7 +851,7 @@ set_options() {
                     fi
                     DEV=""; if [ "$BRANCH" = "1" ]; then DEV="D"; fi
                     check_github
-                    printf "\nPress ${BL}[Enter]${NC} to change branches & restart script..."; read -r discard
+                    printf "\nPress ${BL}[Enter]${NC} to apply changes & restart script..."; read -r discard
                     if do_update; then exec "$REPORT_SCRIPT" install "$@"
                     else echo -e "${RD}Error: Branch update failed!${NC}" >&2; exit 1; fi ;;
                 e|E)
