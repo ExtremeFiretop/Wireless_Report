@@ -849,7 +849,7 @@ set_options() {
                     fi
                     DEV=""; if [ "$BRANCH" = "1" ]; then DEV="D"; fi
                     check_github
-                    printf "\nPress ${BL}[Enter]${NC} to apply changes & restart script..."; read -r discard
+                    printf "\nPress ${BL}[Enter]${NC} to change branches & restart script..."; read -r discard
                     if do_update; then exec "$REPORT_SCRIPT" install "$@"
                     else echo -e "${RD}Error: Branch update failed!${NC}" >&2; exit 1; fi ;;
                 e|E)
