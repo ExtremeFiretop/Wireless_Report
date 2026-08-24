@@ -848,9 +848,10 @@ set_options() {
                         echo "BRANCH=\"$BRANCH\"" >> "$CONFIG"
                     fi
                     DEV=""; if [ "$BRANCH" = "1" ]; then DEV="D"; fi
-                    unset REMOTE_VERSION REMOTE_HASH LOCAL_HASH
-                    check_github; do_update
-                    break ;;
+                    check_github
+                    printf "\nPress ${BL}[Enter]${NC} to apply changes & restart script..."; read -r discard
+                    if do_update; then exec "$REPORT_SCRIPT" install "$@"
+                    else echo -e "${RD}Error: Branch update failed!${NC}" >&2; exit 1; fi ;;
                 e|E)
                     return 0 ;;
                 *)
