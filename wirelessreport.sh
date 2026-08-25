@@ -3901,6 +3901,28 @@ function sortTable(n, tId, keepDir, forceDesc) {
             var sel = table.classList.contains('show-iface') ? '.iface-val' : '.ssid-val';
             valA = cellA.querySelector(sel).innerText.trim().toLowerCase();
             valB = cellB.querySelector(sel).innerText.trim().toLowerCase();
+        } else if (n === 5) {
+            // Custom Band & Width parsing for column 5
+            var parseBand = function(cell) {
+                var txt = cell.innerText.trim().toLowerCase();
+                // Extract band prefix weight (2.4g -> 2.4, 5g -> 5, 6g -> 6)
+                var bandVal = 0;
+                if (txt.includes('2.4')) bandVal = 2.4;
+                else if (txt.includes('5')) bandVal = 5.0;
+                else if (txt.includes('6')) bandVal = 6.0;
+
+                // Extract channel width inside parentheses if present (e.g., (160) -> 160)
+                var widthVal = 0;
+                var match = txt.match(/\((\d+)\)/);
+                if (match) {
+                    widthVal = parseInt(match[1], 10);
+                }
+                // Return a combined sortable number: Band * 1000 + Width (e.g., 5000 + 160 = 5160)
+                return (bandVal * 1000) + widthVal;
+            };
+            var scoreA = parseBand(cellA);
+            var scoreB = parseBand(cellB);
+            return dir === "asc" ? scoreA - scoreB : scoreB - scoreA;
         } else if (n === 6) {
             var spanA = cellA.querySelector('span[data-sort]');
             valA = spanA ? parseInt(spanA.getAttribute('data-sort'), 10) : 0;
