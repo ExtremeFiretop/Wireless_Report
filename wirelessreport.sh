@@ -3897,6 +3897,30 @@ function sortTable(n, tId, keepDir, forceDesc) {
             if (sel === '.mac-val') {
                 return dir === "asc" ? valA.localeCompare(valB) : valB.localeCompare(valA);
             }
+        } else if (n === 3) {
+            // Custom RX/TX parsing for column 3: extracts both numbers (e.g., "52 / 65" -> RX: 52, TX: 65)
+            var parseRxTx = function(cell) {
+                var txt = cell.innerText.trim();
+                var match = txt.match(/(\d+)\s*\/\s*(\d+)/);
+                if (match) {
+                    return {
+                        rx: parseInt(match[1], 10),
+                        tx: parseInt(match[2], 10)
+                    };
+                }
+                var spanA = cell.querySelector('span[data-sort]');
+                var val = spanA ? parseInt(spanA.getAttribute('data-sort'), 10) : 0;
+                return { rx: val, tx: val };
+            };
+
+            var valA = parseRxTx(cellA);
+            var valB = parseRxTx(cellB);
+
+            // Primary sort by TX, secondary tie-breaker sort by RX
+            if (valA.tx !== valB.tx) {
+                return dir === "asc" ? valA.tx - valB.tx : valB.tx - valA.tx;
+            }
+            return dir === "asc" ? valA.rx - valB.rx : valB.rx - valA.rx;
         } else if (n === 4) {
             var sel = table.classList.contains('show-iface') ? '.iface-val' : '.ssid-val';
             valA = cellA.querySelector(sel).innerText.trim().toLowerCase();
