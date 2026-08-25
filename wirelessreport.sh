@@ -4137,7 +4137,7 @@ document.addEventListener('mouseout', function(e) {
                             </div>
                             <button id="btnMain" class="button-tables active" onclick="switchTab('split')">Main</button>
                             <button id="btnAll" class="button-tables" onclick="switchTab('all')">All Devices</button>
-                            <button class="button-tables" onclick="openPopout()" style="">Side by Side ⇗</button>
+                            <button class="button-tables" onclick="openPopout()" style="">Side by Side ◫</button>
                             <button id="btnWide" class="button-tables" onclick="toggleWideView()">Wide View ⛶</button>
                         </div>
                     </div>
