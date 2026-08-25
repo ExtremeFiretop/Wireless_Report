@@ -173,7 +173,8 @@ menu_vars() {
     BL='\033[38;5;39m'; GR='\033[0;32m'; RD='\033[0;31m'
     JB1366="${GR}${UL}https://github.com/JB1366/Wireless_Report${NC}"
 	for i in $(seq 0 8); do eval "N${i}=\"\${BL}(${i})\${NC}\""; done
-	NE="${BL}(e)${NC}"; NQ="${BL}(c)${NC}"; ON="${GR}ON${NC}"; OFF="${RD}OFF${NC}"; echo -e "${BL}"
+	NE="${BL}(e)${NC}"; NQ="${BL}(c)${NC}"; NR="${BL}(r)${NC}";
+    ON="${GR}ON${NC}"; OFF="${RD}OFF${NC}"; echo -e "${BL}"
     : "${MAIN_COLOR:=#0096ff}"
     : "${NODE_COLORS:=#30d158 #bf40bf #ffd60a #64d2ff #ff9500 #ff453a #ffffff #ff70a6 #64ffda}"
 	STATUS=" ${BL}STATUS:${NC}"; CURRENT="${GR}Current: v$SCRIPT_VERSION$DEV${NC}"
@@ -205,7 +206,6 @@ menu_vars() {
 	HOST_COLOR=${HOST_COLOR:-0}
 	if [ "$HOST_COLOR" = "1" ]; then HN_STAT="${BL}Colored${NC}"
 	else HN_STAT="${GR}Numbered${NC}"; fi
-    GH_STAT="$([ "${BRANCH:-0}" = "1" ] && echo "${GR}Development${NC}" || echo "${BL}Main${NC}")"
 }
 
 do_install() {
@@ -454,7 +454,7 @@ set_nicknames() {
         echo -e "${NC}               Set Device Nicknames               "
         echo -e "${BL}=================================================="
         echo -e "                                                       "
-		echo -e "  $N1 Defaults Nicknames                               "
+		echo -e "  $N1 Default Nicknames                                "
 		echo -e "  $N2 Location Nicknames                               "
 		echo -e "  $N3 Manual Nicknames                                 "
 		echo -e "                                                       "
@@ -469,9 +469,8 @@ set_nicknames() {
             get_node_color() { local idx="$1"; echo "$NODE_COLORS" | awk -v i="$idx" '{print $i}'; }
             node_idx=1
             for node in $VALID_NODES; do
-                MODEL=$(echo "$node" | cut -d'|' -f1)
-                IP=$(echo "$node" | cut -d'|' -f2)
-                CLEAN_IP=$(echo "$IP" | tr '.' '_')
+                MODEL="${node%%|*}"; IP="${node#*|}"
+                CLEAN_IP="${IP//./_}"
                 eval SAVED_NICK=\$NODE_NICK_$CLEAN_IP
                 HEX_CLR=$(get_node_color "$node_idx")
                 NODE_CLR=$(hex_to_ansi "$HEX_CLR")
@@ -647,12 +646,31 @@ set_colors() {
             idx=$((idx + 1))
         done
         echo -e "" #==================================================#
+        echo -e "  $NR Restore Default Colors                         "
         echo -e "  $NQ Cancel and Discard Changes                     "
         echo -e "  $NE Exit and Save Changes                          "
         echo -e "\n${BL}==============================================${NC}"
         while true; do
             printf "\n ${NC}Select a Device number to change color ${BL}(0-$total_nodes): "; read -r node_choice
-            case "$node_choice" in c|C) return 0 ;; e|E) break 2 ;; esac
+            case "$node_choice" in
+                r|R)
+                    m_color_hex="#0096ff"
+                    local default_node_pool="#30d158 #bf40bf #ffd60a #64d2ff #ff9500 #ff453a #ffffff #ff70a6 #64ffda"
+                    working_colors=""
+                    local idx=1
+                    while [ $idx -le $total_nodes ]; do
+                        local next_color=$(echo "$default_node_pool" | awk -v col="$idx" '{print $col}')
+                        next_color="${next_color:-#30d158}"
+                        working_colors="${working_colors:+$working_colors }$next_color"
+                        idx=$((idx + 1))
+                    done
+                    echo -e "\n${BL}Colors restored to defaults.${NC}"
+                    pause
+                    continue 2
+                    ;;
+                c|C) return 0 ;;
+                e|E) break 2 ;;
+            esac
             if ! [ "$node_choice" -ge 0 ] 2>/dev/null || ! [ "$node_choice" -le "$total_nodes" ] 2>/dev/null; then
                 freeze 2; continue
             fi
