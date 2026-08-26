@@ -140,11 +140,11 @@ check_version() {
             esac ;;
         *)
             case "$STATE" in
-                OFFLINE)       echo -e "$STATUS ${RD}[Offline]${NC} Could not reach GitHub" ;;
-                NOT_INSTALLED) echo -e "$STATUS ${RD}[Not Installed]${NC} Latest Available: ${GR}v$REMOTE_VERSION${NC}"; N1="${BL}(1)" ;;
-                OUTDATED)      echo -e "$STATUS [v$REMOTE_VERSION Available] $CURRENT" ;;
+                OFFLINE)       echo -e "$STATUS [Offline]         ${RD}Could not reach GitHub${NC}" ;;
+                NOT_INSTALLED) echo -e "$STATUS [Not Installed] ${BL}Latest Available:${NC} v$REMOTE_VERSION"; N1="${BL}(1)" ;;
+                OUTDATED)      echo -e "$STATUS [v$REMOTE_VERSION Available]      $CURRENT" ;;
                 HASH_DIFF)     echo -e "$STATUS [Hash Update Available] $CURRENT" ;;
-                UP_TO_DATE|*)  echo -e "$STATUS [Up to date] $CURRENT" ;;
+                UP_TO_DATE|*)  echo -e "$STATUS [Up to date]            $CURRENT" ;;
             esac ;;
     esac
 }
@@ -177,7 +177,7 @@ menu_vars() {
     ON="${GR}ON${NC}"; OFF="${RD}OFF${NC}"; echo -e "${BL}"
     : "${MAIN_COLOR:=#0096ff}"
     : "${NODE_COLORS:=#30d158 #bf40bf #ffd60a #64d2ff #ff9500 #ff453a #ffffff #ff70a6 #64ffda}"
-	STATUS=" ${BL}STATUS:${NC}"; CURRENT="${GR}Current: v$SCRIPT_VERSION$DEV${NC}"
+	STATUS=" ${BL}STATUS:${NC}"; CURRENT="${BL}CURRENT:${NC} v$SCRIPT_VERSION$DEV"
     SS_FILE="/jffs/scripts/services-start"
     DU="${REPORT_UNIT:-USA}"; DATE_USA="${GR}$(date +"%b-%-d %-H:%M:%S")${NC}"
     DATE_INTL="${GR}$(date +"%-d-%b %-H:%M:%S")${NC}"; DATE_ISO="${GR}$(date +"%Y-%m-%d %H:%M:%S")${NC}"
