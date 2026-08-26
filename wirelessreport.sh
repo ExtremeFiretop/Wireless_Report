@@ -60,7 +60,7 @@ show_header() {
 	echo -e "      ██║  ██║███████╗██║     ╚██████╔╝██║  ██║   ██║          "
 	echo -e "      ╚═╝  ╚═╝╚══════╝╚═╝      ╚═════╝ ╚═╝  ╚═╝   ╚═╝          "
 	echo -e "                                                               "
-    echo -e "      Copyright (c) 2026 JB_1366 - All Rights Reserved         "
+    echo -e "      $JB_1366                                                 "
     echo -e "         $JB1366                                               "
     echo -e "                                                               "
     #=======================================================================#
@@ -171,6 +171,7 @@ menu_vars() {
 	trap 'printf "\033[0m"' 0; trap 'exit 130' INT TERM HUP
     UL='\033[4m'; WH='\e[1;37m'; YL='\033[0;33m'; NC='\033[0m'
     BL='\033[38;5;39m'; GR='\033[0;32m'; RD='\033[0;31m'
+    JB_1366="${NC}Copyright (c) 2026 JB_1366 - All Rights Reserved"
     JB1366="${GR}${UL}https://github.com/JB1366/Wireless_Report${NC}"
 	for i in 0 1 2 3 4 5 6 7 8; do eval "N${i}=\"\${BL}(${i})\${NC}\""; done
 	for i in E C R; do eval "L${i}=\"\${BL}(${i})\${NC}\""; done
@@ -418,12 +419,12 @@ set_date_time() {
         echo -e "${BL}=================================================="
         echo -e "${NC}                  Set Date/Time                   "
         echo -e "${BL}=================================================="
-        echo -e "${NC}  Format: $DU         Current: $CT                "
+        echo -e "${NC}  Format: $DU        Current: $CT                 "
         echo -e "${BL}=================================================="
         echo -e "                                                       "
         echo -e "  $N1  USA                   ($DATE_USA)               "
-        echo -e "  $N2  INTERNATIONAL         ($DATE_INTL)              "
-        echo -e "  $N3  ISO                   ($DATE_ISO)               "
+        echo -e "  $N2  INTL                  ($DATE_INTL)              "
+        echo -e "  $N3  ISO                 ($DATE_ISO)                 "
         echo -e "                                                       "
         echo -e "  $LE  Exit back to main menu                          "
         echo -e "                                                       "
@@ -644,7 +645,7 @@ set_colors() {
                 "$idx" "$display_color" "$node_display_name" "$formatted_ip"
             idx=$((idx + 1))
         done
-        echo -e "" #==================================================#
+        echo -e "                                                     "
         echo -e "  $LR Restore Default Colors                         "
         echo -e "  $LC Cancel and Discard Changes                     "
         echo -e "  $LE Exit and Save Changes                          "
