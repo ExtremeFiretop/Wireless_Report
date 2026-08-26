@@ -28,7 +28,7 @@
 #        shellcheck shell=sh disable=SC2086,SC2155,SC3043         #
 #=================================================================#
 
-SCRIPT_VERSION="3.2.1"
+SCRIPT_VERSION="3.2.2"
 INSTALL_DIR="/jffs/addons/wireless_report"
 REPORT_SCRIPT="$INSTALL_DIR/wirelessreport.sh"
 CONFIG="$INSTALL_DIR/webui.conf"
@@ -858,8 +858,9 @@ set_options() {
                     if grep -q "^BRANCH=" "$CONFIG"; then sed -i "s/^BRANCH=.*/BRANCH=\"$BRANCH\"/" "$CONFIG"
                     else echo "BRANCH=\"$BRANCH\"" >> "$CONFIG"; fi
                     DEV=""; if [ "$BRANCH" = "1" ]; then DEV="D"; fi
-                    check_github
-                    printf "\nPress ${BL}[Enter]${NC} to apply changes & restart script..."; read -r discard
+                    check_github; INJECT="2"
+                    GH="$([ "${BRANCH:-0}" = "1" ] && echo "Development" || echo "Main")"
+                    printf "\nPress ${BL}[Enter]${NC} to switch to ${GR}$GH${NC} branch & restart script..."; read -r discard
                     if do_update; then exec "$REPORT_SCRIPT" install "$@"
                     else echo -e "${RD}Error: Branch update failed!${NC}" >&2; exit 1; fi ;;
                 e|E)
