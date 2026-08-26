@@ -28,7 +28,7 @@
 #        shellcheck shell=sh disable=SC2086,SC2155,SC3043         #
 #=================================================================#
 
-SCRIPT_VERSION="3.2.2"
+SCRIPT_VERSION="3.2.3"
 INSTALL_DIR="/jffs/addons/wireless_report"
 REPORT_SCRIPT="$INSTALL_DIR/wirelessreport.sh"
 CONFIG="$INSTALL_DIR/webui.conf"
@@ -179,17 +179,17 @@ menu_vars() {
     : "${NODE_COLORS:=#30d158 #bf40bf #ffd60a #64d2ff #ff9500 #ff453a #ffffff #ff70a6 #64ffda}"
 	STATUS=" ${BL}STATUS:${NC}"; CURRENT="${BL}CURRENT:${NC} v$SCRIPT_VERSION$DEV"
     SS_FILE="/jffs/scripts/services-start"
-    DU="${REPORT_UNIT:-USA}"; DATE_USA="${GR}$(date +"%b-%-d %-H:%M:%S")${NC}"
-    DATE_INTL="${GR}$(date +"%-d-%b %-H:%M:%S")${NC}"; DATE_ISO="${GR}$(date +"%Y-%m-%d %H:%M:%S")${NC}"
+    REPORT_UNIT="${REPORT_UNIT:-USA}"
+    DATE_ISO="${GR}$(date +"%Y-%m-%d %H:%M:%S")${NC}"
+    DATE_INTL="${GR}$(date +"%-d-%b %-H:%M:%S")${NC}"
+    DATE_USA="${GR}$(date +"%b-%-d %-H:%M:%S")${NC}"
     if [ "$REPORT_UNIT" = "ISO" ]; then DU="${GR}ISO${NC}"; CT="$DATE_ISO"
     elif [ "$REPORT_UNIT" = "INTL" ]; then DU="${GR}INTL${NC}"; CT="$DATE_INTL"
     else DU="${GR}USA${NC}"; CT="$DATE_USA"; fi
     RTIME=${RTIME:-1}; if [ "$RTIME" = "0" ]; then RT_STAT="$OFF"; else RT_STAT="$ON"; fi
-    PULSE_MINS=${PULSE_MINS:-15}
-    if [ "$PULSE_MINS" = "0" ]; then UP_STAT="$OFF"; else UP_STAT="${GR}${PULSE_MINS} Mins${NC}"; fi
+    PULSE_MINS=${PULSE_MINS:-15}; if [ "$PULSE_MINS" = "0" ]; then UP_STAT="$OFF"; else UP_STAT="${GR}${PULSE_MINS} Mins${NC}"; fi
     RS_HIST=${RS_HIST:-0}; case "$RS_HIST" in 0|1) ;; *) RS_HIST=0 ;; esac
-    RS_HIST_ENTRIES=${RS_HIST_ENTRIES:-5}
-    case "$RS_HIST_ENTRIES" in ""|*[!0-9]*) RS_HIST_ENTRIES=5 ;; esac
+    RS_HIST_ENTRIES=${RS_HIST_ENTRIES:-5}; case "$RS_HIST_ENTRIES" in ""|*[!0-9]*) RS_HIST_ENTRIES=5 ;; esac
     if [ "$RS_HIST_ENTRIES" -lt 5 ] || [ "$RS_HIST_ENTRIES" -gt 20 ]; then RS_HIST_ENTRIES=5; fi
     RS_HIST_DATE=${RS_HIST_DATE:-0}; case "$RS_HIST_DATE" in 0|1) ;; *) RS_HIST_DATE=0 ;; esac
     CUR_RS_HIST=${CUR_RS_HIST:-$RS_HIST}
