@@ -283,8 +283,7 @@ ScriptUpdateFromAMTM() {
         return 1
     fi
     if [ "$1" = "check" ]; then return 0; fi
-	check_github
-    if do_update; then
+    if check_github && do_update; then
         echo -e "  [+] Downloading latest version (v$REMOTE_VERSION)\n\n"
         echo -e "  [✓] Wireless Report successfully updated.\n"
         logger -p user.info -t "Wireless_Report" "AMTM Update: (v$REMOTE_VERSION) successfully installed."
@@ -852,16 +851,15 @@ set_options() {
                     break ;;
                 dev)
                     while true; do
-                        GH="$([ "${BRANCH:-0}" = "1" ] && echo "Development" || echo "Main")"
-                        printf "\n ${NC}Current Branch: [${GR}$GH${NC}] Swap Branch (y/n): "; read -r toggle
-                        case "$toggle" in [yY]) break ;; [nN]) break 2 ;; *) freeze 2 ;; esac; done
+                        printf "\n ${NC}Current Branch: [${GR}$BRANCH_NAME${NC}] Swap Branch (y/n): "; read -r toggle
+                        case "$toggle" in [yY]) break ;; [nN]) return 2 ;; *) freeze 2 ;; esac; done
                     if [ "${BRANCH:-0}" = "1" ]; then BRANCH="0"; else BRANCH="1"; fi
                     if grep -q "^BRANCH=" "$CONFIG"; then sed -i "s/^BRANCH=.*/BRANCH=\"$BRANCH\"/" "$CONFIG"
                     else echo "BRANCH=\"$BRANCH\"" >> "$CONFIG"; fi
                     DEV=""; if [ "$BRANCH" = "1" ]; then DEV="D"; fi
-                    check_github; INJECT="2"
-                    GH="$([ "${BRANCH:-0}" = "1" ] && echo "Development" || echo "Main")"
-                    printf "\nPress ${BL}[Enter]${NC} to switch to [${GR}$GH${NC}] branch & restart script..."; read -r discard
+                    check_github
+                    printf "\nPress ${BL}[Enter]${NC} to switch to [${GR}$BRANCH_NAME${NC}] branch & restart script..."; read -r restart
+                    if [ "$restart" = "2" ]; then INJECT="2"; fi
                     if do_update; then exec "$REPORT_SCRIPT" install "$@"
                     else echo -e "${RD}Error: Branch update failed!${NC}" >&2; exit 1; fi ;;
                 e|E)
