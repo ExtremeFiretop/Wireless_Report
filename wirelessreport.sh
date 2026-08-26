@@ -852,7 +852,8 @@ set_options() {
                     break ;;
                 dev)
                     while true; do
-                        printf "\n ${NC}This toggles Github Branches - ${BL}PROCEED?${NC} (y/n): "; read -r toggle
+                        GH="$([ "${BRANCH:-0}" = "1" ] && echo "Development" || echo "Main")"
+                        printf "\n ${NC}Current Branch: [${GR}$GH${NC}] Swap Branch (y/n): "; read -r toggle
                         case "$toggle" in [yY]) break ;; [nN]) break 2 ;; *) freeze 2 ;; esac; done
                     if [ "${BRANCH:-0}" = "1" ]; then BRANCH="0"; else BRANCH="1"; fi
                     if grep -q "^BRANCH=" "$CONFIG"; then sed -i "s/^BRANCH=.*/BRANCH=\"$BRANCH\"/" "$CONFIG"
@@ -860,7 +861,7 @@ set_options() {
                     DEV=""; if [ "$BRANCH" = "1" ]; then DEV="D"; fi
                     check_github; INJECT="2"
                     GH="$([ "${BRANCH:-0}" = "1" ] && echo "Development" || echo "Main")"
-                    printf "\nPress ${BL}[Enter]${NC} to switch to ${GR}$GH${NC} branch & restart script..."; read -r discard
+                    printf "\nPress ${BL}[Enter]${NC} to switch to [${GR}$GH${NC}] branch & restart script..."; read -r discard
                     if do_update; then exec "$REPORT_SCRIPT" install "$@"
                     else echo -e "${RD}Error: Branch update failed!${NC}" >&2; exit 1; fi ;;
                 e|E)
