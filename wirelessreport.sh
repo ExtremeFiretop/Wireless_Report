@@ -81,7 +81,7 @@ install_menu() {
 		echo -e "  $N6  Set Theme ($TM_STAT)                            "
         echo -e "  $N7  Set Options                                     "
         echo -e "  $N8  Configure RSSI History ($RH_STAT)               "
-		echo -e "  $NE  Exit                                            "
+		echo -e "  $LE  Exit                                            "
 		echo -e "                                                       "
 		echo -e "${BL}=================================================="
 		while true; do
@@ -173,7 +173,7 @@ menu_vars() {
     BL='\033[38;5;39m'; GR='\033[0;32m'; RD='\033[0;31m'
     JB1366="${GR}${UL}https://github.com/JB1366/Wireless_Report${NC}"
 	for i in 0 1 2 3 4 5 6 7 8; do eval "N${i}=\"\${BL}(${i})\${NC}\""; done
-	NE="${BL}(e)${NC}"; NQ="${BL}(c)${NC}"; NR="${BL}(r)${NC}";
+	for i in E C R; do eval "L${i}=\"\${BL}(${i})\${NC}\""; done
     ON="${GR}ON${NC}"; OFF="${RD}OFF${NC}"; echo -e "${BL}"
     : "${MAIN_COLOR:=#0096ff}"
     : "${NODE_COLORS:=#30d158 #bf40bf #ffd60a #64d2ff #ff9500 #ff453a #ffffff #ff70a6 #64ffda}"
@@ -425,7 +425,7 @@ set_date_time() {
         echo -e "  $N2  INTERNATIONAL         ($DATE_INTL)              "
         echo -e "  $N3  ISO                   ($DATE_ISO)               "
         echo -e "                                                       "
-        echo -e "  $NE  Exit back to main menu                          "
+        echo -e "  $LE  Exit back to main menu                          "
         echo -e "                                                       "
 		echo -e "${BL}=================================================="
         while true; do
@@ -457,7 +457,7 @@ set_nicknames() {
 		echo -e "  $N2 Location Nicknames                               "
 		echo -e "  $N3 Manual Nicknames                                 "
 		echo -e "                                                       "
-        echo -e "  $NE Exit back to main menu                           "
+        echo -e "  $LE Exit back to main menu                           "
 		echo -e "                                                       "
         echo -e "${BL}=================================================="
         MAIN_ROUTER=$(nvram get productid); MAIN_IP=$(nvram get lan_ipaddr)
@@ -645,9 +645,9 @@ set_colors() {
             idx=$((idx + 1))
         done
         echo -e "" #==================================================#
-        echo -e "  $NR Restore Default Colors                         "
-        echo -e "  $NQ Cancel and Discard Changes                     "
-        echo -e "  $NE Exit and Save Changes                          "
+        echo -e "  $LR Restore Default Colors                         "
+        echo -e "  $LC Cancel and Discard Changes                     "
+        echo -e "  $LE Exit and Save Changes                          "
         echo -e "\n${BL}==============================================${NC}"
         while true; do
             printf "\n ${NC}Select a Device number to change color ${BL}(0-$total_nodes): "; read -r node_choice
@@ -754,7 +754,7 @@ set_theme() {
         echo -e "  $N2 Darkmode Theme                                   "
         echo -e "  $N3 Asus WebUI Theme                                 "
         echo -e "                                                       "
-        echo -e "  $NE Exit back to main menu                           "
+        echo -e "  $LE Exit back to main menu                           "
         echo -e "                                                       "
         echo -e "${BL}=================================================="
         while true; do
@@ -794,7 +794,7 @@ set_options() {
         echo -e "  $N3  Toggle IP Padding: ($PD_STAT)                   "
         echo -e "  $N4  Toggle Node Hostname Display: ($HN_STAT)        "
         echo -e "                                                       "
-        echo -e "  $NE  Exit back to main menu                          "
+        echo -e "  $LE  Exit back to main menu                          "
         echo -e "                                                       "
         echo -e "${BL}=================================================="
         while true; do
@@ -883,8 +883,8 @@ set_rssi() {
         echo -e "  $N2 Set History Depth:   [$CE] entries               "
         echo -e "  $N3 Toggle Timestamps:   [$TS]                       "
         echo -e "                                                       "
-        echo -e "  $NQ Cancel and Discard Changes                       "
-        echo -e "  $NE Exit and Save Changes                            "
+        echo -e "  $LC Cancel and Discard Changes                       "
+        echo -e "  $LE Exit and Save Changes                            "
         echo -e "                                                       "
         echo -e "${BL}=================================================="
         while true; do
