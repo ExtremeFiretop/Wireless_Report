@@ -4264,26 +4264,23 @@ HTML
 }
 case "$1" in
     install)
-        # Install/Uninstall options
         install_menu
         ;;
     inject|inject1|inject2|inject3)
         case "$1" in
-            inject)  ;; # Called by services-start to mount tab
-            inject1) NOLOADSCRIPT="1" ;; # Manual Tab Injection
-            inject2) INJECT="2" ;; # Called by services-start to mount menu
-            inject3) NOLOADSCRIPT="1"; INJECT="2" ;; # Manual Menu Injection
+            inject)  ;;
+            inject1) NOLOADSCRIPT="1" ;;
+            inject2) INJECT="2" ;;
+            inject3) NOLOADSCRIPT="1"; INJECT="2" ;;
         esac
         inject_menu
         ;;
     amtmupdate)
-        # Called by AMTM for autoupdates
 		shift
         ScriptUpdateFromAMTM "$@"
         exit "$?"
         ;;
 	*)
-        # Run (Scans)
 		run_report
         ;;
 esac

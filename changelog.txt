@@ -5,8 +5,8 @@
 v3.2.1-minor install menu updates.
       -fix band column sorting - secondary sort by width.
       -fix rx/tx column sorting - secondary sort by rx.
-      =add option to restore default colors in Set Colors Menu.
-      -update side-by-side button graphic.
+      -add option to restore default colors in Set Colors Menu.
+      -update side-by-side button.
 v3.2.0-revamped install menu.
       -adjusted runtime bubbles.
       -minor code cleanup.
