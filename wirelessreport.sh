@@ -218,7 +218,7 @@ do_install() {
         while true; do
             check_version do_install
             printf "Do you want to $UP (y/n): "; read -r update
-            case "$update" in [yY]) break ;; [nN]) return ;; [2]) INJECT="2"; break ;; *) freeze 4 ;; esac; done
+            case "$update" in y|Y) break ;; n|N) return ;; 2) INJECT="2"; break ;; *) freeze 4 ;; esac; done
     fi
     do_update || return 1
     echo -e "\n${GR}[+] Downloading latest version (${NC}v$REMOTE_VERSION${GR})${NC}"
@@ -388,7 +388,7 @@ do_uninstall() {
     echo -e "\n${RD}[!] WARNING: Removing Wireless Report...${NC}\n"
     while true; do
         printf "Are you sure? (y/n): "; read -r confirm
-        case "$confirm" in [yY]) break ;; [nN]) return ;; *) freeze ;; esac; done
+        case "$confirm" in y|Y) break ;; n|N) return ;; *) freeze ;; esac; done
 	if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
 	if mount | grep -q "menuTree.js"; then
 		umount -l "$SYSTEM_MENU" >/dev/null 2>&1
@@ -853,7 +853,7 @@ set_options() {
                 dev)
                     while true; do
                         printf "\n ${NC}Current Branch: [${GR}$BRANCH_NAME${NC}] Swap Branch (y/n): "; read -r toggle
-                        case "$toggle" in [yY]) break ;; [nN]) return 2 ;; *) freeze 2 ;; esac; done
+                        case "$toggle" in y|Y) break ;; n|N) return 2 ;; *) freeze 2 ;; esac; done
                     if [ "${BRANCH:-0}" = "1" ]; then BRANCH="0"; else BRANCH="1"; fi
                     if grep -q "^BRANCH=" "$CONFIG"; then sed -i "s/^BRANCH=.*/BRANCH=\"$BRANCH\"/" "$CONFIG"
                     else echo "BRANCH=\"$BRANCH\"" >> "$CONFIG"; fi
@@ -3172,6 +3172,7 @@ function wrRenderRow(item, history, known, firstHistoryLoad) {
     var rawSsid = item.resolvedSsid || wrFirst(c, ['ssid']) || wrFirst(saved, ['ssid']) || '';
     var ip = rawIp.length > 15 ? rawIp.slice(0, 15) : rawIp;
     var name = rawName.length > 20 ? rawName.slice(0, 20) : rawName;
+    // var ssid = rawSsid.length > 15 ? rawSsid.slice(0, 15) : rawSsid;
     var ssid = rawSsid;
     var iface = wrStaIface(sta, c, item.node, item.wrFallbackIface);
     var rssi = wrItemRssi(item);
