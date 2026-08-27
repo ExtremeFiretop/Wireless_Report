@@ -333,6 +333,19 @@ check_github() {
     rm -f "$REMOTE_TMP"
 }
 
+mesh_init() {
+	VALID_NODES=""
+	local ASUS_DEVICE_LIST MAIN_IP
+	MAIN_IP=$(nvram get lan_ipaddr)
+	ASUS_DEVICE_LIST=$(nvram get asus_device_list)
+	MESH_NODES=$(printf '%s\n' "$ASUS_DEVICE_LIST" | sed 's/</\n/g' | \
+		awk -F '>' -v main_ip="$MAIN_IP" '
+			NF >= 4 && $2 != "" && $3 != "" && $3 != main_ip && $NF == "2" && !seen[$3]++ {
+				print $2 "|" $3
+			}
+		' | sort -t . -k 4,4n)
+}
+
 inject_menu() {
 	source /usr/sbin/helper.sh
 	TAB_LABEL="Wireless Report"
@@ -449,7 +462,7 @@ set_nicknames() {
 		echo -e "                                                       "
         echo -e "${BL}=================================================="
         MAIN_ROUTER=$(nvram get productid); MAIN_IP=$(nvram get lan_ipaddr)
-        MAIN_CLR=$(hex_to_ansi "$MAIN_COLOR"); VALID_NODES=""
+        MAIN_CLR=$(hex_to_ansi "$MAIN_COLOR")
         echo -e "\n  ${MAIN_CLR}Main $MAIN_IP -> ${MAIN_NICK:-$MAIN_ROUTER}${NC}"
         if [ -n "$MESH_NODES" ] && [ "$MESH_NODES" != " " ]; then
             VALID_NODES=$(echo "$MESH_NODES" | tr ' ' '\n' | grep '|')
@@ -995,9 +1008,7 @@ pause() { printf "\nPress ${BL}[Enter]${NC} to return..."; read -r discard; }
 
 freeze() { printf "\033[%dA\033[J" "${1:-1}"; }
 
-MESH_NODES=$(nvram get asus_device_list | sed 's/</\n/g' | grep '>2$' | awk -F '>' '{print $2 "|" $3}' | sort -t . -k 4,4n)
-
-check_github; hex_to_ansi
+mesh_init; check_github; hex_to_ansi
 
 run_report() {
 #======================================#
