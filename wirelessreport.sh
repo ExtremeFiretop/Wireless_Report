@@ -1125,7 +1125,6 @@ cat <<HTML >> "$WEB_PAGE"
     .report-column { width: 100%; border-radius: 8px; border: 1px solid #475a68; overflow: hidden; display: flex; flex-direction: column; }
 	.rssi-quality-bar { display: flex; justify-content: center; gap: 12px; align-items: center; width: 100%; margin: -5px auto -5px auto; padding: 0; background: transparent; border: none; height: auto; }
 	.rssi-quality-box { display: inline-block; height: 28px; line-height: 26px; text-align: center; padding: 0 12px; border-radius: 4px; background: rgba(0,0,0,0.4); border: 1px solid #475a68; font-weight: bold; box-sizing: border-box; transition: all 0.2s ease; }
-	.rssi-quality-box:hover { border-color: var(--hover-color, #0096ff); box-shadow: 0 0 10px var(--glow-color, rgba(0,150,255,0.4)); }
     .rssi_bars { font-family: monospace; font-weight: 900; width: 40px; display: inline-block; text-align: right; margin-right: 5px; }
     .rssi-font { color:#000; padding:1px 5px; border-radius:3px; margin-left:4px; }
     .rssi-excl { color: #30d158; --hover-color: #30d158; --glow-color: rgba(48,209,88,0.4); }
