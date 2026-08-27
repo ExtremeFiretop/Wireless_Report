@@ -218,7 +218,7 @@ do_install() {
         while true; do
             check_version do_install
             printf "Do you want to $UP (y/n): "; read -r update
-            case "$update" in [yY]) break ;; [nN]) return ;; *) freeze 4 ;; esac; done
+            case "$update" in [yY]) break ;; [nN]) return ;; [2]) INJECT="2"; break ;; *) freeze 4 ;; esac; done
     fi
     do_update || return 1
     echo -e "\n${GR}[+] Downloading latest version (${NC}v$REMOTE_VERSION${GR})${NC}"
@@ -252,7 +252,7 @@ do_update() {
     if curl -sfL --retry 3 "$GITHUB" -o "$TEMP_SCRIPT" && [ -s "$TEMP_SCRIPT" ]; then
         mv "$TEMP_SCRIPT" "$REPORT_SCRIPT"
         chmod +x "$REPORT_SCRIPT" 2>/dev/null
-        run_report
+        inject_menu
         return 0
     else
         rm -f "$TEMP_SCRIPT"
@@ -381,7 +381,7 @@ inject_menu() {
 	mount -o bind "$WEB_PAGE" "/www/user/$am_webui_page"
 	flock -u "$FD"; restart_httpd
     if [ "$NOLOADSCRIPT" = "1" ]; then exit 0
-    else "$REPORT_SCRIPT" & fi
+    else "$REPORT_SCRIPT" >/dev/null 2>&1 & fi
 }
 
 do_uninstall() {
