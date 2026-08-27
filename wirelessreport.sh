@@ -218,12 +218,12 @@ do_install() {
         while true; do
             check_version do_install
             printf "Do you want to $UP (y/n): "; read -r update
-            case "$update" in [yY]) break ;; [nN]) return ;; *) freeze 4 ;; esac; done
+            case "$update" in [yY]) break ;; [nN]) return ;; [2]) INJECT="2"; break ;; *) freeze 4 ;; esac; done
     fi
     do_update || return 1
     echo -e "\n${GR}[+] Downloading latest version (${NC}v$REMOTE_VERSION${GR})${NC}"
 	if [ "$is_update" = "1" ]; then
-		echo -e "\n${BL}[✓] Wireless Report successfully installed.${NC}"
+        echo -e "\n${BL}[✓] Wireless Report successfully installed.${NC}"
 		printf "\nPress ${BL}[Enter]${NC} to apply changes & restart script..."; read -r discard
         logger -p user.info -t "Wireless_Report" "(v$REMOTE_VERSION) successfully installed."
         exec "$REPORT_SCRIPT" install "$@"
@@ -381,7 +381,7 @@ inject_menu() {
 	mount -o bind "$WEB_PAGE" "/www/user/$am_webui_page"
 	flock -u "$FD"; restart_httpd
     if [ "$NOLOADSCRIPT" = "1" ]; then exit 0
-    else "$REPORT_SCRIPT" & fi
+    else "$REPORT_SCRIPT" >/dev/null 2>&1 & fi
 }
 
 do_uninstall() {
