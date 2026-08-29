@@ -2,6 +2,7 @@
 # Wireless Report - Changelog #
 #=============================#
 
+v3.2.3-added wireless backhaul toggle in Set Options Menu.
 v3.2.2-quick fix to install menu numbering.
 v3.2.1-minor install menu updates.
       -fix band column sorting - secondary sort by width.
