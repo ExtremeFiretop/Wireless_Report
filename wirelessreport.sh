@@ -189,7 +189,7 @@ menu_vars() {
     elif [ "$REPORT_UNIT" = "INTL" ]; then DU="${GR}INTL${NC}"; CT="$DATE_INTL"
     else DU="${GR}USA${NC}"; CT="$DATE_USA"; fi
     RTIME=${RTIME:-1}; if [ "$RTIME" = "0" ]; then RT_STAT="$OFF"; else RT_STAT="$ON"; fi
-    BACKHAUL=${BACKHAUL:0}; if [ "$BACKHAUL" = "0" ]; then WB_STAT="$OFF"; else WB_STAT="$ON"; fi
+    BACKHAUL=${BACKHAUL:-0}; if [ "$BACKHAUL" = "0" ]; then WB_STAT="$OFF"; else WB_STAT="$ON"; fi
     PULSE_MINS=${PULSE_MINS:-15}; if [ "$PULSE_MINS" = "0" ]; then UP_STAT="$OFF"; else UP_STAT="${GR}${PULSE_MINS} Mins${NC}"; fi
     RS_HIST=${RS_HIST:-0}; case "$RS_HIST" in 0|1) ;; *) RS_HIST=0 ;; esac
     RS_HIST_ENTRIES=${RS_HIST_ENTRIES:-5}; case "$RS_HIST_ENTRIES" in ""|*[!0-9]*) RS_HIST_ENTRIES=5 ;; esac
@@ -795,7 +795,7 @@ set_options() {
         echo -e "  $N1  Toggle Runtime Tracking: ($RT_STAT)             "
         echo -e "  $N2  Toggle Wireless Backhaul: ($WB_STAT)            "
         echo -e "  $N3  Configure Uptime Alert Pulse: ($UP_STAT)        "
-        echo -e "  $N4 Toggle IP Padding: ($PD_STAT)                   "
+        echo -e "  $N4  Toggle IP Padding: ($PD_STAT)                   "
         echo -e "  $N5  Toggle Node Hostname Display: ($HN_STAT)        "
         echo -e "                                                       "
         echo -e "  $LE  Exit back to main menu                          "
@@ -812,9 +812,9 @@ set_options() {
                     break ;;
                 2)
                     if grep -q "BACKHAUL=" "$CONFIG"; then
-                        if [ "$BACKHAUL" = "1" ]; then sed -i 's/BACKHAUL=.*/BACKHAUL="0"/' "$CONFIG"
-                        else sed -i 's/BACKHAUL=.*/BACKHAUL="1"/' "$CONFIG"; fi
-                    else echo 'BACKHAUL="0"' >> "$CONFIG"; fi
+                        if [ "$BACKHAUL" = "0" ]; then sed -i 's/BACKHAUL=.*/BACKHAUL="1"/' "$CONFIG"
+                        else sed -i 's/BACKHAUL=.*/BACKHAUL="0"/' "$CONFIG"; fi
+                    else echo 'BACKHAUL="1"' >> "$CONFIG"; fi
                     break ;;
                 3)
                     while true; do
