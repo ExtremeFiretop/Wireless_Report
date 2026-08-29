@@ -1819,6 +1819,37 @@ function wrNodeLegacySemantics(node) {
     return WR_DIAG_API === 'legacy';
 }
 
+function wrStaExpectedBandHint(node, client) {
+    // Keep stainfo disambiguation narrower than the broader interface-semantics
+    // decision. A recognized 388/3004 node should use the live client band hint;
+    // a recognized 3006 node should not need one. For an unclassified node behind
+    // a latest controller, use only explicit named bands or the conservative
+    // isWL=1/2 hints when the node's own band_info confirms the matching wl unit.
+    // This improves mixed-firmware resilience without globally declaring an
+    // unknown node to have legacy interface/index semantics.
+    if (!node) {
+        return WR_DIAG_API === 'legacy' ? wrClientBandHint(client) : '';
+    }
+
+    var family = wrNodeFirmwareFamily(node);
+    if (family === 'legacy') return wrClientBandHint(client);
+    if (family === 'latest') return '';
+    if (WR_DIAG_API === 'legacy') return wrClientBandHint(client);
+
+    // Unknown-family node on a latest controller: trust an explicit named band
+    // if Network Map supplies one. Otherwise only translate the cross-generation
+    // isWL=1/2 hints when the node's own band_info confirms wl0/wl1 exists.
+    var named = wrNormalizeBand(wrFirst(client, ['band', 'wlBand']));
+    if (/^(?:2G|5G|5G1|5G2|6G|6G1|6G2)$/.test(named)) return named;
+
+    var units = wrNodeBandInfoUnits(node);
+    var raw = client && client.isWL;
+    var value = raw === undefined || raw === null ? '' : String(raw).trim();
+    if (value === '1' && units.indexOf(0) !== -1) return '2G';
+    if (value === '2' && units.indexOf(1) !== -1) return '5G';
+    return '';
+}
+
 function wrPositiveGuestIndex(client) {
     if (!client) return null;
     var raw = client.isGN === true ? 1 : client.isGN;
@@ -3313,12 +3344,7 @@ async function wrResolveSta(item, staMaps) {
     if (!nodeMac) return null;
     var map = staMaps.get(nodeMac);
     var candidates = wrGetMloCandidates(item.mac, item.client, item.saved);
-    var expectedBand = '';
-    if (item.node) {
-        if (wrNodeLegacySemantics(item.node)) expectedBand = wrClientBandHint(item.client);
-    } else if (WR_DIAG_API === 'legacy') {
-        expectedBand = wrClientBandHint(item.client);
-    }
+    var expectedBand = wrStaExpectedBandHint(item.node, item.client);
     var best = null;
     if (map) {
         candidates.forEach(function(candidate) {
@@ -3372,13 +3398,11 @@ async function wrResolveStaOnOtherAps(item, staTargets, nodeByMac, mainMac) {
         // can manage a 3004/388 node (and vice versa), so derive the legacy band
         // hint per target AP instead of from WR_DIAG_API alone. The primary uses
         // the controller's own API family; AiMesh nodes use their advertised
-        // firmware/capability semantics through wrNodeLegacySemantics().
+        // firmware/capability semantics through wrStaExpectedBandHint().
         var targetNodeInfo =
             nodeByMac instanceof Map ? nodeByMac.get(targetNodeMac) : null;
         var targetNode = targetNodeInfo ? targetNodeInfo.node : null;
-        var useLegacyHint =
-            targetNode ? wrNodeLegacySemantics(targetNode) : WR_DIAG_API === 'legacy';
-        var expectedBand = useLegacyHint ? wrClientBandHint(item.client) : '';
+        var expectedBand = wrStaExpectedBandHint(targetNode, item.client);
 
         var best = null;
         for (var candidateIndex = 0; candidateIndex < candidates.length; candidateIndex++) {
