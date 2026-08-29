@@ -3430,6 +3430,11 @@ async function loadWirelessReport() {
         if (parent && offlineNodeMacs.has(parent)) return;
         var nodeInfo = nodeByMac.get(parent);
 
+        // If backhaul display is disabled, skip adding node-to-node links entirely
+        if (nodeByMac.has(mac) && Number("${BACKHAUL:-0}") !== 1) {
+            return;
+        }
+
         // If the live-client MAC is itself an AiMesh node MAC, this row is the
         // node/backhaul pseudo-client. Keep it distinct from item.node, which
         // continues to mean an ordinary client associated through that node.
