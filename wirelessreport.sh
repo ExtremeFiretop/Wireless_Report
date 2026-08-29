@@ -3351,6 +3351,73 @@ async function wrResolveSta(item, staMaps) {
     return best || fallback;
 }
 
+async function wrResolveStaOnOtherAps(item, staTargets, nodeByMac, mainMac) {
+    if (!item || !item.node || !item.nodeMac || !Array.isArray(staTargets)) return null;
+
+    var claimedNodeMac = wrNormMac(item.nodeMac);
+    var candidates = wrGetMloCandidates(item.mac, item.client, item.saved);
+    var expectedBand = WR_DIAG_API === 'legacy' ? wrClientBandHint(item.client) : '';
+    var matches = [];
+
+    // Network Map's amesh_papMac can lag a client roam. Only enter this path
+    // after the claimed parent's normal exact resolution returned nothing, then
+    // probe the other known APs using the same exact active-station query. This
+    // deliberately does not use MAC prefixes or SSID guesses.
+    for (var targetIndex = 0; targetIndex < staTargets.length; targetIndex++) {
+        var targetNodeMac = wrNormMac(staTargets[targetIndex]);
+        if (!targetNodeMac || targetNodeMac === claimedNodeMac) continue;
+
+        var best = null;
+        for (var candidateIndex = 0; candidateIndex < candidates.length; candidateIndex++) {
+            var found = await wrGetSta(targetNodeMac, candidates[candidateIndex], expectedBand);
+            if (found && (!best || Number(found.data_time) > Number(best.data_time))) best = found;
+        }
+        if (best) matches.push({ nodeMac: targetNodeMac, sta: best });
+    }
+
+    if (!matches.length) return null;
+
+    matches.sort(function(a, b) {
+        var at = Number(a.sta && a.sta.data_time);
+        var bt = Number(b.sta && b.sta.data_time);
+        if (!Number.isFinite(at)) at = -Infinity;
+        if (!Number.isFinite(bt)) bt = -Infinity;
+        return bt - at;
+    });
+
+    // If more than one AP still reports the station active, only relocate when
+    // one has a strictly newer timestamp. Equal/unknown timestamps are a roam
+    // race and must remain unresolved rather than being assigned arbitrarily.
+    if (matches.length > 1) {
+        var newestTime = Number(matches[0].sta && matches[0].sta.data_time);
+        var secondTime = Number(matches[1].sta && matches[1].sta.data_time);
+        if (!Number.isFinite(newestTime) || !Number.isFinite(secondTime) || newestTime <= secondTime) {
+            return null;
+        }
+    }
+
+    var winner = matches[0];
+    var winnerNodeMac = wrNormMac(winner.nodeMac);
+    if (winnerNodeMac === wrNormMac(mainMac)) {
+        return {
+            sta: winner.sta,
+            nodeMac: winnerNodeMac,
+            node: null,
+            nodeIndex: -1
+        };
+    }
+
+    var nodeInfo = nodeByMac instanceof Map ? nodeByMac.get(winnerNodeMac) : null;
+    if (!nodeInfo) return null;
+
+    return {
+        sta: winner.sta,
+        nodeMac: winnerNodeMac,
+        node: nodeInfo.node,
+        nodeIndex: nodeInfo.index
+    };
+}
+
 async function loadWirelessReport() {
     // Primary memory remains a direct WebUI measurement. Start it alongside the
     // client inventory so it does not add latency to the normal report refresh.
@@ -3463,6 +3530,31 @@ async function loadWirelessReport() {
             continue;
         }
         items[itemIndex].sta = await wrResolveSta(items[itemIndex], staMaps);
+
+        // AiMesh Network Map can retain the previous amesh_papMac briefly after
+        // a roam. If the claimed node has no exact active stainfo row, look for
+        // the same full/MLO station identity on the other known APs. Relocate the
+        // item only when that evidence is unambiguous so later FH fallback does
+        // not manufacture IFACE/BAND from a stale parent.
+        if (!items[itemIndex].sta && items[itemIndex].node) {
+            var relocated = await wrResolveStaOnOtherAps(
+                items[itemIndex],
+                staTargets,
+                nodeByMac,
+                mainMac
+            );
+            if (relocated) {
+                var oldNodeMac = items[itemIndex].nodeMac;
+                items[itemIndex].nodeMac = relocated.nodeMac;
+                items[itemIndex].node = relocated.node;
+                items[itemIndex].nodeIndex = relocated.nodeIndex;
+                items[itemIndex].sta = relocated.sta;
+                console.warn(
+                    'Wireless Report corrected stale AiMesh parent for ' +
+                    items[itemIndex].mac + ': ' + oldNodeMac + ' -> ' + relocated.nodeMac
+                );
+            }
+        }
     }
 
     // Reuse one driver-backed Wireless Log snapshot for both primary SSID and
