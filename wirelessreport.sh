@@ -1278,6 +1278,7 @@ var WR_CONFIG = {
 
 var WR_PAGE_GENERATION = "$WR_GENERATION";
 var WR_LIVE_WATCH_TIMER = null;
+var WR_LIVE_WATCH_START_TIMER = null;
 var WR_LIVE_CHECKING = false;
 var WR_LIVE_RELOADING = false;
 
@@ -1310,11 +1311,42 @@ async function wrCheckLiveGeneration() {
     }
 }
 
-function wrStartLiveReloadWatcher() {
-    if (WR_LIVE_WATCH_TIMER) return;
-    setTimeout(wrCheckLiveGeneration, 750);
-    WR_LIVE_WATCH_TIMER = setInterval(wrCheckLiveGeneration, 2000);
+function wrStopLiveReloadWatcher() {
+    if (WR_LIVE_WATCH_START_TIMER) {
+        clearTimeout(WR_LIVE_WATCH_START_TIMER);
+        WR_LIVE_WATCH_START_TIMER = null;
+    }
+    if (WR_LIVE_WATCH_TIMER) {
+        clearInterval(WR_LIVE_WATCH_TIMER);
+        WR_LIVE_WATCH_TIMER = null;
+    }
 }
+
+function wrStartLiveReloadWatcher() {
+    if (document.hidden || WR_LIVE_WATCH_TIMER || WR_LIVE_WATCH_START_TIMER) return;
+    WR_LIVE_WATCH_START_TIMER = setTimeout(function() {
+        WR_LIVE_WATCH_START_TIMER = null;
+        if (!document.hidden) wrCheckLiveGeneration();
+    }, 750);
+    WR_LIVE_WATCH_TIMER = setInterval(function() {
+        if (!document.hidden) wrCheckLiveGeneration();
+    }, 2000);
+}
+
+function wrHandleVisibilityChange() {
+    if (document.hidden) {
+        wrStopLiveReloadWatcher();
+        return;
+    }
+
+    // Catch an update immediately after returning to the tab, then resume the
+    // normal foreground watcher. The in-flight guard prevents duplicate CGI
+    // requests if a previous check is still completing.
+    wrCheckLiveGeneration();
+    wrStartLiveReloadWatcher();
+}
+
+document.addEventListener('visibilitychange', wrHandleVisibilityChange);
 
 function wrRemoveLiveCacheBuster() {
     try {
@@ -1817,6 +1849,37 @@ function wrNodeLegacySemantics(node) {
     // not expose a recognizable firmware string. Never use a latest controller
     // alone as evidence that a node itself has latest telemetry semantics.
     return WR_DIAG_API === 'legacy';
+}
+
+function wrStaExpectedBandHint(node, client) {
+    // Keep stainfo disambiguation narrower than the broader interface-semantics
+    // decision. A recognized 388/3004 node should use the live client band hint;
+    // a recognized 3006 node should not need one. For an unclassified node behind
+    // a latest controller, use only explicit named bands or the conservative
+    // isWL=1/2 hints when the node's own band_info confirms the matching wl unit.
+    // This improves mixed-firmware resilience without globally declaring an
+    // unknown node to have legacy interface/index semantics.
+    if (!node) {
+        return WR_DIAG_API === 'legacy' ? wrClientBandHint(client) : '';
+    }
+
+    var family = wrNodeFirmwareFamily(node);
+    if (family === 'legacy') return wrClientBandHint(client);
+    if (family === 'latest') return '';
+    if (WR_DIAG_API === 'legacy') return wrClientBandHint(client);
+
+    // Unknown-family node on a latest controller: trust an explicit named band
+    // if Network Map supplies one. Otherwise only translate the cross-generation
+    // isWL=1/2 hints when the node's own band_info confirms wl0/wl1 exists.
+    var named = wrNormalizeBand(wrFirst(client, ['band', 'wlBand']));
+    if (/^(?:2G|5G|5G1|5G2|6G|6G1|6G2)$/.test(named)) return named;
+
+    var units = wrNodeBandInfoUnits(node);
+    var raw = client && client.isWL;
+    var value = raw === undefined || raw === null ? '' : String(raw).trim();
+    if (value === '1' && units.indexOf(0) !== -1) return '2G';
+    if (value === '2' && units.indexOf(1) !== -1) return '5G';
+    return '';
 }
 
 function wrPositiveGuestIndex(client) {
@@ -3140,6 +3203,33 @@ async function wrGetSta(nodeMac, staMac, expectedBand) {
     }
 }
 
+function wrGetStaCached(cache, nodeMac, staMac, expectedBand) {
+    // Exact station lookups are safe to share only within one report refresh.
+    // Never retain this cache between refreshes: parent/radio telemetry can
+    // legitimately change during a roam. Store the Promise so overlapping
+    // consumers also share one diagnostic request.
+    if (!(cache instanceof Map)) return wrGetSta(nodeMac, staMac, expectedBand);
+
+    var targetNode = wrNormMac(nodeMac);
+    var targetSta = wrNormMac(staMac);
+    var targetBand = wrNormalizeBand(expectedBand);
+    var key = targetNode + '|' + targetSta + '|' + targetBand;
+    if (!cache.has(key)) {
+        var pending = wrGetSta(targetNode, targetSta, targetBand).then(function(result) {
+            // Keep successful telemetry for this refresh, but do not freeze a
+            // transient miss. ASUS can publish stainfo shortly after association,
+            // so a later resolver in the same refresh must be allowed to retry.
+            if (!result && cache.get(key) === pending) cache.delete(key);
+            return result;
+        }, function(error) {
+            if (cache.get(key) === pending) cache.delete(key);
+            throw error;
+        });
+        cache.set(key, pending);
+    }
+    return cache.get(key);
+}
+
 function wrIndexSta(rows) {
     var map = new Map();
     rows.forEach(function(sta) {
@@ -3308,17 +3398,12 @@ function wrRestoreTableState() {
     });
 }
 
-async function wrResolveSta(item, staMaps) {
+async function wrResolveSta(item, staMaps, exactStaCache) {
     var nodeMac = item.nodeMac;
     if (!nodeMac) return null;
     var map = staMaps.get(nodeMac);
     var candidates = wrGetMloCandidates(item.mac, item.client, item.saved);
-    var expectedBand = '';
-    if (item.node) {
-        if (wrNodeLegacySemantics(item.node)) expectedBand = wrClientBandHint(item.client);
-    } else if (WR_DIAG_API === 'legacy') {
-        expectedBand = wrClientBandHint(item.client);
-    }
+    var expectedBand = wrStaExpectedBandHint(item.node, item.client);
     var best = null;
     if (map) {
         candidates.forEach(function(candidate) {
@@ -3345,18 +3430,17 @@ async function wrResolveSta(item, staMaps) {
     // or a legacy batch row disagrees with the live-client band.
     best = null;
     for (var i = 0; i < candidates.length; i++) {
-        var found = await wrGetSta(nodeMac, candidates[i], expectedBand);
+        var found = await wrGetStaCached(exactStaCache, nodeMac, candidates[i], expectedBand);
         if (found && (!best || Number(found.data_time) > Number(best.data_time))) best = found;
     }
     return best || fallback;
 }
 
-async function wrResolveStaOnOtherAps(item, staTargets, nodeByMac, mainMac) {
+async function wrResolveStaOnOtherAps(item, staTargets, nodeByMac, mainMac, staMaps, exactStaCache) {
     if (!item || !item.nodeMac || !Array.isArray(staTargets)) return null;
 
     var claimedNodeMac = wrNormMac(item.nodeMac);
     var candidates = wrGetMloCandidates(item.mac, item.client, item.saved);
-    var expectedBand = WR_DIAG_API === 'legacy' ? wrClientBandHint(item.client) : '';
     var matches = [];
 
     // Network Map's amesh_papMac can lag a client roam in either direction:
@@ -3368,34 +3452,55 @@ async function wrResolveStaOnOtherAps(item, staTargets, nodeByMac, mainMac) {
         var targetNodeMac = wrNormMac(staTargets[targetIndex]);
         if (!targetNodeMac || targetNodeMac === claimedNodeMac) continue;
 
+        // The diagnostic endpoint generation belongs to the controller, but the
+        // client-radio semantics belong to the AP being queried. A 3006 primary
+        // can manage a 3004/388 node (and vice versa), so derive the legacy band
+        // hint per target AP instead of from WR_DIAG_API alone. The primary uses
+        // the controller's own API family; AiMesh nodes use their advertised
+        // firmware/capability semantics through wrStaExpectedBandHint().
+        var targetNodeInfo =
+            nodeByMac instanceof Map ? nodeByMac.get(targetNodeMac) : null;
+        var targetNode = targetNodeInfo ? targetNodeInfo.node : null;
+        var expectedBand = wrStaExpectedBandHint(targetNode, item.client);
+
         var best = null;
+
+        // The report already fetched one broad stainfo snapshot for every online
+        // AP. Reuse an exact candidate from that map when its band is acceptable
+        // instead of immediately issuing another CGI request. On latest/3006 the
+        // broad query can be incomplete, so a map miss (or legacy band mismatch)
+        // still falls through to the exact per-client query.
+        var targetMap = staMaps instanceof Map ? staMaps.get(targetNodeMac) : null;
+        if (targetMap) {
+            candidates.forEach(function(candidate) {
+                var found = targetMap.get(candidate);
+                if (found && (!best || Number(found.data_time) > Number(best.data_time))) best = found;
+            });
+        }
+        if (best && (!expectedBand || wrNormalizeBand(best.sta_band) === expectedBand)) {
+            matches.push({ nodeMac: targetNodeMac, sta: best });
+            continue;
+        }
+
+        best = null;
         for (var candidateIndex = 0; candidateIndex < candidates.length; candidateIndex++) {
-            var found = await wrGetSta(targetNodeMac, candidates[candidateIndex], expectedBand);
+            var found = await wrGetStaCached(
+                exactStaCache,
+                targetNodeMac,
+                candidates[candidateIndex],
+                expectedBand
+            );
             if (found && (!best || Number(found.data_time) > Number(best.data_time))) best = found;
         }
         if (best) matches.push({ nodeMac: targetNodeMac, sta: best });
     }
 
-    if (!matches.length) return null;
-
-    matches.sort(function(a, b) {
-        var at = Number(a.sta && a.sta.data_time);
-        var bt = Number(b.sta && b.sta.data_time);
-        if (!Number.isFinite(at)) at = -Infinity;
-        if (!Number.isFinite(bt)) bt = -Infinity;
-        return bt - at;
-    });
-
-    // If more than one AP still reports the station active, only relocate when
-    // one has a strictly newer timestamp. Equal/unknown timestamps are a roam
-    // race and must remain unresolved rather than being assigned arbitrarily.
-    if (matches.length > 1) {
-        var newestTime = Number(matches[0].sta && matches[0].sta.data_time);
-        var secondTime = Number(matches[1].sta && matches[1].sta.data_time);
-        if (!Number.isFinite(newestTime) || !Number.isFinite(secondTime) || newestTime <= secondTime) {
-            return null;
-        }
-    }
+    // Cross-AP relocation is intentionally stricter than normal station
+    // selection. data_time is a telemetry sample timestamp, not proof of which
+    // AP owns the current association. If more than one other AP still reports
+    // this exact station active, treat the roam as ambiguous and leave it
+    // unresolved for this refresh rather than guessing.
+    if (matches.length !== 1) return null;
 
     var winner = matches[0];
     var winnerNodeMac = wrNormMac(winner.nodeMac);
@@ -3488,6 +3593,11 @@ async function loadWirelessReport() {
     var staResults = await Promise.all(staTargets.map(function(mac) { return wrGetStaRows(mac); }));
     var staMaps = new Map();
     staTargets.forEach(function(mac, i) { staMaps.set(mac, wrIndexSta(staResults[i] || [])); });
+
+    // Refresh-scoped only. Exact fallbacks can overlap across normal resolution,
+    // MLO candidates and stale-parent recovery, but a later refresh must always
+    // be free to observe a new AP/radio association.
+    var exactStaCache = new Map();
     var items = [];
     Object.entries(live).forEach(function(entry) {
         var macRaw = entry[0];
@@ -3530,7 +3640,7 @@ async function loadWirelessReport() {
             items[itemIndex].sta = null;
             continue;
         }
-        items[itemIndex].sta = await wrResolveSta(items[itemIndex], staMaps);
+        items[itemIndex].sta = await wrResolveSta(items[itemIndex], staMaps, exactStaCache);
 
         // AiMesh Network Map can retain the previous amesh_papMac briefly after
         // a roam in either direction. If the claimed AP (primary or node) has no
@@ -3542,7 +3652,9 @@ async function loadWirelessReport() {
                 items[itemIndex],
                 staTargets,
                 nodeByMac,
-                mainMac
+                mainMac,
+                staMaps,
+                exactStaCache
             );
             if (relocated) {
                 var oldNodeMac = items[itemIndex].nodeMac;
@@ -3610,9 +3722,17 @@ async function loadWirelessReport() {
     var history = wrLoadJson('wirelessReportRssiHistory', {});
     var known = wrLoadJson('wirelessReportKnownMacs', {});
     var firstHistoryLoad = Object.keys(known).length === 0;
-    var mainRows = mainItems.map(function(item) { return wrRenderRow(item, history, known, firstHistoryLoad); }).join('');
-    var nodeRows = nodeItems.map(function(item) { return wrRenderRow(item, history, known, firstHistoryLoad); }).join('');
-    var allRows = items.map(function(item) { return wrRenderRow(item, history, known, firstHistoryLoad); }).join('');
+
+    // A client's row HTML is identical in its split-table and All-table views.
+    // Render it once per refresh and reuse the string instead of recalculating
+    // RSSI quality/trend, interface/band presentation and escaping twice.
+    var renderedRows = new Map();
+    items.forEach(function(item) {
+        renderedRows.set(item, wrRenderRow(item, history, known, firstHistoryLoad));
+    });
+    var mainRows = mainItems.map(function(item) { return renderedRows.get(item); }).join('');
+    var nodeRows = nodeItems.map(function(item) { return renderedRows.get(item); }).join('');
+    var allRows = items.map(function(item) { return renderedRows.get(item); }).join('');
     document.querySelector('#mainTable tbody').innerHTML = mainRows || "<tr><td colspan='7'>No wireless clients reported on the primary router.</td></tr>";
     document.querySelector('#nodeTable tbody').innerHTML = nodeRows || "<tr><td colspan='7'>No AiMesh-node wireless clients reported.</td></tr>";
     document.querySelector('#allTable tbody').innerHTML = allRows || "<tr><td colspan='7'>No active wireless clients reported.</td></tr>";
