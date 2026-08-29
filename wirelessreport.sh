@@ -1273,7 +1273,7 @@ var WR_CONFIG = {
     rssiHistory: Number("${RS_HIST:-0}") || 0,
     rssiHistoryEntries: Number("${RS_HIST_ENTRIES:-5}") || 5,
     rssiHistoryDate: Number("${RS_HIST_DATE:-0}") || 0,
-    BackHaul: Number("${BACKHAUL:-0}") || 0
+    backHaul: Number("${BACKHAUL:-0}") || 0
 };
 
 var WR_PAGE_GENERATION = "$WR_GENERATION";
