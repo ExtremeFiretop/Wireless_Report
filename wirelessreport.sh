@@ -189,6 +189,7 @@ menu_vars() {
     elif [ "$REPORT_UNIT" = "INTL" ]; then DU="${GR}INTL${NC}"; CT="$DATE_INTL"
     else DU="${GR}USA${NC}"; CT="$DATE_USA"; fi
     RTIME=${RTIME:-1}; if [ "$RTIME" = "0" ]; then RT_STAT="$OFF"; else RT_STAT="$ON"; fi
+    BACKHAUL=${BACKHAUL:-no}; if [ "$BACKHAUL" = "no" ]; then WB_STAT="$OFF"; else WB_STAT="$ON"; fi
     PULSE_MINS=${PULSE_MINS:-15}; if [ "$PULSE_MINS" = "0" ]; then UP_STAT="$OFF"; else UP_STAT="${GR}${PULSE_MINS} Mins${NC}"; fi
     RS_HIST=${RS_HIST:-0}; case "$RS_HIST" in 0|1) ;; *) RS_HIST=0 ;; esac
     RS_HIST_ENTRIES=${RS_HIST_ENTRIES:-5}; case "$RS_HIST_ENTRIES" in ""|*[!0-9]*) RS_HIST_ENTRIES=5 ;; esac
@@ -792,9 +793,10 @@ set_options() {
         echo -e "${BL}=================================================="
         echo -e "                                                       "
         echo -e "  $N1  Toggle Runtime Tracking: ($RT_STAT)             "
-        echo -e "  $N2  Configure Uptime Alert Pulse: ($UP_STAT)        "
-        echo -e "  $N3  Toggle IP Padding: ($PD_STAT)                   "
-        echo -e "  $N4  Toggle Node Hostname Display: ($HN_STAT)        "
+        echo -e "  $N2  Toggle Wireless Backhaul: ($WB_STAT)            "
+        echo -e "  $N3  Configure Uptime Alert Pulse: ($UP_STAT)        "
+        echo -e "  $N4 Toggle IP Padding: ($PD_STAT)                   "
+        echo -e "  $N5  Toggle Node Hostname Display: ($HN_STAT)        "
         echo -e "                                                       "
         echo -e "  $LE  Exit back to main menu                          "
         echo -e "                                                       "
@@ -809,6 +811,12 @@ set_options() {
                     else echo 'RTIME="0"' >> "$CONFIG"; fi
                     break ;;
                 2)
+                    if grep -q "BACKHAUL=" "$CONFIG"; then
+                        if [ "$BACKHAUL" = "yes" ]; then NEW_BACK="no"; else NEW_BACK="yes"; fi
+                        sed -i "s/BACKHAUL=.*/BACKHAUL=\"$NEW_BACK\"/" "$CONFIG"
+                    else echo 'BACKHAUL="yes"' >> "$CONFIG"; fi
+                    break ;;
+                3)
                     while true; do
                         echo -e "\n (${GR}0${NC}) disable (${GR}15${NC}) def (${GR}1440${NC}) max "
                         printf " ${BL}Enter alert interval in mins:${GR} "; read -r user_mins
@@ -824,7 +832,7 @@ set_options() {
                         freeze 3
                     done
                     pause; break ;;
-                3)
+                4)
                     if grep -q "IPPAD=" "$CONFIG"; then
                         if [ "$IPPAD" = "1" ]; then
                             echo -e "\n${RD}[-] Disabled:${NC} 192.168.050.003 --> ${RD}192.168.50.3${NC}"
@@ -843,7 +851,7 @@ set_options() {
                         NEW_PAD="0"; pause
                     fi
                     break ;;
-                4)
+                5)
                     if grep -q "HOST_COLOR=" "$CONFIG"; then
                         if [ "$HOST_COLOR" = "1" ]; then NEW_HC="0"; else NEW_HC="1"; fi
                         sed -i "s/HOST_COLOR=.*/HOST_COLOR=\"$NEW_HC\"/" "$CONFIG"
@@ -1264,7 +1272,8 @@ var WR_CONFIG = {
     ipPad: Number("${IPPAD:-1}") || 0,
     rssiHistory: Number("${RS_HIST:-0}") || 0,
     rssiHistoryEntries: Number("${RS_HIST_ENTRIES:-5}") || 5,
-    rssiHistoryDate: Number("${RS_HIST_DATE:-0}") || 0
+    rssiHistoryDate: Number("${RS_HIST_DATE:-0}") || 0,
+    BackHaul: Number("${BACKHAUL:-0}") || 0
 };
 
 var WR_PAGE_GENERATION = "$WR_GENERATION";
@@ -3420,6 +3429,7 @@ async function loadWirelessReport() {
         var parent = wrNormMac(c.amesh_papMac || c.amesh_pap_mac);
         if (parent && offlineNodeMacs.has(parent)) return;
         var nodeInfo = nodeByMac.get(parent);
+
         // If the live-client MAC is itself an AiMesh node MAC, this row is the
         // node/backhaul pseudo-client. Keep it distinct from item.node, which
         // continues to mean an ordinary client associated through that node.
