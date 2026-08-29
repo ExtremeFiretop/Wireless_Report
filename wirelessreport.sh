@@ -1062,6 +1062,7 @@ for node in $MESH_NODES; do
 done
 
 ROUTER=$(nvram get productid); MAIN_NAME="${MAIN_NICK:-${ROUTER:-Main Router}}"
+
 MAIN_NAME="<span id='wr-main-name' class='router-style'>${MAIN_NAME}</span>"
 MAIN_CPU="<span id='wr-main-cpu' class='stat-cool'>--</span>"
 MAIN_MEMORY="<span id='wr-main-memory' class='stat-cool'>--</span>"
