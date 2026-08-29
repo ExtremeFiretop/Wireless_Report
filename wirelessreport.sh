@@ -3954,7 +3954,7 @@ async function triggerRefresh() {
             if (btn) {
                 btn.classList.remove('refresh-pulse');
                 btn.innerHTML = 'Refresh <span>' + currentSec.toFixed(2) + 's';
-                btn.style.setProperty('--highlow-text', '"High: ' + stats.max.toFixed(2) + 's   Low: ' + stats.min.toFixed(2) + 's"');
+                btn.style.setProperty('--highlow-text', '"High: ' + stats.max.toFixed(2) + 's • Low: ' + stats.min.toFixed(2) + 's"');
             }
         } else {
             localStorage.removeItem('wirelessReportRuntimeStats');
