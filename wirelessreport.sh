@@ -209,6 +209,7 @@ menu_vars() {
 	HOST_COLOR=${HOST_COLOR:-0}
 	if [ "$HOST_COLOR" = "1" ]; then HN_STAT="${BL}Colored${NC}"
 	else HN_STAT="${GR}Numbered${NC}"; fi
+    if [ "$BRANCH" = "2" ]; then BRANCH_NAME="EFT-Development"; fi
     BH="[${GR}$BRANCH_NAME${NC}]"
 }
 
@@ -312,11 +313,10 @@ wr_sha256() {
 
 check_github() {
     BRANCH="${BRANCH:-0}"
-    if [ "$BRANCH" = "1" ]; then BRANCH_NAME="Development"
-    elif [ "$BRANCH" = "2" ]; then BRANCH_NAME="EFT-Development"
-    else BRANCH_NAME="main"; fi
-    if [ "$BRANCH" = "2" ]; then GITHUB="https://raw.githubusercontent.com/ExtremeFiretop/Wireless_Report/Development/wirelessreport.sh"
-    else GITHUB="https://raw.githubusercontent.com/JB1366/Wireless_Report/$BRANCH_NAME/wirelessreport.sh"; fi
+    if [ "$BRANCH" = "1" ]; then GIT="JB1366"; BRANCH_NAME="Development"
+    elif [ "$BRANCH" = "2" ]; then GIT="ExtremeFiretop"; BRANCH_NAME="Development"
+    else GIT="JB1366"; BRANCH_NAME="main"; fi
+    GITHUB="https://raw.githubusercontent.com/$GIT/Wireless_Report/$BRANCH_NAME/wirelessreport.sh"
     REMOTE_TMP="/tmp/wr_remote.tmp"; LOCAL_HASH=""; REMOTE_HASH=""
     if curl -sfL --retry 3 "$GITHUB" -o "$REMOTE_TMP" 2>/dev/null && [ -s "$REMOTE_TMP" ]; then
         REMOTE_VERSION=$(grep "SCRIPT_VERSION=" "$REMOTE_TMP" | head -n 1 | cut -d'"' -f2 | tr -cd '0-9.')
@@ -324,18 +324,11 @@ check_github() {
         REMOTE_HASH=$(wr_sha256 "$REMOTE_TMP" 2>/dev/null)
         if [ -z "$LOCAL_HASH" ] || [ -z "$REMOTE_HASH" ]; then
             if [ -f "$REPORT_SCRIPT" ]; then
-                if cmp -s "$REPORT_SCRIPT" "$REMOTE_TMP"; then
-                    LOCAL_HASH="same"
-                    REMOTE_HASH="same"
-                else
-                    LOCAL_HASH="local"
-                    REMOTE_HASH="remote"
-                fi
+                if cmp -s "$REPORT_SCRIPT" "$REMOTE_TMP"; then LOCAL_HASH="same"; REMOTE_HASH="same"
+                else LOCAL_HASH="local"; REMOTE_HASH="remote"; fi
             fi
         fi
-    else
-        REMOTE_VERSION=""; REMOTE_HASH=""
-    fi
+    else REMOTE_VERSION=""; REMOTE_HASH=""; fi
     rm -f "$REMOTE_TMP"
 }
 
@@ -1092,7 +1085,6 @@ for node in $MESH_NODES; do
 done
 
 ROUTER=$(nvram get productid); MAIN_NAME="${MAIN_NICK:-${ROUTER:-Main Router}}"
-
 MAIN_NAME="<span id='wr-main-name' class='router-style'>${MAIN_NAME}</span>"
 MAIN_CPU="<span id='wr-main-cpu' class='stat-cool'>--</span>"
 MAIN_MEMORY="<span id='wr-main-memory' class='stat-cool'>--</span>"
