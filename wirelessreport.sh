@@ -28,7 +28,7 @@
 #        shellcheck shell=sh disable=SC2086,SC2155,SC3043         #
 #=================================================================#
 
-SCRIPT_VERSION="3.2.3"
+SCRIPT_VERSION="3.2.4"
 INSTALL_DIR="/jffs/addons/wireless_report"
 REPORT_SCRIPT="$INSTALL_DIR/wirelessreport.sh"
 CONFIG="$INSTALL_DIR/webui.conf"
@@ -109,7 +109,7 @@ install_menu() {
 
 check_version() {
     local mode="$1" version_cmp=""; froze() { return 0; }
-    DEV=""; if [ "$BRANCH" = "1" ]; then DEV="D"; fi
+    DEV=""; if [ "$BRANCH" = "1" ]; then DEV="D"; elif [ "$BRANCH" = "2" ]; then DEV="E"; fi
     if [ ! -f "$REPORT_SCRIPT" ]; then STATE="NOT_INSTALLED"; froze() { freeze 2; return 1; }
     elif [ -z "$REMOTE_VERSION" ]; then STATE="OFFLINE"
     else
@@ -168,7 +168,7 @@ version_compare() {
 
 menu_vars() {
     if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
-    DEV=""; if [ "$BRANCH" = "1" ]; then DEV="D"; fi
+    DEV=""; if [ "$BRANCH" = "1" ]; then DEV="D"; elif [ "$BRANCH" = "2" ]; then DEV="E"; fi
 	trap 'printf "\033[0m"' 0; trap 'exit 130' INT TERM HUP
     UL='\033[4m'; WH='\e[1;37m'; YL='\033[0;33m'; NC='\033[0m'
     BL='\033[38;5;39m'; GR='\033[0;32m'; RD='\033[0;31m'
@@ -209,6 +209,7 @@ menu_vars() {
 	HOST_COLOR=${HOST_COLOR:-0}
 	if [ "$HOST_COLOR" = "1" ]; then HN_STAT="${BL}Colored${NC}"
 	else HN_STAT="${GR}Numbered${NC}"; fi
+    BH="[${GR}$BRANCH_NAME${NC}]"
 }
 
 do_install() {
@@ -311,8 +312,11 @@ wr_sha256() {
 
 check_github() {
     BRANCH="${BRANCH:-0}"
-    if [ "$BRANCH" = "1" ]; then BRANCH_NAME="Development"; else BRANCH_NAME="main"; fi
-    GITHUB="https://raw.githubusercontent.com/JB1366/Wireless_Report/$BRANCH_NAME/wirelessreport.sh"
+    if [ "$BRANCH" = "1" ]; then BRANCH_NAME="Development"
+    elif [ "$BRANCH" = "2" ]; then BRANCH_NAME="EFT-Development"
+    else BRANCH_NAME="main"; fi
+    if [ "$BRANCH" = "2" ]; then GITHUB="https://raw.githubusercontent.com/ExtremeFiretop/Wireless_Report/Development/wirelessreport.sh"
+    else GITHUB="https://raw.githubusercontent.com/JB1366/Wireless_Report/$BRANCH_NAME/wirelessreport.sh"; fi
     REMOTE_TMP="/tmp/wr_remote.tmp"; LOCAL_HASH=""; REMOTE_HASH=""
     if curl -sfL --retry 3 "$GITHUB" -o "$REMOTE_TMP" 2>/dev/null && [ -s "$REMOTE_TMP" ]; then
         REMOTE_VERSION=$(grep "SCRIPT_VERSION=" "$REMOTE_TMP" | head -n 1 | cut -d'"' -f2 | tr -cd '0-9.')
@@ -860,18 +864,8 @@ set_options() {
                     fi
                     break ;;
                 dev)
-                    while true; do
-                        printf "\n ${NC}Current Branch: [${GR}$BRANCH_NAME${NC}] Swap Branch (y/n): "; read -r toggle
-                        case "$toggle" in y|Y) break ;; n|N) return 2 ;; *) freeze 2 ;; esac; done
-                    if [ "${BRANCH:-0}" = "1" ]; then BRANCH="0"; else BRANCH="1"; fi
-                    if grep -q "^BRANCH=" "$CONFIG"; then sed -i "s/^BRANCH=.*/BRANCH=\"$BRANCH\"/" "$CONFIG"
-                    else echo "BRANCH=\"$BRANCH\"" >> "$CONFIG"; fi
-                    DEV=""; if [ "$BRANCH" = "1" ]; then DEV="D"; fi
-                    check_github
-                    printf "\nPress ${BL}[Enter]${NC} to switch to [${GR}$BRANCH_NAME${NC}] branch & restart script..."; read -r restart
-                    if [ "$restart" = "2" ]; then INJECT="2"; fi
-                    if do_update; then exec "$REPORT_SCRIPT" install "$@"
-                    else echo -e "${RD}Error: Branch update failed!${NC}" >&2; exit 1; fi ;;
+                    set_branch
+                    break ;;
                 e|E)
                     return 0 ;;
                 *)
@@ -879,6 +873,42 @@ set_options() {
             esac
         done
         run_report
+    done
+}
+
+set_branch() {
+    while true; do
+        show_header
+        echo -e "${BL}=================================================="
+        echo -e "${NC}                Set Github Branch                 "
+        echo -e "${BL}=================================================="
+        echo -e "${NC}  Branch: $BH               v$SCRIPT_VERSION$DEV  "
+        echo -e "${BL}=================================================="
+        echo -e "                                                       "
+        echo -e "  $N1 main (JB1366)                                    "
+        echo -e "  $N2 Development (JB1366)                             "
+        echo -e "  $N3 Development (ExtremeFiretop)                     "
+        echo -e "                                                       "
+        echo -e "  $LE Exit back to Set Options Menu                    "
+        echo -e "                                                       "
+        echo -e "${BL}=================================================="
+        while true; do
+            printf "\n ${NC}Selection: ${BL}"; read -r choice
+            case "$choice" in
+                1) BRANCH="0"; break ;;
+                2) BRANCH="1"; break ;;
+                3) BRANCH="2"; break ;;
+                e|E) return 0 ;;
+                *) freeze 2 ;;
+            esac
+        done
+        if grep -q "^BRANCH=" "$CONFIG"; then sed -i "s/^BRANCH=.*/BRANCH=\"$BRANCH\"/" "$CONFIG"
+        else echo "BRANCH=\"$BRANCH\"" >> "$CONFIG"; fi
+        check_github
+        printf "\n${NC}Press ${BL}[Enter]${NC} to switch to [${GR}$BRANCH_NAME${NC}] branch & restart script..."; read -r restart
+        if [ "$restart" = "2" ]; then INJECT="2"; fi
+        if do_update; then exec "$REPORT_SCRIPT" install "$@"
+        else echo -e "${RD}Error: Branch update failed!${NC}" >&2; exit 1; fi
     done
 }
 
