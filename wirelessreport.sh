@@ -904,8 +904,8 @@ set_branch() {
         done
         if grep -q "^BRANCH=" "$CONFIG"; then sed -i "s/^BRANCH=.*/BRANCH=\"$BRANCH\"/" "$CONFIG"
         else echo "BRANCH=\"$BRANCH\"" >> "$CONFIG"; fi
-        check_github
-        printf "\n${NC}Press ${BL}[Enter]${NC} to switch to [${GR}$BRANCH_NAME${NC}] branch & restart script..."; read -r restart
+        check_github; menu_vars
+        printf "\n${NC}Press ${BL}[Enter]${NC} to switch to $BH branch & restart script..."; read -r restart
         if [ "$restart" = "2" ]; then INJECT="2"; fi
         if do_update; then exec "$REPORT_SCRIPT" install "$@"
         else echo -e "${RD}Error: Branch update failed!${NC}" >&2; exit 1; fi
