@@ -865,7 +865,7 @@ set_options() {
                     break ;;
                 dev)
                     set_branch
-                    break ;;
+                    return 0 ;;
                 e|E)
                     return 0 ;;
                 *)
@@ -889,7 +889,7 @@ set_branch() {
         echo -e "  $N2 Development (JB1366)                             "
         echo -e "  $N3 Development (ExtremeFiretop)                     "
         echo -e "                                                       "
-        echo -e "  $LE Exit back to Set Options Menu                    "
+        echo -e "  $LE Exit back to main menu                           "
         echo -e "                                                       "
         echo -e "${BL}=================================================="
         while true; do
