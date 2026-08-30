@@ -85,7 +85,7 @@ install_menu() {
 		echo -e "                                                       "
 		echo -e "${BL}=================================================="
 		while true; do
-			printf "\n ${NC}Selection: "; read -r choice
+			selection
 			case "$choice" in
 				1) do_install; break ;;
 				2|3|4|5|6|7|8)
@@ -429,8 +429,8 @@ set_date_time() {
         echo -e "                                                       "
 		echo -e "${BL}=================================================="
         while true; do
-            printf "\n ${NC}Selection: "; read -r t_choice
-            case "$t_choice" in
+            selection
+            case "$choice" in
                 1) NEW_UNIT="USA" ;;
                 2) NEW_UNIT="INTL" ;;
                 3) NEW_UNIT="ISO" ;;
@@ -479,8 +479,8 @@ set_nicknames() {
         fi
         echo -e "\n${BL}=================================================="
         while true; do
-            printf "\n ${NC}Selection: "; read -r input_main
-            case "$input_main" in
+            selection
+            case "$choice" in
                 1)
                     echo -e "\n${BL}[+] Resetting to hardware defaults...${NC}\n"
                     OLD_NAME="${MAIN_NICK:-$MAIN_ROUTER}"
@@ -650,7 +650,7 @@ set_colors() {
         echo -e "  $LE Exit and Save Changes                          "
         echo -e "\n${BL}==============================================${NC}"
         while true; do
-            printf "\n ${NC}Select a Device number to change color ${BL}(0-$total_nodes): "; read -r node_choice
+            printf "\n ${NC}Select a Device number to change color ${BL}(0-$total_nodes): ${NC}"; read -r node_choice
             case "$node_choice" in
                 r|R)
                     m_color_hex="#0096ff"
@@ -699,7 +699,7 @@ set_colors() {
             echo -e "${NC}"
             local selected_hex=""
             while true; do
-                printf "${NC} Choose option ${BL}(1-10): "; read -r color_choice
+                printf "${NC} Choose option ${BL}(1-10): ${NC}"; read -r color_choice
                 case "$color_choice" in
                     1) selected_hex="#0096ff"; break ;;
                     2) selected_hex="#30d158"; break ;;
@@ -758,8 +758,8 @@ set_theme() {
         echo -e "                                                       "
         echo -e "${BL}=================================================="
         while true; do
-            printf "\n ${NC}Selection: "; read -r theme_choice
-            case "$theme_choice" in
+            selection
+            case "$choice" in
                 1)
                     if grep -q "^THEME=" "$CONFIG"; then sed -i "s/^THEME=.*/THEME=\"ORIGINAL\"/" "$CONFIG"
                     else echo 'THEME="ORIGINAL"' >> "$CONFIG"; fi
@@ -799,8 +799,8 @@ set_options() {
         echo -e "                                                       "
         echo -e "${BL}=================================================="
         while true; do
-            printf "\n ${NC}Selection: "; read -r t_choice
-            case "$t_choice" in
+            selection
+            case "$choice" in
                 1)
                     if grep -q "RTIME=" "$CONFIG"; then
                         if [ "$RTIME" = "1" ]; then sed -i 's/RTIME=.*/RTIME="0"/' "$CONFIG"
@@ -886,7 +886,7 @@ set_branch() {
         echo -e "                                                       "
         echo -e "${BL}=================================================="
         while true; do
-            printf "\n ${NC}Selection: "; read -r choice
+            selection
             case "$choice" in
                 1) BRANCH="0"; break ;;
                 2) BRANCH="1"; break ;;
@@ -921,8 +921,8 @@ set_rssi() {
         echo -e "                                                       "
         echo -e "${BL}=================================================="
         while true; do
-            printf "\n ${NC}Selection: "; read -r sub_choice
-            case "$sub_choice" in
+            selection
+            case "$choice" in
                 1)
                     if [ "$CUR_RS_HIST" = "1" ]; then CUR_RS_HIST="0"; else CUR_RS_HIST="1"; fi
                     break ;;
@@ -1033,6 +1033,8 @@ echo -e "    ╚═╝                                                          
 echo -e "                                                                                                                        "
 echo -e "${NC}\n\n\n" #===========================================================================================================
 }
+
+selection() { printf "\n ${NC}Selection: "; read -r choice; }
 
 restart_httpd() { service restart_httpd >/dev/null 2>&1; killall -HUP httpd >/dev/null 2>&1; }
 
