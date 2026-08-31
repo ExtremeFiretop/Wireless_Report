@@ -1228,8 +1228,8 @@ cat <<HTML >> "$WEB_PAGE"
     .button-refresh select, .button-refresh .button-trigger { position: relative; display: inline-block; }
     .button-refresh:before, .button-refresh .button-trigger:before, .button-refresh select:before { position: absolute; height: 28px; line-height: 28px; padding: 0 15px; background: $RT_TOOLTIP; color: white; font-size: 12px; font-weight: bold; border: 1.5px solid #0096ff; border-radius: 20px; box-shadow: 0 0 10px rgba(0,150,255,0.3); white-space: nowrap; opacity: 0; visibility: hidden; transition: all 0.3s ease; z-index: 100; pointer-events: none; }
     .button-refresh:after, .button-refresh .button-trigger:after, .button-refresh select:after { content: ""; position: absolute; width: 4px; height: 4px; background: #0096ff; border-radius: 50%; opacity: 0; visibility: hidden; transition: all 0.3s ease; z-index: 101; pointer-events: none; }
-    .button-refresh:before { content: var(--avg-text, "Avg: calculating..."); left: -90px; bottom: 185%; background: $RT_TOOLTIP; }
-    .button-refresh .button-trigger:before, .button-refresh select:before { content: var(--highlow-text, "High: 0s   Low: 0s"); left: -90px; top: 185%; background: $RT_TOOLTIP; }
+    .button-refresh:before { content: var(--avg-text, "Avg: calculating..."); left: -80px; bottom: 185%; background: $RT_TOOLTIP; }
+    .button-refresh .button-trigger:before, .button-refresh select:before { content: var(--highlow-text, "High: 0s   Low: 0s"); left: -80px; top: 185%; background: $RT_TOOLTIP; }
     .button-refresh:after { left: 15px; bottom: 130%; box-shadow: -12px -12px 0 1.5px #0096ff; }
     .button-refresh .button-trigger:after, .button-refresh select:after { left: 11px; top: 130%; box-shadow: -12px 12px 0 1.5px #0096ff; }
     .button-refresh:hover:before, .button-refresh:hover .button-trigger:before { opacity: 1; visibility: visible; }
