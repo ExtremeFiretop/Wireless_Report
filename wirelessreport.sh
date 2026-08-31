@@ -222,7 +222,7 @@ do_install() {
         while true; do
             check_version do_install
             printf "Do you want to $UP (y/n): "; read -r update
-            case "$update" in y|Y) break ;; n|N) return ;; 2) INJECT="2"; break ;; *) freeze 4 ;; esac; done
+            case "$update" in y|Y) break ;; n|N) return ;; *) freeze 4 ;; esac; done
     fi
     do_update || return 1
     echo -e "\n${GR}[+] Downloading latest version (${NC}v$REMOTE_VERSION${GR})${NC}"
@@ -898,7 +898,6 @@ set_branch() {
         else echo "BRANCH=\"$BRANCH\"" >> "$CONFIG"; fi
         check_github; menu_vars
         printf "\n${NC}Press ${BL}[Enter]${NC} to switch to $BH branch & restart script..."; read -r restart
-        if [ "$restart" = "2" ]; then INJECT="2"; fi
         if do_update; then exec "$REPORT_SCRIPT" install "$@"
         else echo -e "${RD}Error: Branch update failed!${NC}" >&2; exit 1; fi
     done
