@@ -670,9 +670,8 @@ set_colors() {
                 c|C) return 0 ;;
                 e|E) break 2 ;;
             esac
-            if ! [ "$node_choice" -ge 0 ] 2>/dev/null || ! [ "$node_choice" -le "$total_nodes" ] 2>/dev/null; then
-                freeze 2; continue
-            fi
+            case "$node_choice" in ""|*[!0-9]*) freeze 2; continue ;; esac
+            if [ "$node_choice" -gt "$total_nodes" ]; then freeze 2; continue; fi
             local target_name="" target_hex=""
             if [ "$node_choice" -eq 0 ]; then
                 target_name="${MAIN_NICK:-$main_name}"
