@@ -3629,14 +3629,15 @@ async function loadWirelessReport() {
         var c = entry[1] || {};
         var mac = wrNormMac(macRaw);
         if (!wrIsMac(mac) || !wrLooksWireless(c)) return;
-        var parent = wrNormMac(c.amesh_papMac || c.amesh_pap_mac);
-        if (parent && offlineNodeMacs.has(parent)) return;
-        var nodeInfo = nodeByMac.get(parent);
 
         // If backhaul display is disabled, skip adding node-to-node links entirely
         if (nodeByMac.has(mac) && Number("${BACKHAUL:-0}") !== 1) {
             return;
         }
+
+        var parent = wrNormMac(c.amesh_papMac || c.amesh_pap_mac);
+        if (parent && offlineNodeMacs.has(parent)) return;
+        var nodeInfo = nodeByMac.get(parent);
 
         // If the live-client MAC is itself an AiMesh node MAC, this row is the
         // node/backhaul pseudo-client. Keep it distinct from item.node, which
