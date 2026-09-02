@@ -313,9 +313,11 @@ wr_sha256() {
 
 check_github() {
     BRANCH="${BRANCH:-0}"
-    if [ "$BRANCH" = "1" ]; then GIT="JB1366"; BRANCH_NAME="Development"
-    elif [ "$BRANCH" = "2" ]; then GIT="ExtremeFiretop"; BRANCH_NAME="Development"
-    else GIT="JB1366"; BRANCH_NAME="main"; fi
+    case "$BRANCH" in
+        1) GIT="JB1366"; BRANCH_NAME="Development" ;;
+        2) GIT="ExtremeFiretop"; BRANCH_NAME="Development" ;;
+        *) GIT="JB1366"; BRANCH_NAME="main" ;;
+    esac
     GITHUB="https://raw.githubusercontent.com/$GIT/Wireless_Report/$BRANCH_NAME/wirelessreport.sh"
     REMOTE_TMP="/tmp/wr_remote.tmp"; LOCAL_HASH=""; REMOTE_HASH=""
     if curl -sfL --retry 3 "$GITHUB" -o "$REMOTE_TMP" 2>/dev/null && [ -s "$REMOTE_TMP" ]; then
