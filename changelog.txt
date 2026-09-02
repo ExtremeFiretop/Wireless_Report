@@ -2,6 +2,7 @@
 # Wireless Report - Changelog #
 #=============================#
 
+v3.2.4-fix for show wireless backhaul
 v3.2.3-added wireless backhaul toggle in Set Options Menu.
       -fix clients losing station telemetry.
 	  -Performance Improvements.
