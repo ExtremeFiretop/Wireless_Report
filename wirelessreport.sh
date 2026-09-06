@@ -189,9 +189,9 @@ menu_vars() {
     REPORT_UNIT="${REPORT_UNIT:-USA}"; DATE_ISO="$GR$(date +"%Y-%m-%d %H:%M:%S")$NC"
     DATE_INTL="$GR$(date +"%-d-%b %-H:%M:%S")$NC"; DATE_USA="$GR$(date +"%b-%-d %-H:%M:%S")$NC"
     case "$REPORT_UNIT" in ISO) DU="${GR}ISO$NC"; CT="$DATE_ISO" ;; INTL) DU="${GR}INTL$NC"; CT="$DATE_INTL" ;; *) DU="${GR}USA$NC"; CT="$DATE_USA" ;; esac
-    RTIME=${RTIME:-1}; if [ "$RTIME" = "0" ]; then RT_STAT="$OFF"; else RT_STAT="$ON"; fi
-    BACKHAUL=${BACKHAUL:-0}; if [ "$BACKHAUL" = "0" ]; then WB_STAT="$OFF"; else WB_STAT="$ON"; fi
-    PULSE_MINS=${PULSE_MINS:-15}; if [ "$PULSE_MINS" = "0" ]; then UP_STAT="$OFF"; else UP_STAT="$GR${PULSE_MINS} Mins$NC"; fi
+    RTIME=${RTIME:-1}; case "$RTIME" in 0) RT_STAT="$OFF" ;; *) RT_STAT="$ON" ;; esac
+    BACKHAUL=${BACKHAUL:-0}; case "$BACKHAUL" in 0) WB_STAT="$OFF" ;; *) WB_STAT="$ON" ;; esac
+    PULSE_MINS=${PULSE_MINS:-15}; case "$PULSE_MINS" in 0) UP_STAT="$OFF" ;; *) UP_STAT="$GR${PULSE_MINS} Mins$NC" ;; esac
     RS_HIST=${RS_HIST:-0}; case "$RS_HIST" in 0|1) ;; *) RS_HIST=0 ;; esac
     RS_HIST_ENTRIES=${RS_HIST_ENTRIES:-5}; case "$RS_HIST_ENTRIES" in ""|*[!0-9]*) RS_HIST_ENTRIES=5 ;; esac
     if [ "$RS_HIST_ENTRIES" -lt 5 ] || [ "$RS_HIST_ENTRIES" -gt 20 ]; then RS_HIST_ENTRIES=5; fi
@@ -199,15 +199,13 @@ menu_vars() {
     CUR_RS_HIST=${CUR_RS_HIST:-$RS_HIST}
 	CUR_ENTRIES=${CUR_ENTRIES:-$RS_HIST_ENTRIES}
 	CUR_DATE=${CUR_DATE:-$RS_HIST_DATE}; CE="$GR$CUR_ENTRIES$NC"
-    if [ "$RS_HIST" = "1" ]; then RH_STAT="$ON"; else RH_STAT="$OFF"; fi
-	if [ "$CUR_RS_HIST" = "1" ]; then CH="$ON"; else CH="$OFF"; fi
-	if [ "$CUR_DATE" = "1" ]; then TS="$ON"; else TS="$OFF"; fi
+    case "$RS_HIST" in 1) RH_STAT="$ON" ;; *) RH_STAT="$OFF" ;; esac
+    case "$CUR_RS_HIST" in 1) CH="$ON" ;; *) CH="$OFF" ;; esac
+    case "$CUR_DATE" in 1) TS="$ON" ;; *) TS="$OFF" ;; esac
     THEME=${THEME:-ORIGINAL}; TM_STAT="$GR$THEME$NC"
-	IPPAD=${IPPAD:-1}
-	case "$IPPAD" in 2) PD_STAT="${GR}Last 2 Octets$NC" ;; 1) PD_STAT="${BL}Last Octet$NC" ;; *) PD_STAT="${RD}Disabled$NC" ;; esac
-	HOST_COLOR=${HOST_COLOR:-0}; if [ "$HOST_COLOR" = "1" ]; then HN_STAT="${BL}Colored$NC"; else HN_STAT="${GR}Numbered$NC"; fi
-    if [ "$BRANCH" = "2" ]; then BRANCH_NAME="EFT-Development"; fi
-    BH="[$GR$BRANCH_NAME$NC]"
+	IPPAD=${IPPAD:-1}; case "$IPPAD" in 2) PD_STAT="${GR}Last 2 Octets$NC" ;; 1) PD_STAT="${BL}Last Octet$NC" ;; *) PD_STAT="${RD}Disabled$NC" ;; esac
+	HOST_COLOR=${HOST_COLOR:-0}; case "$HOST_COLOR" in 1) HN_STAT="${BL}Colored${NC}" ;; *) HN_STAT="${GR}Numbered${NC}" ;; esac
+    case "$BRANCH" in 2) BRANCH_NAME="EFT-Development" ;; esac; BH="[$GR$BRANCH_NAME$NC]"
 }
 
 do_install() {
@@ -226,13 +224,13 @@ do_install() {
 	if [ "$is_update" = "1" ]; then
         echo -e "\n$BL[✓] Wireless Report successfully installed.$NC"
 		printf "\nPress $BL[Enter]$NC to apply changes & restart script..."; read -r discard
-        logger -p user.info -t "Wireless_Report" "(v$REMOTE_VERSION) successfully installed."
+        sys_log "(v$REMOTE_VERSION) successfully installed."
         exec "$REPORT_SCRIPT" install "$@"
-		echo -e "${RD}Error: Failed to restart script!$NC" >&2
+		echo -e "\n$RD[!] Error: Failed to restart script!$NC" >&2
 		exit 1
 	fi
     if [ "$(nvram get jffs2_scripts)" != "1" ]; then
-        echo -e "$RD[!] ERROR: JFFS custom scripts not enabled.$NC"
+        echo -e "\n$RD[!] ERROR: JFFS custom scripts not enabled.$NC"
         pause; return 1
     fi
     echo -e "\n$GR[+] Processing Wireless Report Files...$NC\n"
@@ -241,7 +239,7 @@ do_install() {
     sed -i "\|$REPORT_SCRIPT|d" "$SS_FILE" 2>/dev/null
     echo "$REPORT_SCRIPT inject & # Inject Wireless Report" >> "$SS_FILE"
     chmod +x "$SS_FILE"; SCRIPT_VERSION="$REMOTE_VERSION"
-    logger -p user.info -t "Wireless_Report" "(v$SCRIPT_VERSION) successfully installed."
+    sys_log "(v$SCRIPT_VERSION) successfully installed."
     echo -e "$GR[✓] SUCCESS: Installation complete!$NC\n"
     echo -e "$YL[i] To access Report, navigate to Advanced Settings > Wireless "
     echo -e "$YL    in the ASUS WebGUI and select the Wireless Report tab on the far right.$NC\n"
@@ -257,10 +255,7 @@ do_update() {
         return 0
     else
         rm -f "$TEMP_SCRIPT"
-        if [ ! -f "$0" ]; then
-            echo -e "$RD[!] Download failed. Aborting installation.$NC"
-            return 1
-        fi
+        if [ ! -f "$0" ]; then echo -e "$RD[!] Download failed. Aborting installation.$NC"; return 1; fi
         local CURRENT_PATH; local TARGET_PATH
         CURRENT_PATH=$(readlink -f "$0" 2>/dev/null)
         [ -z "$CURRENT_PATH" ] && CURRENT_PATH="$0"
@@ -280,15 +275,12 @@ do_update() {
 
 ScriptUpdateFromAMTM() {
     doScriptUpdateFromAMTM=true
-    if [ "$doScriptUpdateFromAMTM" != "true" ]; then
-        printf "Automatic updates via AMTM are currently disabled."
-        return 1
-    fi
+    if [ "$doScriptUpdateFromAMTM" != "true" ]; then printf "Automatic updates via AMTM are currently disabled."; return 1; fi
     if [ "$1" = "check" ]; then return 0; fi
     if check_github && do_update; then
         echo -e "  [+] Downloading latest version (v$REMOTE_VERSION)\n\n"
         echo -e "  [✓] Wireless Report successfully updated.\n"
-        logger -p user.info -t "Wireless_Report" "AMTM Update: (v$REMOTE_VERSION) successfully installed."
+        sys_log "AMTM Update: (v$REMOTE_VERSION) successfully installed."
         return 0
     fi
     return 1
@@ -365,10 +357,10 @@ inject_menu() {
 		\n},"
 		sed -i "/^.*{[[:space:]]*$/ { N; /menuName: \"<#1558#>\",/ i $INSERT_DATA
 		}" "$TEMP_MENU"
-		logger -p user.info -t "Wireless_Report" "Mounting Menu [$TAB_LABEL] as $am_webui_page"
+		sys_log "Mounting Menu [$TAB_LABEL] as $am_webui_page"
 	else
 		sed -i "/index: \"menu_Wireless\"/,/{url: \"NULL\", tabName: \"__INHERIT__\"}/ s|{url: \"NULL\", tabName: \"__INHERIT__\"}|{url: \"$am_webui_page\", tabName: \"$TAB_LABEL\"},\n&|" "$TEMP_MENU"
-		logger -p user.info -t "Wireless_Report" "Mounting Menu [Wireless] TAB [$TAB_LABEL] as $am_webui_page"
+		sys_log "Mounting Menu [Wireless] TAB [$TAB_LABEL] as $am_webui_page"
 	fi
 	umount "$SYSTEM_MENU" && mount -o bind "$TEMP_MENU" "$SYSTEM_MENU"
 	umount "/www/user/$am_webui_page" 2>/dev/null
@@ -389,7 +381,7 @@ do_uninstall() {
 		sed -i 'N; /menuName: "Wireless Report"/ { N; N; N; N; N; N; d; }; P; D' "$TEMP_MENU" 2>/dev/null
 		sed -i '/tabName:[[:space:]]*"Wireless Report"/d' "$TEMP_MENU" 2>/dev/null
 		mount --bind "$TEMP_MENU" "$SYSTEM_MENU"
-		logger -p user.info -t "Wireless_Report" "Unmounting Wireless Report Tab."
+		sys_log "Unmounting Wireless Report Tab."
 		echo -e "\n$BL[*] Removing Wireless Report Tab and restoring defaults...$NC\n"
 	fi
 	if [ -n "$INSTALLED_PAGE" ]; then
@@ -398,7 +390,7 @@ do_uninstall() {
 	fi
 	sed -i "\|$REPORT_SCRIPT|d" "$SS_FILE"
 	rm -rf "$INSTALL_DIR" "$WEB_PAGE" 2>/dev/null
-	logger -p user.info -t "Wireless_Report" "(v$SCRIPT_VERSION) successfully uninstalled."
+	sys_log "(v$SCRIPT_VERSION) successfully uninstalled."
     restart_httpd
     unset RTIME CUR_DATE RS_HIST_DATE RS_HIST CUR_RS_HIST CUR_ENTRIES REPORT_UNIT
     unset THEME IPPAD PULSE_MINS DISPLAY_UNIT HOST_COLOR MAIN_COLOR NODE_COLORS
@@ -660,9 +652,7 @@ set_colors() {
                         idx=$((idx + 1))
                     done
                     echo -e "$BL\nColors restored to defaults.$NC"
-                    pause
-                    continue 2
-                    ;;
+                    pause; continue 2 ;;
                 c|C) return 0 ;;
                 e|E) break 2 ;;
             esac
@@ -691,23 +681,25 @@ set_colors() {
             echo -e "$WT  (8) White (#ffffff)"
             echo -e "$PK  (9) Light-Pink (#ff70a6)"
             echo -e "$MT (10) Mint-Green (#64ffda)"
-            echo -e "$NC"
+            echo -e ""
             local selected_hex=""
             while true; do
-                printf "$NC Choose option $BL(1-10): $NC"; read -r color_choice
+                printf "$NC Choose option $BL(1-10): $NC"
+                read -r color_choice
                 case "$color_choice" in
-                    1) selected_hex="#0096ff"; break ;;
-                    2) selected_hex="#30d158"; break ;;
-                    3) selected_hex="#bf40bf"; break ;;
-                    4) selected_hex="#ffd60a"; break ;;
-                    5) selected_hex="#64d2ff"; break ;;
-                    6) selected_hex="#ff9500"; break ;;
-                    7) selected_hex="#ff453a"; break ;;
-                    8) selected_hex="#ffffff"; break ;;
-                    9) selected_hex="#ff70a6"; break ;;
-                    10) selected_hex="#64ffda"; break ;;
-                    *) freeze; continue ;;
+                    1)  selected_hex="#0096ff" ;;
+                    2)  selected_hex="#30d158" ;;
+                    3)  selected_hex="#bf40bf" ;;
+                    4)  selected_hex="#ffd60a" ;;
+                    5)  selected_hex="#64d2ff" ;;
+                    6)  selected_hex="#ff9500" ;;
+                    7)  selected_hex="#ff453a" ;;
+                    8)  selected_hex="#ffffff" ;;
+                    9)  selected_hex="#ff70a6" ;;
+                    10) selected_hex="#64ffda" ;;
+                    *)  freeze; continue ;;
                 esac
+                break
             done
             if [ "$node_choice" -eq 0 ]; then
                 m_color_hex="$selected_hex"
@@ -887,7 +879,7 @@ set_branch() {
         check_github; menu_vars
         printf "$NC\nPress $BL[Enter]$NC to switch to $BH branch & restart script..."; read -r restart
         if do_update; then exec "$REPORT_SCRIPT" install "$@"
-        else echo -e "${RD}Error: Branch update failed!$NC" >&2; exit 1; fi
+        else echo -e "$RD[!]Error: Branch update failed!$NC" >&2; exit 1; fi
     done
 }
 
@@ -910,7 +902,7 @@ set_rssi() {
             selection
             case "$choice" in
                 1)
-                    if [ "$CUR_RS_HIST" = "1" ]; then CUR_RS_HIST="0"; else CUR_RS_HIST="1"; fi
+                    case "$CUR_RS_HIST" in 1) CUR_RS_HIST="0" ;; *) CUR_RS_HIST="1" ;; esac
                     break ;;
                 2)
                     while true; do
@@ -924,7 +916,7 @@ set_rssi() {
                         fi
                     done ;;
                 3)
-                    if [ "$CUR_DATE" = "1" ]; then CUR_DATE="0"; else CUR_DATE="1"; fi
+                    case "$CUR_DATE" in 1) CUR_DATE="0" ;; *) CUR_DATE="1" ;; esac
                     break ;;
                 c|C)
                     unset CUR_RS_HIST CUR_ENTRIES CUR_DATE
@@ -1006,7 +998,7 @@ get_theme() {
 }
 
 hasta() {
-echo -e "\n\n\n$BL" #=============================================================================================================
+echo -e "\n\n\n$BL" #============================================================================================================#
 echo -e "                                                                                                                        "
 echo -e "                                                                                                                        "
 echo -e "             ██╗  ██╗ █████╗ ███████╗████████╗ █████╗      ██╗      █████╗      ██╗   ██╗██╗███████╗████████╗ █████╗    "
@@ -1017,8 +1009,10 @@ echo -e "    ██║      ██║  ██║██║  ██║████
 echo -e "    ██║      ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝   ╚═╝   ╚═╝  ╚═╝     ╚══════╝╚═╝  ╚═╝       ╚═══╝  ╚═╝╚══════╝   ╚═╝   ╚═╝  ╚═╝   "
 echo -e "    ╚═╝                                                                                                                 "
 echo -e "                                                                                                                        "
-echo -e "$NC\n\n\n" #=============================================================================================================
+echo -e "$NC\n\n\n" #============================================================================================================#
 }
+
+sys_log() { logger -p user.info -t "Wireless_Report" "$1"; }
 
 selection() { printf "\n$NC Selection: "; read -r choice; }
 
