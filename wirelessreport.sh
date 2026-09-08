@@ -32,6 +32,7 @@ SCRIPT_VERSION="3.2.5"
 INSTALL_DIR="/jffs/addons/wireless_report"
 REPORT_SCRIPT="$INSTALL_DIR/wirelessreport.sh"
 CONFIG="$INSTALL_DIR/webui.conf"
+SE_FILE="/jffs/scripts/service-event"
 SYSTEM_MENU="/www/require/modules/menuTree.js"
 TEMP_MENU="/tmp/menuTree.js"
 WEB_PAGE="/tmp/wireless.asp"
@@ -189,7 +190,7 @@ menu_vars() {
     REPORT_UNIT="${REPORT_UNIT:-USA}"; DATE_ISO="$GR$(date +"%Y-%m-%d %H:%M:%S")$NC"
     DATE_INTL="$GR$(date +"%-d-%b %-H:%M:%S")$NC"; DATE_USA="$GR$(date +"%b-%-d %-H:%M:%S")$NC"
     case "$REPORT_UNIT" in ISO) DU="${GR}ISO$NC"; CT="$DATE_ISO" ;; INTL) DU="${GR}INTL$NC"; CT="$DATE_INTL" ;; *) DU="${GR}USA$NC"; CT="$DATE_USA" ;; esac
-    RTIME=${RTIME:-1}; case "$RTIME" in 0) RT_STAT="$OFF" ;; *) RT_STAT="$ON" ;; esac
+    RTIME=${RTIME:-1}; RTIME_LOG=${RTIME_LOG:-0}; case "$RTIME" in 0) RT_STAT="$OFF" ;; *) RT_STAT="$ON" ;; esac
     BACKHAUL=${BACKHAUL:-0}; case "$BACKHAUL" in 0) WB_STAT="$OFF" ;; *) WB_STAT="$ON" ;; esac
     PULSE_MINS=${PULSE_MINS:-15}; case "$PULSE_MINS" in 0) UP_STAT="$OFF" ;; *) UP_STAT="$GR${PULSE_MINS} Mins$NC" ;; esac
     RS_HIST=${RS_HIST:-0}; case "$RS_HIST" in 0|1) ;; *) RS_HIST=0 ;; esac
@@ -238,6 +239,7 @@ do_install() {
     sed -i "\|$REPORT_SCRIPT|d" "$SS_FILE" 2>/dev/null
     echo "$REPORT_SCRIPT inject & # Inject Wireless Report" >> "$SS_FILE"
     chmod +x "$SS_FILE"; SCRIPT_VERSION="$REMOTE_VERSION"
+    install_service_event_hook
     sys_log "(v$SCRIPT_VERSION) successfully installed."
     echo -e "$GR[✓] SUCCESS: Installation complete!$NC\n"
     echo -e "$YL[i] To access Report, navigate to Advanced Settings > Wireless "
@@ -386,10 +388,11 @@ do_uninstall() {
 		rm -f /www/user/"${INSTALLED_PAGE}" >/dev/null 2>&1
 	fi
 	sed -i "\|$REPORT_SCRIPT|d" "$SS_FILE"
+    remove_service_event_hook
 	rm -rf "$INSTALL_DIR" "$WEB_PAGE" 2>/dev/null
 	sys_log "(v$SCRIPT_VERSION) successfully uninstalled."
     restart_httpd
-    unset RTIME CUR_DATE RS_HIST_DATE RS_HIST CUR_RS_HIST CUR_ENTRIES REPORT_UNIT
+    unset RTIME RTIME_LOG CUR_DATE RS_HIST_DATE RS_HIST CUR_RS_HIST CUR_ENTRIES REPORT_UNIT
     unset THEME IPPAD PULSE_MINS DISPLAY_UNIT HOST_COLOR MAIN_COLOR NODE_COLORS
     nvram unset wirelessreport_gen >/dev/null 2>&1
 	echo -e "$GR[+] Success: Wireless Report uninstalled.$NC\n"
@@ -775,9 +778,30 @@ set_options() {
             case "$choice" in
                 1)
                     if grep -q "RTIME=" "$CONFIG"; then
-                        if [ "$RTIME" = "1" ]; then sed -i 's/RTIME=.*/RTIME="0"/' "$CONFIG"
-                        else sed -i 's/RTIME=.*/RTIME="1"/' "$CONFIG"; fi
-                    else echo 'RTIME="0"' >> "$CONFIG"; fi ;;
+                        case "$RTIME" in
+                            1)
+                                sed -i 's/RTIME=.*/RTIME="0"/' "$CONFIG"
+                                if grep -q "RTIME_LOG=" "$CONFIG"; then sed -i 's/RTIME_LOG=.*/RTIME_LOG="0"/' "$CONFIG"
+                                else echo 'RTIME_LOG="0"' >> "$CONFIG"; fi
+                                rm -f "$USB_PATH/runtime.db"; menu_vars
+                                echo -e "$NC Runtime Tracking: ($RT_STAT)"; pause ;;
+                            *)
+                                while true; do
+                                    printf "\n Write stats to Syslog? (y/n): "; read -r choice
+                                    case "$choice" in y|Y) RTIME_LOG="1"; break ;; n|N) RTIME_LOG="0"; break ;; *) freeze 2 ;; esac
+                                done
+                                if grep -q "RTIME_LOG=" "$CONFIG"; then sed -i "s/RTIME_LOG=.*/RTIME_LOG=\"$RTIME_LOG\"/" "$CONFIG"
+                                else echo "RTIME_LOG=\"$RTIME_LOG\"" >> "$CONFIG"; fi
+                                sed -i 's/RTIME=.*/RTIME="1"/' "$CONFIG"; menu_vars
+                                echo -e "$NC Runtime Tracking: ($RT_STAT) Stats RESET."; pause ;;
+                        esac
+                    else
+                        echo 'RTIME="0"' >> "$CONFIG"
+                        if grep -q "RTIME_LOG=" "$CONFIG"; then sed -i 's/RTIME_LOG=.*/RTIME_LOG="0"/' "$CONFIG"
+                        else echo 'RTIME_LOG="0"' >> "$CONFIG"; fi
+                        rm -f "$USB_PATH/runtime.db"; menu_vars
+                        echo -e "$NC Runtime Tracking: ($RT_STAT)"; pause
+                    fi ;;
                 2)
                     if grep -q "BACKHAUL=" "$CONFIG"; then
                         if [ "$BACKHAUL" = "0" ]; then sed -i 's/BACKHAUL=.*/BACKHAUL="1"/' "$CONFIG"
@@ -1015,6 +1039,53 @@ pause() { printf "\nPress $BL[Enter]$NC to return..."; read -r discard; }
 
 freeze() { printf "\033[%dA\033[J" "${1:-1}"; }
 
+install_service_event_hook() {
+    if [ ! -f "$SE_FILE" ]; then printf '#!/bin/sh\n' > "$SE_FILE"; fi
+    sed -i '/# Wireless Report runtime syslog$/d' "$SE_FILE" 2>/dev/null
+    printf '%s\n' 'if [ "$1" = "start" ] && echo "$2" | grep -q "^WirelessReportRuntime_"; then '"$REPORT_SCRIPT"' service_event "$@" & fi # Wireless Report runtime syslog' >> "$SE_FILE"
+    chmod +x "$SE_FILE"
+}
+
+remove_service_event_hook() {
+    [ -f "$SE_FILE" ] || return 0
+    sed -i '/# Wireless Report runtime syslog$/d' "$SE_FILE" 2>/dev/null
+}
+
+handle_service_event() {
+    [ "$2" = "start" ] || return 0
+    [ "${RTIME:-1}" = "1" ] || return 0
+    [ "${RTIME_LOG:-0}" = "1" ] || return 0
+
+    case "$3" in
+        WirelessReportRuntime_*)
+            local payload old_ifs current_cs avg_cs low_cs high_cs count value
+            payload=${3#WirelessReportRuntime_}
+            old_ifs=$IFS
+            IFS='_'; set -- $payload; IFS=$old_ifs
+            [ "$#" -eq 5 ] || return 0
+
+            current_cs=$1; avg_cs=$2; low_cs=$3; high_cs=$4; count=$5
+            for value in "$current_cs" "$avg_cs" "$low_cs" "$high_cs" "$count"; do
+                case "$value" in ""|*[!0-9]*) return 0 ;; esac
+                [ "${#value}" -le 9 ] || return 0
+            done
+
+            local current avg low high
+            current=$(printf '%d.%02d' "$((current_cs / 100))" "$((current_cs % 100))")
+            avg=$(printf '%d.%02d' "$((avg_cs / 100))" "$((avg_cs % 100))")
+            low=$(printf '%d.%02d' "$((low_cs / 100))" "$((low_cs % 100))")
+            high=$(printf '%d.%02d' "$((high_cs / 100))" "$((high_cs % 100))")
+
+            sys_log "Report completed in ${current}s. AVG: ${avg}s (L: ${low}s/H: ${high}s) over ${count} scans."
+            ;;
+    esac
+}
+
+if [ "$1" = "service_event" ]; then
+    handle_service_event "$@"
+    exit 0
+fi
+
 mesh_init; check_github; hex_to_ansi
 
 run_report() {
@@ -1028,6 +1099,7 @@ run_report() {
 #   /get_diag_content_data.cgi          (388 legacy diagnostic fallback)
 # All client/node refreshes happen in-page with same-origin fetch() calls.
 
+install_service_event_hook
 if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
 WR_GENERATION=$(nvram get wirelessreport_gen 2>/dev/null)
 case "$WR_GENERATION" in ""|*[!0-9]*) WR_GENERATION=0 ;; esac
@@ -1269,6 +1341,7 @@ var WR_CONFIG = {
     pulseMins: Number("${PULSE_MINS:-15}") || 15,
     reportUnit: String("${REPORT_UNIT:-USA}"),
     runtimeTracking: Number("${RTIME:-1}") || 0,
+    runtimeLog: Number("${RTIME_LOG:-0}") || 0,
     ipPad: Number("${IPPAD:-1}") || 0,
     rssiHistory: Number("${RS_HIST:-0}") || 0,
     rssiHistoryEntries: Number("${RS_HIST_ENTRIES:-5}") || 5,
@@ -3921,6 +3994,32 @@ if (typeof WR_CONFIG !== 'undefined') {
     }
 }
 
+function wrLogRuntimeToSyslog(currentSec, avgSec, lowSec, highSec, count) {
+    if (typeof WR_CONFIG === 'undefined' || !WR_CONFIG.runtimeLog) return;
+
+    var eventName = 'WirelessReportRuntime_' +
+        Math.round(currentSec * 100) + '_' +
+        Math.round(avgSec * 100) + '_' +
+        Math.round(lowSec * 100) + '_' +
+        Math.round(highSec * 100) + '_' +
+        count;
+    var currentPage = window.location.pathname.replace(/^\//, '');
+    var body = 'action_mode=apply' +
+        '&action_script=' + encodeURIComponent('start_' + eventName) +
+        '&action_wait=0' +
+        '&current_page=' + encodeURIComponent(currentPage) +
+        '&next_page=' + encodeURIComponent(currentPage);
+
+    fetch('/start_apply.htm', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body
+    }).catch(function(e) {
+        console.debug('Wireless Report syslog event failed', e);
+    });
+}
+
 async function triggerRefresh() {
     if (isRefreshing) return;
     isRefreshing = true;
@@ -3948,6 +4047,7 @@ async function triggerRefresh() {
             stats.max = Math.max(stats.max, currentSec);
             localStorage.setItem('wirelessReportRuntimeStats', JSON.stringify(stats));
             var avg = stats.total / stats.count;
+            wrLogRuntimeToSyslog(currentSec, avg, stats.min, stats.max, stats.count);
             var wrapper = document.querySelector('.button-refresh');
             if (wrapper) {
                 wrapper.style.setProperty('--avg-text', '"Avg: ' + avg.toFixed(2) + 's over ' + stats.count + ' scans"');
