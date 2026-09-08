@@ -60,7 +60,7 @@ show_header() {
 	echo -e "      ██║  ██║███████╗██║     ╚██████╔╝██║  ██║   ██║          "
 	echo -e "      ╚═╝  ╚═╝╚══════╝╚═╝      ╚═════╝ ╚═╝  ╚═╝   ╚═╝          "
 	echo -e "                                                               "
-    echo -e "      $JB_1366                                                 "
+    echo -e "     $JB_1366                                                  "
     echo -e "         $JB1366                                               "
     echo -e "                                                               "
     #=======================================================================#
@@ -110,7 +110,7 @@ install_menu() {
 
 check_version() {
     local mode="$1" version_cmp=""; froze() { return 0; }
-    DEV=""; case "$BRANCH" in 1) DEV="D" ;; 2) DEV="E" ;; esac
+    case "$BRANCH" in 1) DEV="D" ;; 2) DEV="E" ;; *) DEV="" ;; esac
     if [ ! -f "$REPORT_SCRIPT" ]; then STATE="NOT_INSTALLED"; froze() { freeze 2; return 1; }
     elif [ -z "$REMOTE_VERSION" ]; then STATE="OFFLINE"
     else
@@ -173,11 +173,11 @@ version_compare() {
 
 menu_vars() {
     if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
-    DEV=""; case "$BRANCH" in 1) DEV="D" ;; 2) DEV="E" ;; esac
+    case "$BRANCH" in 1) DEV="D" ;; 2) DEV="E" ;; *) DEV="" ;; esac
     trap 'printf "\033[0m"' 0; trap 'exit 130' INT TERM HUP
     UL='\033[4m'; YL='\033[0;33m'; NC='\033[0m'
     BL='\033[38;5;39m'; GR='\033[0;32m'; RD='\033[0;31m'
-    JB_1366="${NC}Copyright (c) 2026 JB_1366 - All Rights Reserved"
+    JB_1366="$NC Copyright (c) 2026 JB_1366 - All Rights Reserved"
     JB1366="$GR${UL}https://github.com/JB1366/Wireless_Report$NC"
 	for i in 0 1 2 3 4 5 6 7 8; do eval "N${i}=\"\$BL(${i})\$NC\""; done
 	for i in E C R; do eval "L${i}=\"\$BL(${i})\$NC\""; done
@@ -226,15 +226,14 @@ do_install() {
 		printf "\nPress $BL[Enter]$NC to apply changes & restart script..."; read -r discard
         sys_log "(v$REMOTE_VERSION) successfully installed."
         exec "$REPORT_SCRIPT" install "$@"
-		echo -e "\n$RD[!] Error: Failed to restart script!$NC" >&2
-		exit 1
+		echo -e "\n$RD[!] Error: Failed to restart script!$NC" >&2; exit 1
 	fi
     if [ "$(nvram get jffs2_scripts)" != "1" ]; then
         echo -e "\n$RD[!] ERROR: JFFS custom scripts not enabled.$NC"
         pause; return 1
     fi
     echo -e "\n$GR[+] Processing Wireless Report Files...$NC\n"
-    echo -e "$GR[+] Mounting Menu [Wireless] Tab [Wireless Report]$NC\n"
+    echo -e "$GR[+] Mounting Tab Wireless Report$NC\n"
     if [ ! -f "$SS_FILE" ]; then echo "#!/bin/sh" > "$SS_FILE"; fi
     sed -i "\|$REPORT_SCRIPT|d" "$SS_FILE" 2>/dev/null
     echo "$REPORT_SCRIPT inject & # Inject Wireless Report" >> "$SS_FILE"
@@ -301,7 +300,6 @@ wr_sha256() {
 }
 
 check_github() {
-    BRANCH="${BRANCH:-0}"
     case "$BRANCH" in 1) GIT="JB1366"; BRANCH_NAME="Development" ;; 2) GIT="ExtremeFiretop"; BRANCH_NAME="Development" ;; *) GIT="JB1366"; BRANCH_NAME="main" ;; esac
     GITHUB="https://raw.githubusercontent.com/$GIT/Wireless_Report/$BRANCH_NAME/wirelessreport.sh"
     REMOTE_TMP="/tmp/wr_remote.tmp"; LOCAL_HASH=""; REMOTE_HASH=""
@@ -357,17 +355,16 @@ inject_menu() {
 		\n},"
 		sed -i "/^.*{[[:space:]]*$/ { N; /menuName: \"<#1558#>\",/ i $INSERT_DATA
 		}" "$TEMP_MENU"
-		sys_log "Mounting Menu [$TAB_LABEL] as $am_webui_page"
+		sys_log "Mounting Menu $TAB_LABEL as $am_webui_page"
 	else
 		sed -i "/index: \"menu_Wireless\"/,/{url: \"NULL\", tabName: \"__INHERIT__\"}/ s|{url: \"NULL\", tabName: \"__INHERIT__\"}|{url: \"$am_webui_page\", tabName: \"$TAB_LABEL\"},\n&|" "$TEMP_MENU"
-		sys_log "Mounting Menu [Wireless] TAB [$TAB_LABEL] as $am_webui_page"
+		sys_log "Mounting TAB $TAB_LABEL as $am_webui_page"
 	fi
 	umount "$SYSTEM_MENU" && mount -o bind "$TEMP_MENU" "$SYSTEM_MENU"
 	umount "/www/user/$am_webui_page" 2>/dev/null
 	mount -o bind "$WEB_PAGE" "/www/user/$am_webui_page"
 	flock -u "$FD"; restart_httpd
-    if [ "$NOLOADSCRIPT" = "1" ]; then exit 0
-    else "$REPORT_SCRIPT" >/dev/null 2>&1 & fi
+    case "$NOLOADSCRIPT" in 1) exit 0 ;; *) "$REPORT_SCRIPT" >/dev/null 2>&1 & ;; esac
 }
 
 do_uninstall() {
@@ -455,8 +452,7 @@ set_nicknames() {
             get_node_color() { local idx="$1"; echo "$NODE_COLORS" | awk -v i="$idx" '{print $i}'; }
             node_idx=1
             for node in $VALID_NODES; do
-                MODEL="${node%%|*}"; IP="${node#*|}"
-                CLEAN_IP="${IP//./_}"
+                MODEL="${node%%|*}"; IP="${node#*|}"; CLEAN_IP="${IP//./_}"
                 eval SAVED_NICK=\$NODE_NICK_$CLEAN_IP
                 HEX_CLR=$(get_node_color "$node_idx")
                 NODE_CLR=$(hex_to_ansi "$HEX_CLR")
@@ -477,8 +473,7 @@ set_nicknames() {
                     if [ -n "$MESH_NODES" ] && [ "$MESH_NODES" != " " ]; then
                         node_idx=1
                         for node in $VALID_NODES; do
-                            MODEL="${node%%|*}"; IP="${node#*|}"
-                            CLEAN_IP="${IP//./_}"
+                            MODEL="${node%%|*}"; IP="${node#*|}"; CLEAN_IP="${IP//./_}"
                             eval OLD_NICK=\$NODE_NICK_$CLEAN_IP
                             sed -i "/^NODE_NICK_$CLEAN_IP=/d" "$CONFIG"
                             eval "unset NODE_NICK_$CLEAN_IP"
@@ -504,8 +499,7 @@ set_nicknames() {
                     fi
                     node_idx=1
                     for node in $VALID_NODES; do
-                        MODEL="${node%%|*}"; IP="${node#*|}"
-                        CLEAN_IP="${IP//./_}"
+                        MODEL="${node%%|*}"; IP="${node#*|}"; CLEAN_IP="${IP//./_}"
                         eval OLD_NICK=\$NODE_NICK_$CLEAN_IP
                         NODE_LOC=$(cat /jffs/.sys/cfg_mnt/re.info 2>/dev/null | sed 's/},/}\n/g' | grep "$IP" | sed -n 's/.*"alias":"\([^"]*\)".*/\1/p')
                         sed -i "/^NODE_NICK_$CLEAN_IP=/d" "$CONFIG"
@@ -533,8 +527,7 @@ set_nicknames() {
                     fi
                     node_idx=1
                     for node in $VALID_NODES; do
-                        MODEL="${node%%|*}"; IP="${node#*|}"
-                        CLEAN_IP="${IP//./_}"
+                        MODEL="${node%%|*}"; IP="${node#*|}"; CLEAN_IP="${IP//./_}"
                         eval OLD_NICK=\$NODE_NICK_$CLEAN_IP
                         HEX_CLR=$(echo "$NODE_COLORS" | awk -v i="$node_idx" '{print $i}')
                         NODE_CLR=$(hex_to_ansi "$HEX_CLR")
@@ -813,8 +806,8 @@ set_options() {
                             0) echo -e "\n$GR[+] Mode 2:$NC 192.168.50.3 -->$GR 192.168.050.003$NC (Last 2 Octets)";  NEW_PAD="2" ;;
                             *) echo -e "\n$GR[+] Mode 1:$NC 192.168.50.3 -->$GR 192.168.50.003$NC (Last Octet Only)"; NEW_PAD="1" ;;
                         esac
-                        pause
                         sed -i "s/IPPAD=.*/IPPAD=\"$NEW_PAD\"/" "$CONFIG"
+                        pause
                     else
                         echo -e "\n$RD[-] Disabled:$NC 192.168.050.003 -->$RD 192.168.50.3$NC"; NEW_PAD="0"
                         echo 'IPPAD="0"' >> "$CONFIG"
@@ -822,11 +815,20 @@ set_options() {
                     fi ;;
                 5)
                     if grep -q "HOST_COLOR=" "$CONFIG"; then
-                        if [ "$HOST_COLOR" = "1" ]; then NEW_HC="0"; else NEW_HC="1"; fi
+                        case "$HOST_COLOR" in 1) NEW_HC="0" ;; *) NEW_HC="1" ;; esac
                         sed -i "s/HOST_COLOR=.*/HOST_COLOR=\"$NEW_HC\"/" "$CONFIG"
                     else echo 'HOST_COLOR="1"' >> "$CONFIG"; fi ;;
                 dev)
                     set_branch; return 0 ;;
+                i|I)
+                    if grep -q 'INJECT="2"' "$CONFIG"; then
+                        echo -e "\n$YL[!] INJECT=\"2\" already exists in CONFIG.$NC"
+                    else
+                        if grep -q "INJECT=" "$CONFIG"; then sed -i 's/INJECT=.*/INJECT="2"/' "$CONFIG"
+                        else echo 'INJECT="2"' >> "$CONFIG"; fi
+                        echo -e "\n$GR[+] Adding INJECT=\"2\" to CONFIG.$NC"
+                    fi
+                    pause; continue 2 ;;
                 e|E)
                     return 0 ;;
                 *)
@@ -860,15 +862,6 @@ set_branch() {
                 1) BRANCH="0" ;;
                 2) BRANCH="1" ;;
                 3) BRANCH="2" ;;
-                i|I)
-                    if grep -q 'INJECT="2"' "$CONFIG"; then
-                        echo -e "\n$YL[!] INJECT=\"2\" already exists in CONFIG.$NC"
-                    else
-                        if grep -q "INJECT=" "$CONFIG"; then sed -i 's/INJECT=.*/INJECT="2"/' "$CONFIG"
-                        else echo 'INJECT="2"' >> "$CONFIG"; fi
-                        echo -e "\n$GR[+] Adding INJECT=\"2\" to CONFIG.$NC"
-                    fi
-                    pause; continue 2 ;;
                 e|E) return 0 ;;
                 *) freeze 2; continue ;;
             esac
