@@ -783,8 +783,7 @@ set_options() {
                                 sed -i 's/RTIME=.*/RTIME="0"/' "$CONFIG"
                                 if grep -q "RTIME_LOG=" "$CONFIG"; then sed -i 's/RTIME_LOG=.*/RTIME_LOG="0"/' "$CONFIG"
                                 else echo 'RTIME_LOG="0"' >> "$CONFIG"; fi
-                                rm -f "$USB_PATH/runtime.db"; menu_vars
-                                echo -e "$NC Runtime Tracking: ($RT_STAT)"; pause ;;
+                                menu_vars; echo -e "$NC Runtime Tracking: ($RT_STAT)"; pause ;;
                             *)
                                 while true; do
                                     printf "\n Write stats to Syslog? (y/n): "; read -r choice
@@ -799,8 +798,7 @@ set_options() {
                         echo 'RTIME="0"' >> "$CONFIG"
                         if grep -q "RTIME_LOG=" "$CONFIG"; then sed -i 's/RTIME_LOG=.*/RTIME_LOG="0"/' "$CONFIG"
                         else echo 'RTIME_LOG="0"' >> "$CONFIG"; fi
-                        rm -f "$USB_PATH/runtime.db"; menu_vars
-                        echo -e "$NC Runtime Tracking: ($RT_STAT)"; pause
+                        menu_vars; echo -e "$NC Runtime Tracking: ($RT_STAT)"; pause
                     fi ;;
                 2)
                     if grep -q "BACKHAUL=" "$CONFIG"; then
