@@ -28,7 +28,7 @@
 #        shellcheck shell=sh disable=SC2086,SC2155,SC3043         #
 #=================================================================#
 
-SCRIPT_VERSION="3.2.5"
+SCRIPT_VERSION="3.2.6"
 INSTALL_DIR="/jffs/addons/wireless_report"
 REPORT_SCRIPT="$INSTALL_DIR/wirelessreport.sh"
 CONFIG="$INSTALL_DIR/webui.conf"
@@ -239,7 +239,6 @@ do_install() {
     sed -i "\|$REPORT_SCRIPT|d" "$SS_FILE" 2>/dev/null
     echo "$REPORT_SCRIPT inject & # Inject Wireless Report" >> "$SS_FILE"
     chmod +x "$SS_FILE"; SCRIPT_VERSION="$REMOTE_VERSION"
-    install_service_event_hook
     sys_log "(v$SCRIPT_VERSION) successfully installed."
     echo -e "$GR[✓] SUCCESS: Installation complete!$NC\n"
     echo -e "$YL[i] To access Report, navigate to Advanced Settings > Wireless "
@@ -1046,7 +1045,11 @@ install_service_event_hook() {
 
 remove_service_event_hook() {
     [ -f "$SE_FILE" ] || return 0
-    sed -i '/# Wireless Report runtime syslog$/d' "$SE_FILE" 2>/dev/null
+
+    # Only run sed if our hook line actually exists in the file
+    if grep -q "Wireless Report runtime syslog" "$SE_FILE" 2>/dev/null; then
+        sed -i '/# Wireless Report runtime syslog$/d' "$SE_FILE" 2>/dev/null
+    fi
 }
 
 handle_service_event() {
@@ -1079,10 +1082,7 @@ handle_service_event() {
     esac
 }
 
-if [ "$1" = "service_event" ]; then
-    handle_service_event "$@"
-    exit 0
-fi
+if [ "$1" = "service_event" ]; then handle_service_event "$@"; exit 0; fi
 
 mesh_init; check_github; hex_to_ansi
 
@@ -1097,8 +1097,12 @@ run_report() {
 #   /get_diag_content_data.cgi          (388 legacy diagnostic fallback)
 # All client/node refreshes happen in-page with same-origin fetch() calls.
 
-install_service_event_hook
 if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
+
+# Conditionally install or clean up the hook based on the setting
+if [ "${RTIME_LOG:-0}" = "1" ]; then install_service_event_hook
+else remove_service_event_hook; fi
+
 WR_GENERATION=$(nvram get wirelessreport_gen 2>/dev/null)
 case "$WR_GENERATION" in ""|*[!0-9]*) WR_GENERATION=0 ;; esac
 WR_GENERATION=$((WR_GENERATION + 1))
