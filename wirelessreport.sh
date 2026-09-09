@@ -3676,7 +3676,7 @@ async function loadWirelessReport() {
         if (!wrIsMac(mac) || !wrLooksWireless(c)) return;
 
         // If backhaul display is disabled, skip adding node-to-node links entirely
-        if (nodeByMac.has(mac) && Number("${BACKHAUL:-0}") !== 1) {
+        if (nodeByMac.has(mac) && WR_CONFIG.backHaul !== 1) {
             return;
         }
 
