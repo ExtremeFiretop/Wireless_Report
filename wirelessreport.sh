@@ -1045,11 +1045,7 @@ install_service_event_hook() {
 
 remove_service_event_hook() {
     [ -f "$SE_FILE" ] || return 0
-
-    # Only run sed if our hook line actually exists in the file
-    if grep -q "Wireless Report runtime syslog" "$SE_FILE" 2>/dev/null; then
-        sed -i '/# Wireless Report runtime syslog$/d' "$SE_FILE" 2>/dev/null
-    fi
+    sed -i '/# Wireless Report runtime syslog$/d' "$SE_FILE" 2>/dev/null
 }
 
 handle_service_event() {
