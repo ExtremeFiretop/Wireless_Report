@@ -111,7 +111,6 @@ install_menu() {
 
 check_version() {
     local mode="$1" version_cmp=""; froze() { return 0; }
-    case "$BRANCH" in 1) DEV="D" ;; 2) DEV="E" ;; *) DEV="" ;; esac
     if [ ! -f "$REPORT_SCRIPT" ]; then STATE="NOT_INSTALLED"; froze() { freeze 2; return 1; }
     elif [ -z "$REMOTE_VERSION" ]; then STATE="OFFLINE"
     else
@@ -174,7 +173,6 @@ version_compare() {
 
 menu_vars() {
     if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
-    case "$BRANCH" in 1) DEV="D" ;; 2) DEV="E" ;; *) DEV="" ;; esac
     trap 'printf "\033[0m"' 0; trap 'exit 130' INT TERM HUP
     UL='\033[4m'; YL='\033[0;33m'; NC='\033[0m'
     BL='\033[38;5;39m'; GR='\033[0;32m'; RD='\033[0;31m'
@@ -206,7 +204,7 @@ menu_vars() {
     THEME=${THEME:-ORIGINAL}; TM_STAT="$GR$THEME$NC"
 	IPPAD=${IPPAD:-1}; case "$IPPAD" in 2) PD_STAT="${GR}Last 2 Octets$NC" ;; 1) PD_STAT="${BL}Last Octet$NC" ;; *) PD_STAT="${RD}Disabled$NC" ;; esac
 	HOST_COLOR=${HOST_COLOR:-0}; case "$HOST_COLOR" in 1) HN_STAT="${BL}Colored${NC}" ;; *) HN_STAT="${GR}Numbered${NC}" ;; esac
-    case "$BRANCH" in 2) BRANCH_NAME="EFT-Development" ;; esac; BH="[$GR$BRANCH_NAME$NC]"
+    BN="[$GR$BRANCH_NAME$NC]"
 }
 
 do_install() {
@@ -301,7 +299,11 @@ wr_sha256() {
 }
 
 check_github() {
-    case "$BRANCH" in 1) GIT="JB1366"; BRANCH_NAME="Development" ;; 2) GIT="ExtremeFiretop"; BRANCH_NAME="Development" ;; *) GIT="JB1366"; BRANCH_NAME="main" ;; esac
+    case "$BRANCH" in
+        1) GIT="JB1366"; BRANCH_NAME="Development"; DEV="D" ;;
+        2) GIT="ExtremeFiretop"; BRANCH_NAME="Development"; DEV="E" ;;
+        *) GIT="JB1366"; BRANCH_NAME="main"; DEV="" ;;
+    esac
     GITHUB="https://raw.githubusercontent.com/$GIT/Wireless_Report/$BRANCH_NAME/wirelessreport.sh"
     REMOTE_TMP="/tmp/wr_remote.tmp"; LOCAL_HASH=""; REMOTE_HASH=""
     if curl -sfL --retry 3 "$GITHUB" -o "$REMOTE_TMP" 2>/dev/null && [ -s "$REMOTE_TMP" ]; then
@@ -871,7 +873,7 @@ set_branch() {
         echo -e "$BL=================================================="
         echo -e "$NC                Set Github Branch                 "
         echo -e "$BL=================================================="
-        echo -e "$NC  Branch: $BH               v$SCRIPT_VERSION$DEV  "
+        echo -e "$NC  Branch: $BN               v$SCRIPT_VERSION$DEV  "
         echo -e "$BL=================================================="
         echo -e "                                                     "
         echo -e "  $N1 main (JB1366)                                  "
@@ -894,8 +896,8 @@ set_branch() {
         done
         if grep -q "^BRANCH=" "$CONFIG"; then sed -i "s/^BRANCH=.*/BRANCH=\"$BRANCH\"/" "$CONFIG"
         else echo "BRANCH=\"$BRANCH\"" >> "$CONFIG"; fi
-        check_github; menu_vars
-        printf "$NC\nPress $BL[Enter]$NC to switch to $BH branch & restart script..."; read -r restart
+        check_github; case "$BRANCH" in 2) BRANCH_NAME="EFT-Development" ;; esac; BN="[$GR$BRANCH_NAME$NC]"
+        printf "$NC\nPress $BL[Enter]$NC to switch to $BN branch & restart script..."; read -r restart
         if do_update; then exec "$REPORT_SCRIPT" install "$@"
         else echo -e "$RD[!]Error: Branch update failed!$NC" >&2; exit 1; fi
     done
