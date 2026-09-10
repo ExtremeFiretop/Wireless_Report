@@ -841,7 +841,7 @@ set_options() {
                     else echo 'HOST_COLOR="1"' >> "$CONFIG"; fi ;;
                 dev)
                     set_branch; return 0 ;;
-                i|I)
+                inject)
                     if grep -q 'INJECT="2"' "$CONFIG"; then
                         echo -e "\n$YL[!] INJECT=\"2\" already exists in CONFIG.$NC"
                     else
