@@ -1102,8 +1102,10 @@ run_report() {
 if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
 
 # Conditionally install or clean up the hook based on the setting
-if [ "${RTIME_LOG:-0}" = "1" ]; then install_service_event_hook
-else remove_service_event_hook; fi
+case "${RTIME_LOG:-0}" in
+    1) install_service_event_hook ;;
+    *) remove_service_event_hook ;;
+esac
 
 WR_GENERATION=$(nvram get wirelessreport_gen 2>/dev/null)
 case "$WR_GENERATION" in ""|*[!0-9]*) WR_GENERATION=0 ;; esac
