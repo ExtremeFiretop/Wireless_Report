@@ -116,9 +116,9 @@ check_version() {
     else
         version_cmp=$(version_compare "$SCRIPT_VERSION" "$REMOTE_VERSION")
         case "$version_cmp" in -1|0|1) ;; *) version_cmp=0 ;; esac
-        if [ "$version_cmp" -gt 0 ]; then  STATE="UP_TO_DATE"
+        if [ "$version_cmp" -gt 0 ]; then STATE="UP_TO_DATE"
         elif [ "$version_cmp" -lt 0 ]; then STATE="OUTDATED"
-        elif [ -n "$REMOTE_HASH" ] && [ "$LOCAL_HASH" != "$REMOTE_HASH" ]; then  STATE="HASH_DIFF"
+        elif [ -n "$REMOTE_HASH" ] && [ "$LOCAL_HASH" != "$REMOTE_HASH" ]; then STATE="HASH_DIFF"
         else STATE="UP_TO_DATE"; fi
     fi
     case "$mode" in
@@ -142,7 +142,7 @@ check_version() {
                 HASH_DIFF)     echo -e "\n$GR[i] There is a Hash Update for (${NC}v$SCRIPT_VERSION$DEV$GR).$NC\n"
                                UP="update Hash?" ;;
                 UP_TO_DATE|*)  echo -e "\n$GR[i] You are already on the latest version (${NC}v$SCRIPT_VERSION$DEV$GR).$NC\n"
-                               UP="reinstall/overwrite anyway?";;
+                               UP="reinstall/overwrite anyway?" ;;
             esac ;;
         *)
             case "$STATE" in
@@ -784,7 +784,7 @@ set_options() {
                                 sed -i 's/RTIME=.*/RTIME="0"/' "$CONFIG"
                                 if grep -q "RTIME_LOG=" "$CONFIG"; then sed -i 's/RTIME_LOG=.*/RTIME_LOG="0"/' "$CONFIG"
                                 else echo 'RTIME_LOG="0"' >> "$CONFIG"; fi
-                                menu_vars; echo -e "$NC Runtime Tracking: ($RT_STAT)"; pause ;;
+                                menu_vars; echo -e "$NC Runtime Tracking: ($RT_STAT)" ;;
                             *)
                                 while true; do
                                     printf "\n Write stats to Syslog? (y/n): "; read -r choice
@@ -793,14 +793,15 @@ set_options() {
                                 if grep -q "RTIME_LOG=" "$CONFIG"; then sed -i "s/RTIME_LOG=.*/RTIME_LOG=\"$RTIME_LOG\"/" "$CONFIG"
                                 else echo "RTIME_LOG=\"$RTIME_LOG\"" >> "$CONFIG"; fi
                                 sed -i 's/RTIME=.*/RTIME="1"/' "$CONFIG"; menu_vars
-                                echo -e "$NC Runtime Tracking: ($RT_STAT) Stats RESET."; pause ;;
+                                echo -e "$NC Runtime Tracking: ($RT_STAT) Stats RESET." ;;
                         esac
                     else
                         echo 'RTIME="0"' >> "$CONFIG"
                         if grep -q "RTIME_LOG=" "$CONFIG"; then sed -i 's/RTIME_LOG=.*/RTIME_LOG="0"/' "$CONFIG"
                         else echo 'RTIME_LOG="0"' >> "$CONFIG"; fi
-                        menu_vars; echo -e "$NC Runtime Tracking: ($RT_STAT)"; pause
-                    fi ;;
+                        menu_vars; echo -e "$NC Runtime Tracking: ($RT_STAT)"
+                    fi
+                    pause ;;
                 2)
                     if grep -q "BACKHAUL=" "$CONFIG"; then
                         if [ "$BACKHAUL" = "0" ]; then sed -i 's/BACKHAUL=.*/BACKHAUL="1"/' "$CONFIG"
@@ -830,12 +831,11 @@ set_options() {
                             *) echo -e "\n$GR[+] Mode 1:$NC 192.168.50.3 -->$GR 192.168.50.003$NC (Last Octet Only)"; NEW_PAD="1" ;;
                         esac
                         sed -i "s/IPPAD=.*/IPPAD=\"$NEW_PAD\"/" "$CONFIG"
-                        pause
                     else
                         echo -e "\n$RD[-] Disabled:$NC 192.168.050.003 -->$RD 192.168.50.3$NC"; NEW_PAD="0"
                         echo 'IPPAD="0"' >> "$CONFIG"
-                        pause
-                    fi ;;
+                    fi
+                    pause ;;
                 5)
                     if grep -q "HOST_COLOR=" "$CONFIG"; then
                         case "$HOST_COLOR" in 1) NEW_HC="0" ;; *) NEW_HC="1" ;; esac
@@ -924,8 +924,7 @@ set_rssi() {
             selection
             case "$choice" in
                 1)
-                    case "$CUR_RS_HIST" in 1) CUR_RS_HIST="0" ;; *) CUR_RS_HIST="1" ;; esac
-                    break ;;
+                    case "$CUR_RS_HIST" in 1) CUR_RS_HIST="0" ;; *) CUR_RS_HIST="1" ;; esac ;;
                 2)
                     while true; do
                         printf "\n$NC Enter new depth (${BL}5-20$NC) [Current: $CE]: "; read -r new_depth
@@ -938,8 +937,7 @@ set_rssi() {
                         fi
                     done ;;
                 3)
-                    case "$CUR_DATE" in 1) CUR_DATE="0" ;; *) CUR_DATE="1" ;; esac
-                    break ;;
+                    case "$CUR_DATE" in 1) CUR_DATE="0" ;; *) CUR_DATE="1" ;; esac ;;
                 c|C)
                     unset CUR_RS_HIST CUR_ENTRIES CUR_DATE
                     return 0 ;;
@@ -962,6 +960,7 @@ set_rssi() {
                 *)
                     freeze 2; continue ;;
             esac
+            break
         done
     done
 }
@@ -1100,10 +1099,8 @@ run_report() {
 #   /get_diag_latest_content_data.cgi   (3006/newer)
 #   /get_diag_content_data.cgi          (388 legacy diagnostic fallback)
 # All client/node refreshes happen in-page with same-origin fetch() calls.
-
 if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
 
-# Conditionally install or clean up the hook based on the setting
 case "${RTIME_LOG:-0}" in
     1) install_service_event_hook ;;
     *) remove_service_event_hook ;;
