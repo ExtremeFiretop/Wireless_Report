@@ -1136,28 +1136,27 @@ for node in $MESH_NODES; do
     node_color_idx=$((node_color_idx + 1))
 done
 
-ROUTER=$(nvram get productid); MAIN_NAME="${MAIN_NICK:-${ROUTER:-Main Router}}"
-MAIN_NAME="<span id='wr-main-name' class='router-style'>${MAIN_NAME}</span>"
+MAIN_NAME="<span id='wr-main-name' class='router-style'>Loading Main Router...</span>"
 MAIN_CPU="<span id='wr-main-cpu' class='stat-cool'>--</span>"
 MAIN_MEMORY="<span id='wr-main-memory' class='stat-cool'>--</span>"
-MAIN_DEVICE_TOTAL="<span id='wr-main-count' class='main-color'>0</span>"
+MAIN_DEVICE_TOTAL="<span id='wr-main-count' class='main-color'>--</span>"
 MAIN_UPTIME="<span id='wr-main-uptime' class='main-color'>--</span>"
 MAIN_REBOOT="<span id='wr-main-reboot' class='main-color'>--</span>"
 
-NODE_NAMES="<span id='wr-node-names' class='router-style'>AiMesh nodes</span>"
+NODE_NAMES="<span id='wr-node-names' class='router-style'>Loading AiMesh Nodes...</span>"
 NODE_CPU="<span id='wr-node-cpu' class='stat-cool'>--</span>"
 NODE_MEMORY="<span id='wr-node-memory' class='stat-cool'>--</span>"
-NODE_DEVICE_TOTAL="<span id='wr-node-count' class='stat-cool'>0</span>"
+NODE_DEVICE_TOTAL="<span id='wr-node-count' class='stat-cool'>--</span>"
 NODE_FOOTER="<span id='wr-node-diag'>Controller telemetry pending...</span>"
 
-ALL_NAMES="<span id='wr-all-names' class='router-style'>Loading...</span>"
+ALL_NAMES="<span id='wr-all-names' class='router-style'>Loading All Devices...</span>"
 ALL_CPU="<span id='wr-all-cpu'>--</span>"
 ALL_MEMORY="<span id='wr-all-memory'>--</span>"
-ALL_DEVICES="<span id='wr-all-count' class='stat-cool'>0</span>"
-ALL_FOOTER="<span id='wr-all-footer' class='main-color'>Controller telemetry pending...</span>"
+ALL_DEVICES="<span id='wr-all-count' class='stat-cool'>--</span>"
+ALL_FOOTER="<span id='wr-all-footer'>Controller telemetry pending...</span>"
 
 GRAND_TOTAL_DEVICES="<span id='wr-grand-total' class='count-highlight'>0</span>"
-UPDATED_TIME="<span class='wr-updated-time total-count'>Loading controller data...</span>"
+UPDATED_TIME="<span class='wr-updated-time'>---</span>"
 MAIN_ROWS=""; NODE_ROWS=""; ALL_ROWS=""
 
 RSSI_BOXES="<div class='rssi-quality-box rssi-excl'>Excellent: <span style='background:#30d158;' class='rssi-font wr-rssi-excellent'>0</span></div>
@@ -1203,7 +1202,7 @@ cat <<HTML >> "$WEB_PAGE"
 	.header-box { visibility: hidden; width: max-content; min-width: 120px; background: rgba(0,0,0,0.9); color: white; text-align: center; border: 1px solid #475a68; border-radius: 6px; padding: 8px; position: absolute; z-index: 999; bottom: 135%; left: 50%; transform: translateX(-50%); opacity: 0; transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1), bottom 0.6s cubic-bezier(0.4, 0, 0.2, 1); font-size: 0.85rem; font-weight: bold; box-shadow: 0 4px 12px #000; pointer-events: none; line-height: 1.4; }
 	.header-tooltip { position: relative; display: inline-block; }
 	.header-tooltip:hover .header-box { visibility: visible; opacity: 1; bottom: 145%; }
-    .section-header { color: #ffffff; font-weight: bold; padding: 12px; text-align: center; border-bottom: 1px solid #475a68; }
+    .section-header { color: #ffffff; font-size: 13px; letter-spacing: 0.5px; font-weight: bold; padding: 12px; text-align: center; border-bottom: 1px solid #475a68; }
     .report-column { width: 100%; border-radius: 8px; border: 1px solid #475a68; overflow: hidden; display: flex; flex-direction: column; }
 	.rssi-quality-bar { display: flex; justify-content: center; gap: 12px; align-items: center; width: 100%; margin: -5px auto -5px auto; padding: 0; background: transparent; border: none; height: auto; }
 	.rssi-quality-box { display: inline-block; height: 28px; line-height: 26px; text-align: center; padding: 0 12px; border-radius: 4px; background: rgba(0,0,0,0.4); border: 1px solid #475a68; font-weight: bold; box-sizing: border-box; transition: all 0.2s ease; }
@@ -1339,6 +1338,7 @@ var WR_NODE_COLOR_BY_IP = {};
 $NODE_COLOR_JS
 
 var WR_CONFIG = {
+    mainNick: "${MAIN_NICK:-}",
     mainColor: "$MAIN_COLOR",
     nodeColors: String("$NODE_COLORS").trim().split(/\s+/).filter(Boolean),
     hostColor: Number("${HOST_COLOR:-0}") || 0,
@@ -1464,7 +1464,7 @@ function update_time() {
     let formattedTime = formatDateTimeStamp(now, true);
 
     document.querySelectorAll('.wr-updated-time').forEach(function(el) {
-        el.textContent = 'Updated: ' + formattedTime;
+        el.textContent = formattedTime;
     });
 
     window._lastFormattedTime = formattedTime;
@@ -3847,8 +3847,12 @@ async function loadWirelessReport() {
     }
     var mainHealth = { cpuUsage: mainCpu, memoryUsage: mainMemory };
 
+    // Added MAIN_NICK to WR_CONFIG if present, use it as the main router display name instead of productid.
     var mainNameEl = document.getElementById('wr-main-name');
-    if (mainNameEl && !mainNameEl.textContent.trim()) mainNameEl.textContent = base.productid || 'Main Router';
+    if (mainNameEl && (!mainNameEl.textContent.trim() || mainNameEl.textContent.includes('Loading'))) {
+        var displayName = (typeof WR_CONFIG !== 'undefined' && WR_CONFIG.mainNick) ? WR_CONFIG.mainNick : (base.productid || 'Main Router');
+        mainNameEl.textContent = displayName;
+    }
 
     // Set Main Router specific metrics only here
     wrSetMetric('wr-main-cpu', mainHealth.cpuUsage, '%');
@@ -4480,7 +4484,7 @@ document.addEventListener('mouseout', function(e) {
                             <div id="mainCol" class="report-column">
                                 <div class="section-header">
                                     $MAIN_NAME<br>
-                                    $UPDATED_TIME
+                                    <span>Updated: $UPDATED_TIME</span>
                                     <hr class="separator-line">
                                     <div class="temp-load-row">
                                         <span>CPU: $MAIN_CPU</span>
@@ -4515,7 +4519,7 @@ document.addEventListener('mouseout', function(e) {
                             <div id="nodeCol" class="report-column">
                                 <div class="section-header">
                                     $NODE_NAMES<br>
-                                    $UPDATED_TIME
+                                    <span>Updated: $UPDATED_TIME</span>
                                     <hr class="separator-line">
                                     <div class="temp-load-row">
                                         <span>CPU: $NODE_CPU</span>
@@ -4547,7 +4551,7 @@ document.addEventListener('mouseout', function(e) {
                         <div id="allCol" class="report-column">
                             <div class="section-header">
                                 $ALL_NAMES<br>
-                                $UPDATED_TIME
+                                <span>Updated: $UPDATED_TIME</span>
                                 <hr class="separator-line">
                                 <div class="temp-load-row">
                                     <span>CPU: $ALL_CPU</span>
