@@ -4480,7 +4480,7 @@ document.addEventListener('mouseout', function(e) {
                         <div id="splitView">
                             <div id="mainCol" class="report-column">
                                 <div class="section-header">
-                                    $MAIN_NAME<br>
+                                    <span>$MAIN_NAME</span><br>
                                     <span>Updated: $UPDATED_TIME</span>
                                     <hr class="separator-line">
                                     <div class="temp-load-row">
@@ -4511,11 +4511,11 @@ document.addEventListener('mouseout', function(e) {
                                 </table>
                             </div>
                             <div class="rssi-quality-bar">
-                                $RSSI_BOXES
+                                <span>$RSSI_BOXES</span>
                             </div>
                             <div id="nodeCol" class="report-column">
                                 <div class="section-header">
-                                    $NODE_NAMES<br>
+                                    <span>$NODE_NAMES</span><br>
                                     <span>Updated: $UPDATED_TIME</span>
                                     <hr class="separator-line">
                                     <div class="temp-load-row">
@@ -4538,7 +4538,7 @@ document.addEventListener('mouseout', function(e) {
                                     <tfoot>
                                         <tr>
                                             <td colspan="7" class="uptime-row">
-                                                $NODE_FOOTER
+                                                <span>$NODE_FOOTER</span>
                                             </td>
                                         </tr>
                                     </tfoot>
@@ -4547,7 +4547,7 @@ document.addEventListener('mouseout', function(e) {
                         </div>
                         <div id="allCol" class="report-column">
                             <div class="section-header">
-                                $ALL_NAMES<br>
+                                <span>$ALL_NAMES</span><br>
                                 <span>Updated: $UPDATED_TIME</span>
                                 <hr class="separator-line">
                                 <div class="temp-load-row">
@@ -4570,14 +4570,14 @@ document.addEventListener('mouseout', function(e) {
                                 <tfoot>
                                     <tr>
                                         <td colspan="7" class="uptime-row">
-                                            $ALL_FOOTER
+                                            <span>$ALL_FOOTER</span>
                                         </td>
                                     </tr>
                                 </tfoot>
                             </table>
                         </div>
                         <div id="allDevicesQualityBar" class="rssi-quality-bar">
-                            $RSSI_BOXES
+                            <span>$RSSI_BOXES</span>
                         </div>
                     </div>
                 </div>
