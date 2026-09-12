@@ -469,11 +469,11 @@ set_nicknames() {
             selection
             case "$choice" in
                 1)
-                    echo -e "\n$BL[+] Resetting to hardware defaults...$NC\n"
+                    echo -e "\n$BL[+] Resetting to hardware defaults...$NC"
                     OLD_NAME="${MAIN_NICK:-$MAIN_ROUTER}"
                     sed -i '/^MAIN_NICK=/d' "$CONFIG"
                     unset MAIN_NICK
-                    echo -e "    ${MAIN_CLR}$OLD_NAME -> $MAIN_ROUTER$NC"; sleep 1
+                    printf "\n    ${MAIN_CLR}$OLD_NAME -> $MAIN_ROUTER$NC"; sleep 1
                     if [ -n "$MESH_NODES" ] && [ "$MESH_NODES" != " " ]; then
                         node_idx=1
                         for node in $VALID_NODES; do
@@ -483,23 +483,22 @@ set_nicknames() {
                             eval "unset NODE_NICK_$CLEAN_IP"
                             HEX_CLR=$(echo "$NODE_COLORS" | awk -v i="$node_idx" '{print $i}')
                             NODE_CLR=$(hex_to_ansi "$HEX_CLR")
-                            echo -e "    ${NODE_CLR}${OLD_NICK:-$MODEL} -> $MODEL$NC"; sleep 1
+                            printf "\n    ${NODE_CLR}${OLD_NICK:-$MODEL} -> $MODEL$NC"; sleep 1
                             node_idx=$((node_idx + 1))
                         done
                     fi
-                    echo -e "\n$GR[+] Default hardware models restored.$NC"
-                    pause ;;
+                    printf "\n\n$GR[+] Default hardware models restored.$NC\n" ;;
                 2)
-                    echo -e "\n$BL[*] Updating nicknames with Locations...$NC\n"
+                    echo -e "\n$BL[*] Updating nicknames with Locations...$NC"
                     OLD_NAME="${MAIN_NICK:-$MAIN_ROUTER}"
                     NEW_LOC=$(nvram get cfg_alias)
                     sed -i '/^MAIN_NICK=/d' "$CONFIG"
                     if [ -n "$NEW_LOC" ]; then
                         echo "MAIN_NICK=\"$NEW_LOC\"" >> "$CONFIG"
-                        echo -e "    ${MAIN_CLR}$OLD_NAME -> $NEW_LOC$NC"; sleep 1
+                        printf "\n    ${MAIN_CLR}$OLD_NAME -> $NEW_LOC$NC"; sleep 1
                     else
                         unset MAIN_NICK
-                        echo -e "    ${MAIN_CLR}$OLD_NAME -> $MAIN_ROUTER (Default)$NC"; sleep 1
+                        printf "\n    ${MAIN_CLR}$OLD_NAME -> $MAIN_ROUTER (Default)$NC"; sleep 1
                     fi
                     node_idx=1
                     for node in $VALID_NODES; do
@@ -511,19 +510,18 @@ set_nicknames() {
                         NODE_CLR=$(hex_to_ansi "$HEX_CLR")
                         if [ -n "$NODE_LOC" ]; then
                             echo "NODE_NICK_$CLEAN_IP=\"$NODE_LOC\"" >> "$CONFIG"
-                            echo -e "    ${NODE_CLR}${OLD_NICK:-$MODEL} -> $NODE_LOC$NC"; sleep 1
+                            printf "\n    ${NODE_CLR}${OLD_NICK:-$MODEL} -> $NODE_LOC$NC"; sleep 1
                         else
                             eval "unset NODE_NICK_$CLEAN_IP"
-                            echo -e "    ${NODE_CLR}${OLD_NICK:-$MODEL} -> $MODEL (Default)$NC"; sleep 1
+                            printf "\n    ${NODE_CLR}${OLD_NICK:-$MODEL} -> $MODEL (Default)$NC"; sleep 1
                         fi
                         node_idx=$((node_idx + 1))
                     done
-                    echo -e "\n$GR[+] Nicknames updated to Locations...$NC"
-                    pause ;;
+                    printf "\n\n$GR[+] Nicknames updated to Locations...$NC\n" ;;
                 3)
-                    echo -e "\n$BL[*] Manual Entry Mode\n$NC"
+                    echo -e "\n$BL[*] Manual Entry Mode$NC"
                     OLD_MAIN="${MAIN_NICK:-$MAIN_ROUTER}"
-                    printf "  ${MAIN_CLR}Main $MAIN_IP [$OLD_MAIN]:$NC "; read -r manual_main
+                    printf "\n  ${MAIN_CLR}Main $MAIN_IP [$OLD_MAIN]:$NC "; read -r manual_main
                     if [ -n "$manual_main" ]; then
                         manual_main="${manual_main:0:25}"
                         sed -i '/^MAIN_NICK=/d' "$CONFIG"
@@ -543,14 +541,13 @@ set_nicknames() {
                         fi
                         node_idx=$((node_idx + 1))
                     done
-                    echo -e "\n$GR[+] Manual nicknames saved (max 25 chars).$NC"
-                    pause ;;
+                    printf "\n$GR[+] Manual nicknames saved (max 25 chars).$NC\n" ;;
                 e|E)
                     return ;;
                 *)
                     freeze 2; continue ;;
             esac
-            break
+            pause; break
         done
         run_report
     done
