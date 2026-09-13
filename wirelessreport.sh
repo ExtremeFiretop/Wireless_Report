@@ -810,14 +810,9 @@ set_options() {
                         printf "$BL Enter alert interval in mins:$GR "; read -r user_mins
                         case "$user_mins" in ""|*[!0-9]*) freeze 3; continue ;; esac
                         if [ "$user_mins" -le 1440 ]; then
-                            if grep -q "PULSE_MINS=" "$CONFIG"; then
-                                sed -i "s/PULSE_MINS=.*/PULSE_MINS=\"$user_mins\"/" "$CONFIG"
-                            else
-                                echo "PULSE_MINS=\"$user_mins\"" >> "$CONFIG"
-                            fi
-                            break 2
-                        fi
-                        freeze 3
+                            if grep -q "PULSE_MINS=" "$CONFIG"; then sed -i "s/PULSE_MINS=.*/PULSE_MINS=\"$user_mins\"/" "$CONFIG"
+                            else echo "PULSE_MINS=\"$user_mins\"" >> "$CONFIG"; fi; break 2
+                        fi; freeze 3
                     done
                     pause ;;
                 4)
@@ -926,12 +921,8 @@ set_rssi() {
                     while true; do
                         printf "\n$NC Enter new depth (${BL}5-20$NC) [Current: $CE]: "; read -r new_depth
                         case "$new_depth" in *[!0-9]*|"") freeze 2; continue ;; esac
-                        if [ "$new_depth" -ge 5 ] && [ "$new_depth" -le 20 ]; then
-                            CUR_ENTRIES="$new_depth"
-                            break 2
-                        else
-                            freeze 2; continue
-                        fi
+                        if [ "$new_depth" -ge 5 ] && [ "$new_depth" -le 20 ]; then CUR_ENTRIES="$new_depth"; break 2
+                        else freeze 2; continue; fi
                     done ;;
                 3)
                     case "$CUR_DATE" in 1) CUR_DATE="0" ;; *) CUR_DATE="1" ;; esac ;;
@@ -944,11 +935,8 @@ set_rssi() {
                     RS_HIST_DATE="$CUR_DATE"
                     for var in RS_HIST RS_HIST_ENTRIES RS_HIST_DATE; do
                         eval "val=\$${var}"
-                        if grep -q "^$var=" "$CONFIG"; then
-                            sed -i "s|^$var=.*|$var=\"$val\"|" "$CONFIG"
-                        else
-                            echo "$var=\"$val\"" >> "$CONFIG"
-                        fi
+                        if grep -q "^$var=" "$CONFIG"; then sed -i "s|^$var=.*|$var=\"$val\"|" "$CONFIG"
+                        else echo "$var=\"$val\"" >> "$CONFIG"; fi
                     done
                     echo -e "\n$GR[+] RSSI history configuration saved.$NC"
                     unset CUR_RS_HIST CUR_ENTRIES CUR_DATE
@@ -1830,7 +1818,11 @@ function wrRssiHistoryLocation(item) {
     if (item && item.meshLinkNode) return wrNodeDisplayName(item.meshLinkNode);
     if (item && item.node) return wrNodeDisplayName(item.node);
     var el = document.getElementById('wr-main-name');
-    return el && el.textContent.trim() ? el.textContent.trim() : 'Main Router';
+    var text = el ? el.textContent.trim() : '';
+    if (!text || text.indexOf('Loading') !== -1) {
+        return "$MAIN_NAME" || 'Main Router'; // Fallback to your server-injected main name variable
+    }
+    return text;
 }
 
 function wrRssiHistoryEntry(item, rssi, nowMs) {
