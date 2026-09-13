@@ -2910,16 +2910,34 @@ async function wrAppGet(hook) {
 // is returned, so Wireless Report never sees them through its normal inventory.
 // Treat YazFi's JSON as an optional discovery source only: native ASUS records win
 // on duplicate MACs, and the existing WR validation chain remains authoritative.
+// YazFi only supports the 3.0.0.4 firmware family, so never probe its WebUI feed on
+// 3.0.0.6 controllers. Cache a missing feed for the page session to avoid repeating
+// a harmless 404 on eligible routers where YazFi is not installed/enabled.
+var WR_YAZFI_ELIGIBLE = null;
+var WR_YAZFI_AVAILABLE = null;
+
+function wrControllerSupportsYazFi(base) {
+    var firmver = String(base && base.firmver || '').trim();
+    return /^3\.0\.0\.4(?:\.|$)/.test(firmver);
+}
+
 async function wrGetYazFiCandidates() {
+    if (WR_YAZFI_AVAILABLE === false) return [];
+
     try {
         var r = await fetch('/ext/YazFi/networkmap_clients.json?_=' + Date.now(), {
             method: 'GET',
             credentials: 'same-origin',
             cache: 'no-store'
         });
-        if (!r.ok) return [];
+        if (!r.ok) {
+            if (r.status === 404) WR_YAZFI_AVAILABLE = false;
+            return [];
+        }
         var data = await r.json();
-        return Array.isArray(data) ? data : [];
+        if (!Array.isArray(data)) return [];
+        WR_YAZFI_AVAILABLE = true;
+        return data;
     } catch (_) {
         return [];
     }
@@ -3674,13 +3692,15 @@ async function wrResolveStaOnOtherAps(item, staTargets, nodeByMac, mainMac, staM
 }
 
 async function loadWirelessReport() {
-    // Primary memory and optional YazFi discovery both start alongside the ASUS
-    // client inventory so neither adds latency to the normal report refresh.
+    // Primary memory starts alongside the ASUS client inventory. Once the controller
+    // is known to be YazFi-eligible, its optional discovery feed can do the same on
+    // later refreshes without ever probing unsupported 3.0.0.6 firmware.
     var mainMemoryPromise = wrGetMainMemoryUsage().catch(function(e) {
         console.warn('Primary memory query failed', e);
         return null;
     });
-    var yazfiCandidatesPromise = wrGetYazFiCandidates();
+    var yazfiCandidatesPromise = WR_YAZFI_ELIGIBLE === true
+        ? wrGetYazFiCandidates() : null;
 
     var base = await wrAppGet(
         'get_cfg_clientlist();' +
@@ -3695,8 +3715,14 @@ async function loadWirelessReport() {
         'uptime();'
     );
 
+    if (WR_YAZFI_ELIGIBLE === null)
+        WR_YAZFI_ELIGIBLE = wrControllerSupportsYazFi(base);
+    if (WR_YAZFI_ELIGIBLE && !yazfiCandidatesPromise)
+        yazfiCandidatesPromise = wrGetYazFiCandidates();
+
     var live = base.get_clientlist || {};
-    var yazfiImported = wrMergeYazFiCandidates(live, await yazfiCandidatesPromise);
+    var yazfiCandidates = yazfiCandidatesPromise ? await yazfiCandidatesPromise : [];
+    var yazfiImported = wrMergeYazFiCandidates(live, yazfiCandidates);
     if (yazfiImported > 0) {
         console.info('Wireless Report imported ' + yazfiImported + ' YazFi candidate' +
             (yazfiImported === 1 ? '' : 's') + '.');
