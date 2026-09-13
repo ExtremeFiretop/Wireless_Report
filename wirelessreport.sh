@@ -1133,14 +1133,14 @@ for node in $MESH_NODES; do
     node_color_idx=$((node_color_idx + 1))
 done
 
-MAIN_NAME="<span id='wr-main-name' class='router-style'>Loading Main Router...</span>"
+MAIN_NAME="<span id='wr-main-name' class='router-style'>Loading Main Router Devices...</span>"
 MAIN_CPU="<span id='wr-main-cpu' class='stat-cool'>--</span>"
 MAIN_MEMORY="<span id='wr-main-memory' class='stat-cool'>--</span>"
 MAIN_DEVICE_TOTAL="<span id='wr-main-count' class='main-color'>--</span>"
 MAIN_UPTIME="<span id='wr-main-uptime' class='main-color'>--</span>"
 MAIN_REBOOT="<span id='wr-main-reboot' class='main-color'>--</span>"
 
-NODE_NAMES="<span id='wr-node-names' class='router-style'>Loading AiMesh Nodes...</span>"
+NODE_NAMES="<span id='wr-node-names' class='router-style'>Loading AiMesh Node Devices...</span>"
 NODE_CPU="<span id='wr-node-cpu' class='stat-cool'>--</span>"
 NODE_MEMORY="<span id='wr-node-memory' class='stat-cool'>--</span>"
 NODE_DEVICE_TOTAL="<span id='wr-node-count' class='stat-cool'>--</span>"
@@ -1257,7 +1257,7 @@ cat <<HTML >> "$WEB_PAGE"
     tfoot td > span:not(:last-child) { margin-right: 6px; }
 	#splitView { display: flex; flex-direction: column; gap: 15px; width: 100%; }
     #allCol { display: none; width: 100% ; align-self: flex-start; }
-    .router-style { color: $MAIN_COLOR; font-size: 20px; font-weight: bold; text-transform: uppercase; display: inline-block; margin-bottom: 4px; }
+    .router-style { color: $MAIN_COLOR; font-size: 20px; font-weight: bold; display: inline-block; margin-bottom: 4px; }
     .temp-load-row { display: block; font-size: 14px; color: #f2f2f7; margin-top: 11px; font-weight: bold; white-space: nowrap; width: 100%; overflow: visible !important; text-align: center; justify-content: center; }
     .temp-load-row > span:not(:last-child) { margin-right: 1px; }
 	.uptime-row { text-align: center; justify-content: center; font-size: 14px; }
