@@ -1817,12 +1817,16 @@ function wrRssiHistoryBand(item) {
 function wrRssiHistoryLocation(item) {
     if (item && item.meshLinkNode) return wrNodeDisplayName(item.meshLinkNode);
     if (item && item.node) return wrNodeDisplayName(item.node);
-    var el = document.getElementById('wr-main-name');
-    var text = el ? el.textContent.trim() : '';
-    if (!text || text.indexOf('Loading') !== -1) {
-        return "$MAIN_NAME" || 'Main Router'; // Fallback to your server-injected main name variable
+    if (typeof WR_CONFIG !== 'undefined' && WR_CONFIG.mainNick && WR_CONFIG.mainNick.trim() !== '') {
+        return WR_CONFIG.mainNick;
     }
-    return text;
+    if (typeof base !== 'undefined' && base && base.productid) {
+        return base.productid;
+    }
+    if (typeof productid !== 'undefined' && productid) {
+        return productid;
+    }
+    return '';
 }
 
 function wrRssiHistoryEntry(item, rssi, nowMs) {
