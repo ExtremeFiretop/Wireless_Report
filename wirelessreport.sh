@@ -765,7 +765,7 @@ set_options() {
         echo -e "  $N1  Toggle Runtime Tracking: ($RT_STAT)           "
         echo -e "  $N2  Toggle Wireless Backhaul: ($WB_STAT)          "
         echo -e "  $N3  Configure Uptime Alert Pulse: ($UP_STAT)      "
-        echo -e "  $N4  Toggle IP Padding: ($PD_STAT)                 "
+        echo -e "  $N4  Toggle IP Column Padding: ($PD_STAT)          "
         echo -e "  $N5  Toggle Node Hostname Display: ($HN_STAT)      "
         echo -e "                                                     "
         echo -e "  $LE  Exit back to main menu                        "
@@ -1323,19 +1323,19 @@ var WR_NODE_COLOR_BY_IP = {};
 $NODE_COLOR_JS
 
 var WR_CONFIG = {
-    mainNick: "${MAIN_NICK:-}",
-    mainColor: "$MAIN_COLOR",
-    nodeColors: String("$NODE_COLORS").trim().split(/\s+/).filter(Boolean),
+    backHaul: Number("${BACKHAUL:-0}") || 0,
     hostColor: Number("${HOST_COLOR:-0}") || 0,
+    ipPad: Number("${IPPAD:-1}") || 0,
+    mainColor: "$MAIN_COLOR",
+    mainNick: "${MAIN_NICK:-}",
+    nodeColors: String("$NODE_COLORS").trim().split(/\s+/).filter(Boolean),
     pulseMins: Number("${PULSE_MINS:-15}") || 15,
     reportUnit: String("${REPORT_UNIT:-USA}"),
-    runtimeTracking: Number("${RTIME:-1}") || 0,
-    runtimeLog: Number("${RTIME_LOG:-0}") || 0,
-    ipPad: Number("${IPPAD:-1}") || 0,
     rssiHistory: Number("${RS_HIST:-0}") || 0,
-    rssiHistoryEntries: Number("${RS_HIST_ENTRIES:-5}") || 5,
     rssiHistoryDate: Number("${RS_HIST_DATE:-0}") || 0,
-    backHaul: Number("${BACKHAUL:-0}") || 0
+    rssiHistoryEntries: Number("${RS_HIST_ENTRIES:-5}") || 5,
+    runtimeLog: Number("${RTIME_LOG:-0}") || 0,
+    runtimeTracking: Number("${RTIME:-1}") || 0
 };
 
 var WR_PAGE_GENERATION = "$WR_GENERATION";
