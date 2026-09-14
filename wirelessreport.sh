@@ -1142,8 +1142,8 @@ ALL_FOOTER="<span id='wr-all-footer'>Controller telemetry pending...</span>"
 
 GRAND_TOTAL_DEVICES="<span id='wr-grand-total' class='count-highlight'>0</span>"
 UPDATED_TIME="<span class='wr-updated-time'>---</span>"
-MAIN_ROWS=""; NODE_ROWS=""; ALL_ROWS=""
 
+MAIN_ROWS=""; NODE_ROWS=""; ALL_ROWS=""
 RSSI_BOXES="<div class='rssi-quality-box rssi-excl'>Excellent: <span style='background:#30d158;' class='rssi-font wr-rssi-excellent'>0</span></div>
     <div class='rssi-quality-box rssi-good'>Good: <span style='background:#64d2ff;' class='rssi-font wr-rssi-good'>0</span></div>
     <div class='rssi-quality-box rssi-fair'>Fair: <span style='background:#ffd60a;' class='rssi-font wr-rssi-fair'>0</span></div>
