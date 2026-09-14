@@ -2906,6 +2906,103 @@ async function wrAppGet(hook) {
     return r.json();
 }
 
+// YazFi clients are added to ASUS' browser-side Network Map after get_clientlist()
+// is returned, so Wireless Report never sees them through its normal inventory.
+// Treat YazFi's JSON as an optional discovery source only: native ASUS records win
+// on duplicate MACs, and the existing WR validation chain remains authoritative.
+// YazFi only supports the 3.0.0.4 firmware family, so never probe its WebUI feed on
+// 3.0.0.6 controllers. Cache a missing feed for the page session to avoid repeating
+// a harmless 404 on eligible routers where YazFi is not installed/enabled.
+var WR_YAZFI_ELIGIBLE = null;
+var WR_YAZFI_AVAILABLE = null;
+
+function wrControllerSupportsYazFi(base) {
+    var firmver = String(base && base.firmver || '').trim();
+    return /^3\.0\.0\.4(?:\.|$)/.test(firmver);
+}
+
+async function wrGetYazFiCandidates() {
+    if (WR_YAZFI_AVAILABLE === false) return [];
+
+    try {
+        var r = await fetch('/ext/YazFi/networkmap_clients.json?_=' + Date.now(), {
+            method: 'GET',
+            credentials: 'same-origin',
+            cache: 'no-store'
+        });
+        if (!r.ok) {
+            if (r.status === 404) WR_YAZFI_AVAILABLE = false;
+            return [];
+        }
+        var data = await r.json();
+        if (!Array.isArray(data)) return [];
+        WR_YAZFI_AVAILABLE = true;
+        return data;
+    } catch (_) {
+        return [];
+    }
+}
+
+function wrMergeYazFiCandidates(live, yazfiClients) {
+    if (!live || typeof live !== 'object' || Array.isArray(live)) return 0;
+    if (!Array.isArray(yazfiClients) || !yazfiClients.length) return 0;
+
+    var existing = new Set();
+    Object.entries(live).forEach(function(entry) {
+        var client = entry[1] || {};
+        var mac = wrNormMac(client.mac || entry[0]);
+        if (wrIsMac(mac)) existing.add(mac);
+    });
+
+    var imported = 0;
+    yazfiClients.forEach(function(guest) {
+        if (!guest) return;
+
+        var mac = wrNormMac(guest.mac);
+        var ip = String(guest.ip || '').trim();
+        if (!wrIsMac(mac) || !ip || existing.has(mac)) return;
+
+        var iface = String(guest.iface || '').trim();
+        var ifaceMatch = iface.match(/^wl([0-9]+)(?:\.[0-9]+)?$/i);
+        if (!ifaceMatch) iface = '';
+
+        var isWL = guest.isWL === undefined || guest.isWL === null
+            ? '' : String(guest.isWL).trim();
+        if (!isWL && ifaceMatch) isWL = String(Number(ifaceMatch[1]) + 1);
+        var isWLNum = Number(isWL);
+        if (!Number.isFinite(isWLNum) || Math.floor(isWLNum) !== isWLNum || isWLNum <= 0) return;
+
+        var candidate = {
+            mac: mac,
+            ip: ip,
+            name: guest.name ? String(guest.name) : '',
+            isWL: String(isWLNum),
+            _wrSource: 'yazfi'
+        };
+
+        var isGN = guest.isGN === undefined || guest.isGN === null
+            ? '' : String(guest.isGN).trim();
+        var isGNNum = Number(isGN);
+        if (isGN && Number.isFinite(isGNNum) && Math.floor(isGNNum) === isGNNum && isGNNum > 0)
+            candidate.isGN = String(isGNNum);
+        if (guest.rssi !== undefined && guest.rssi !== null && String(guest.rssi).trim() !== '')
+            candidate.rssi = String(guest.rssi);
+        if (iface) candidate.ifname = iface;
+        if (guest.curTx !== undefined && guest.curTx !== null)
+            candidate.curTx = String(guest.curTx);
+        if (guest.curRx !== undefined && guest.curRx !== null)
+            candidate.curRx = String(guest.curRx);
+        if (guest.wlConnectTime)
+            candidate.wlConnectTime = String(guest.wlConnectTime);
+
+        live[mac] = candidate;
+        existing.add(mac);
+        imported++;
+    });
+
+    return imported;
+}
+
 async function wrDiagLatest(db, content, filter) {
     var r = await fetch('/get_diag_latest_content_data.cgi', {
         method: 'POST',
@@ -3595,12 +3692,15 @@ async function wrResolveStaOnOtherAps(item, staTargets, nodeByMac, mainMac, staM
 }
 
 async function loadWirelessReport() {
-    // Primary memory remains a direct WebUI measurement. Start it alongside the
-    // client inventory so it does not add latency to the normal report refresh.
+    // Primary memory starts alongside the ASUS client inventory. Once the controller
+    // is known to be YazFi-eligible, its optional discovery feed can do the same on
+    // later refreshes without ever probing unsupported 3.0.0.6 firmware.
     var mainMemoryPromise = wrGetMainMemoryUsage().catch(function(e) {
         console.warn('Primary memory query failed', e);
         return null;
     });
+    var yazfiCandidatesPromise = WR_YAZFI_ELIGIBLE === true
+        ? wrGetYazFiCandidates() : null;
 
     var base = await wrAppGet(
         'get_cfg_clientlist();' +
@@ -3615,7 +3715,18 @@ async function loadWirelessReport() {
         'uptime();'
     );
 
+    if (WR_YAZFI_ELIGIBLE === null)
+        WR_YAZFI_ELIGIBLE = wrControllerSupportsYazFi(base);
+    if (WR_YAZFI_ELIGIBLE && !yazfiCandidatesPromise)
+        yazfiCandidatesPromise = wrGetYazFiCandidates();
+
     var live = base.get_clientlist || {};
+    var yazfiCandidates = yazfiCandidatesPromise ? await yazfiCandidatesPromise : [];
+    var yazfiImported = wrMergeYazFiCandidates(live, yazfiCandidates);
+    if (yazfiImported > 0) {
+        console.info('Wireless Report imported ' + yazfiImported + ' YazFi candidate' +
+            (yazfiImported === 1 ? '' : 's') + '.');
+    }
     var saved = base.get_clientlist_from_json_database || {};
     var allNodes = Array.isArray(base.get_cfg_clientlist) ? base.get_cfg_clientlist : [];
     var mainMac = wrNormMac(base.lan_hwaddr || '');
