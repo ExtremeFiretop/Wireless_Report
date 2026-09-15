@@ -816,12 +816,12 @@ set_options() {
                     done
                     pause ;;
                 4)
-                    echo -e "\n$BL IP Column Padding$NC --> ($PD_STAT) \n"
-                    echo -e "  $N1 192.168.50.3     $RD(Disabled)     $NC"
-                    echo -e "  $N2 192.168.50.003   $BL(Last Octet)   $NC"
-                    echo -e "  $N3 192.168.050.003  $GR(Last 2 Octets)$NC"
-                    echo -e "                                            "
-                    echo -e "  $LE Exit back to Set Options Menu         "
+                    echo -e "\n$BL IP Column Padding$NC --> ($PD_STAT)\n"
+                    echo -e "  $N1 192.168.50.3     $RD(Disabled)       "
+                    echo -e "  $N2 192.168.50.003   $BL(Last Octet)     "
+                    echo -e "  $N3 192.168.050.003  $GR(Last 2 Octets)  "
+                    echo -e "                                           "
+                    echo -e "  $LE Exit back to Set Options Menu        "
                     while true; do
                         selection
                         case "$choice" in
