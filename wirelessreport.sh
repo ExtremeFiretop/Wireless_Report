@@ -1052,19 +1052,16 @@ handle_service_event() {
             old_ifs=$IFS
             IFS='_'; set -- $payload; IFS=$old_ifs
             [ "$#" -eq 5 ] || return 0
-
             current_cs=$1; avg_cs=$2; low_cs=$3; high_cs=$4; count=$5
             for value in "$current_cs" "$avg_cs" "$low_cs" "$high_cs" "$count"; do
                 case "$value" in ""|*[!0-9]*) return 0 ;; esac
                 [ "${#value}" -le 9 ] || return 0
             done
-
             local current avg low high
             current=$(printf '%d.%02d' "$((current_cs / 100))" "$((current_cs % 100))")
             avg=$(printf '%d.%02d' "$((avg_cs / 100))" "$((avg_cs % 100))")
             low=$(printf '%d.%02d' "$((low_cs / 100))" "$((low_cs % 100))")
             high=$(printf '%d.%02d' "$((high_cs / 100))" "$((high_cs % 100))")
-
             sys_log "Report completed in ${current}s. AVG: ${avg}s (L: ${low}s/H: ${high}s) over ${count} scans."
             ;;
     esac
@@ -1120,34 +1117,6 @@ for node in $MESH_NODES; do
     esac
     node_color_idx=$((node_color_idx + 1))
 done
-
-MAIN_NAME="<span id='wr-main-name' class='router-style pulse-active'>Loading Main Router Devices...</span>"
-MAIN_CPU="<span id='wr-main-cpu' class='stat-cool'>--</span>"
-MAIN_MEMORY="<span id='wr-main-memory' class='stat-cool'>--</span>"
-MAIN_DEVICE_TOTAL="<span id='wr-main-count' class='main-color'>--</span>"
-MAIN_UPTIME="<span id='wr-main-uptime' class='main-color'>--</span>"
-MAIN_REBOOT="<span id='wr-main-reboot' class='main-color'>--</span>"
-
-NODE_NAMES="<span id='wr-node-names' class='router-style pulse-active'>Loading AiMesh Node Devices...</span>"
-NODE_CPU="<span id='wr-node-cpu' class='stat-cool'>--</span>"
-NODE_MEMORY="<span id='wr-node-memory' class='stat-cool'>--</span>"
-NODE_DEVICE_TOTAL="<span id='wr-node-count' class='stat-cool'>--</span>"
-NODE_FOOTER="<span id='wr-node-diag'>Controller telemetry pending...</span>"
-
-ALL_NAMES="<span id='wr-all-names' class='router-style pulse-active'>Loading All Devices...</span>"
-ALL_CPU="<span id='wr-all-cpu'>--</span>"
-ALL_MEMORY="<span id='wr-all-memory'>--</span>"
-ALL_DEVICES="<span id='wr-all-count' class='stat-cool'>--</span>"
-ALL_FOOTER="<span id='wr-all-footer'>Controller telemetry pending...</span>"
-
-GRAND_TOTAL_DEVICES="<span id='wr-grand-total' class='count-highlight'>0</span>"
-UPDATED_TIME="<span class='wr-updated-time'>---</span>"
-
-MAIN_ROWS=""; NODE_ROWS=""; ALL_ROWS=""
-RSSI_BOXES="<div class='rssi-quality-box rssi-excl'>Excellent: <span style='background:#30d158;' class='rssi-font wr-rssi-excellent'>0</span></div>
-    <div class='rssi-quality-box rssi-good'>Good: <span style='background:#64d2ff;' class='rssi-font wr-rssi-good'>0</span></div>
-    <div class='rssi-quality-box rssi-fair'>Fair: <span style='background:#ffd60a;' class='rssi-font wr-rssi-fair'>0</span></div>
-    <div class='rssi-quality-box rssi-poor'>Poor: <span style='background:#ff453a;' class='rssi-font wr-rssi-poor'>0</span></div>"
 
 get_theme; check_version header_box
 
@@ -4571,7 +4540,7 @@ document.addEventListener('mouseout', function(e) {
                                 <span class="header-box">$HOVER_TEXT</span>
                             </div>
                         </div>
-                        <div class="total-count">Total Wireless Devices: $GRAND_TOTAL_DEVICES</div>
+                        <div class="total-count">Total Wireless Devices: <span id="wr-grand-total" class="count-highlight">0</span></div>
                         <div class="top-buttons">
                             <div class="button-refresh">
                                 <button class="button-trigger button-tables" onclick="triggerRefresh()">
@@ -4602,13 +4571,13 @@ document.addEventListener('mouseout', function(e) {
                         <div id="splitView">
                             <div id="mainCol" class="report-column">
                                 <div class="section-header">
-                                    <span>$MAIN_NAME</span><br>
-                                    <span>Updated: $UPDATED_TIME</span>
+                                    <span id='wr-main-name' class='router-style pulse-active'>Loading Main Router Devices...</span><br>
+                                    Updated: <span class="wr-updated-time">--- ---</span>
                                     <hr class="separator-line">
                                     <div class="temp-load-row">
-                                        <span>CPU: $MAIN_CPU</span>
-                                        <span>Memory: $MAIN_MEMORY</span>
-                                        <span>Devices: $MAIN_DEVICE_TOTAL</span>
+                                        CPU: <span id='wr-main-cpu' class='stat-cool'>--</span>
+                                        Memory: <span id='wr-main-memory' class='stat-cool'>--</span>
+                                        Devices: <span id='wr-main-count' class='main-color'>--</span>
                                     </div>
                                 </div>
                                 <table id="mainTable" class="report_table show-ip">
@@ -4621,29 +4590,32 @@ document.addEventListener('mouseout', function(e) {
                                         <th onclick="sortTable(5, 'mainTable')">BAND<span class='sup-header'>ᵐʰᶻ</span></th>
                                         <th onclick="sortTable(6, 'mainTable')">UPTIME</th>
                                     </tr></thead>
-                                    <tbody>$MAIN_ROWS</tbody>
+                                    <tbody></tbody>
                                     <tfoot>
                                         <tr>
                                             <td colspan="7" class="uptime-row">
-                                                <span>Uptime: $MAIN_UPTIME</span>
-                                                <span>Reboot: $MAIN_REBOOT</span>
+                                                <span>Uptime: <span id='wr-main-uptime' class='main-color'>--</span></span>
+                                                <span>Reboot: <span id='wr-main-reboot' class='main-color'>--</span></span>
                                             </td>
                                         </tr>
                                     </tfoot>
                                 </table>
                             </div>
                             <div class="rssi-quality-bar">
-                                <span>$RSSI_BOXES</span>
+                                <div class='rssi-quality-box rssi-excl'>Excellent: <span style='background:#30d158;' class='rssi-font wr-rssi-excellent'>0</span></div>
+                                <div class='rssi-quality-box rssi-good'>Good: <span style='background:#64d2ff;' class='rssi-font wr-rssi-good'>0</span></div>
+                                <div class='rssi-quality-box rssi-fair'>Fair: <span style='background:#ffd60a;' class='rssi-font wr-rssi-fair'>0</span></div>
+                                <div class='rssi-quality-box rssi-poor'>Poor: <span style='background:#ff453a;' class='rssi-font wr-rssi-poor'>0</span></div>
                             </div>
                             <div id="nodeCol" class="report-column">
                                 <div class="section-header">
-                                    <span>$NODE_NAMES</span><br>
-                                    <span>Updated: $UPDATED_TIME</span>
+                                    <span id='wr-node-names' class='router-style pulse-active'>Loading AiMesh Node Devices...</span><br>
+                                    Updated: <span class="wr-updated-time">--- ---</span>
                                     <hr class="separator-line">
                                     <div class="temp-load-row">
-                                        <span>CPU: $NODE_CPU</span>
-                                        <span>Memory: $NODE_MEMORY</span>
-                                        <span>Devices: $NODE_DEVICE_TOTAL</span>
+                                        CPU: <span id='wr-node-cpu' class='stat-cool'>--</span>
+                                        Memory: <span id='wr-node-memory' class='stat-cool'>--</span>
+                                        Devices: <span id='wr-node-count' class='stat-cool'>--</span>
                                     </div>
                                 </div>
                                 <table id="nodeTable" class="report_table show-ip">
@@ -4656,11 +4628,11 @@ document.addEventListener('mouseout', function(e) {
                                         <th onclick="sortTable(5, 'nodeTable')">BAND<span class='sup-header'>ᵐʰᶻ</span></th>
                                         <th onclick="sortTable(6, 'nodeTable')">UPTIME</th>
                                     </tr></thead>
-                                    <tbody>$NODE_ROWS</tbody>
+                                    <tbody></tbody>
                                     <tfoot>
                                         <tr>
                                             <td colspan="7" class="uptime-row">
-                                                <span>$NODE_FOOTER</span>
+                                                <span><span id='wr-node-diag'>Controller telemetry pending...</span></span>
                                             </td>
                                         </tr>
                                     </tfoot>
@@ -4669,13 +4641,13 @@ document.addEventListener('mouseout', function(e) {
                         </div>
                         <div id="allCol" class="report-column">
                             <div class="section-header">
-                                <span>$ALL_NAMES</span><br>
-                                <span>Updated: $UPDATED_TIME</span>
+                                <span id='wr-all-names' class='router-style pulse-active'>Loading All Devices...</span><br>
+                                Updated: <span class="wr-updated-time">--- ---</span>
                                 <hr class="separator-line">
                                 <div class="temp-load-row">
-                                    <span>CPU: $ALL_CPU</span>
-                                    <span>Memory: $ALL_MEMORY</span>
-                                    <span>Devices: $ALL_DEVICES</span>
+                                    CPU: <span id='wr-all-cpu'>--</span>
+                                    Memory: <span id='wr-all-memory'>--</span>
+                                    Devices: <span id='wr-all-count' class='stat-cool'>--</span>
                                 </div>
                             </div>
                             <table id="allTable" class="report_table show-ip">
@@ -4688,18 +4660,21 @@ document.addEventListener('mouseout', function(e) {
                                     <th onclick="sortTable(5, 'allTable')">BAND<span class='sup-header'>ᵐʰᶻ</span></th>
                                     <th onclick="sortTable(6, 'allTable')">UPTIME</th>
                                 </tr></thead>
-                                <tbody>$ALL_ROWS</tbody>
+                                <tbody></tbody>
                                 <tfoot>
                                     <tr>
                                         <td colspan="7" class="uptime-row">
-                                            <span>$ALL_FOOTER</span>
+                                            <span><span id='wr-all-footer'>Controller telemetry pending...</span></span>
                                         </td>
                                     </tr>
                                 </tfoot>
                             </table>
                         </div>
                         <div id="allDevicesQualityBar" class="rssi-quality-bar">
-                            <span>$RSSI_BOXES</span>
+                            <div class='rssi-quality-box rssi-excl'>Excellent: <span style='background:#30d158;' class='rssi-font wr-rssi-excellent'>0</span></div>
+                            <div class='rssi-quality-box rssi-good'>Good: <span style='background:#64d2ff;' class='rssi-font wr-rssi-good'>0</span></div>
+                            <div class='rssi-quality-box rssi-fair'>Fair: <span style='background:#ffd60a;' class='rssi-font wr-rssi-fair'>0</span></div>
+                            <div class='rssi-quality-box rssi-poor'>Poor: <span style='background:#ff453a;' class='rssi-font wr-rssi-poor'>0</span></div>
                         </div>
                     </div>
                 </div>
