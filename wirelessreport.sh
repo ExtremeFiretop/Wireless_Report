@@ -877,13 +877,6 @@ set_ippad() {
         done
         if grep -q "IPPAD=" "$CONFIG"; then sed -i "s/IPPAD=.*/IPPAD=\"$NEW_PAD\"/" "$CONFIG"
         else echo 'IPPAD="'"$NEW_PAD"'"' >> "$CONFIG"; fi
-        case "$NEW_PAD" in
-            0) echo -e "\n[+] 192.168.50.3 $RD(Disabled)$NC" ;;
-            1) echo -e "\n[+] 192.168.50.003 $BL(Last Octet)$NC" ;;
-            2) echo -e "\n[+] 192.168.050.003 $GR(Last 2 Octets)$NC" ;;
-        esac
-        echo -e "\n$YL[!] CONFIG Updated.$NC"
-        pause
     done
 }
 
