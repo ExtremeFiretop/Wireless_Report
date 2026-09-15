@@ -1121,20 +1121,20 @@ for node in $MESH_NODES; do
     node_color_idx=$((node_color_idx + 1))
 done
 
-MAIN_NAME="<span id='wr-main-name' class='router-style'>Loading Main Router Devices...</span>"
+MAIN_NAME="<span id='wr-main-name' class='router-style pulse-active'>Loading Main Router Devices...</span>"
 MAIN_CPU="<span id='wr-main-cpu' class='stat-cool'>--</span>"
 MAIN_MEMORY="<span id='wr-main-memory' class='stat-cool'>--</span>"
 MAIN_DEVICE_TOTAL="<span id='wr-main-count' class='main-color'>--</span>"
 MAIN_UPTIME="<span id='wr-main-uptime' class='main-color'>--</span>"
 MAIN_REBOOT="<span id='wr-main-reboot' class='main-color'>--</span>"
 
-NODE_NAMES="<span id='wr-node-names' class='router-style'>Loading AiMesh Node Devices...</span>"
+NODE_NAMES="<span id='wr-node-names' class='router-style pulse-active'>Loading AiMesh Node Devices...</span>"
 NODE_CPU="<span id='wr-node-cpu' class='stat-cool'>--</span>"
 NODE_MEMORY="<span id='wr-node-memory' class='stat-cool'>--</span>"
 NODE_DEVICE_TOTAL="<span id='wr-node-count' class='stat-cool'>--</span>"
 NODE_FOOTER="<span id='wr-node-diag'>Controller telemetry pending...</span>"
 
-ALL_NAMES="<span id='wr-all-names' class='router-style'>Loading All Devices...</span>"
+ALL_NAMES="<span id='wr-all-names' class='router-style pulse-active'>Loading All Devices...</span>"
 ALL_CPU="<span id='wr-all-cpu'>--</span>"
 ALL_MEMORY="<span id='wr-all-memory'>--</span>"
 ALL_DEVICES="<span id='wr-all-count' class='stat-cool'>--</span>"
@@ -1246,6 +1246,8 @@ cat <<HTML >> "$WEB_PAGE"
 	#splitView { display: flex; flex-direction: column; gap: 15px; width: 100%; }
     #allCol { display: none; width: 100% ; align-self: flex-start; }
     .router-style { color: $MAIN_COLOR; font-size: 20px; font-weight: bold; display: inline-block; margin-bottom: 4px; }
+    @keyframes routerPulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+    .router-style.pulse-active { animation: routerPulse 1.5s infinite ease-in-out; }
     .temp-load-row { display: block; font-size: 14px; color: #f2f2f7; margin-top: 11px; font-weight: bold; white-space: nowrap; width: 100%; overflow: visible !important; text-align: center; justify-content: center; }
     .temp-load-row > span:not(:last-child) { margin-right: 1px; }
 	.uptime-row { text-align: center; justify-content: center; font-size: 14px; }
@@ -3956,6 +3958,8 @@ async function loadWirelessReport() {
     if (mainNameEl && (!mainNameEl.textContent.trim() || mainNameEl.textContent.includes('Loading'))) {
         var displayName = (typeof WR_CONFIG !== 'undefined' && WR_CONFIG.mainNick) ? WR_CONFIG.mainNick : (base.productid || 'Main Router');
         mainNameEl.textContent = displayName;
+
+        mainNameEl.classList.remove('pulse-active');
     }
 
     // Set Main Router specific metrics only here
@@ -4032,6 +4036,11 @@ async function loadWirelessReport() {
     wrSetHtml('wr-node-count', nodes.length > 1 && nodeCountParts.length ? nodeItems.length + " <span class='right-arrow'>—›</span> " + nodeCountParts.join(bullet) : nodeItems.length);
     wrSetHtml('wr-node-diag', nodeDiagParts.length ? nodeDiagParts.join('<br>') : 'No node diagnostic telemetry available.');
 
+    var nodeNamesEl = document.getElementById('wr-node-names');
+    if (nodeNamesEl) {
+        nodeNamesEl.classList.remove('pulse-active');
+    }
+
     // ASSEMBLED ALL-DEVICES COMBINED METRICS
     var allCpuCombined = [
         "<span class='" + wrMetricClass(mainHealth.cpuUsage) + "'>" + (mainHealth.cpuUsage !== null ? mainHealth.cpuUsage + "%" : "--") + "</span>"
@@ -4047,6 +4056,12 @@ async function loadWirelessReport() {
     var allNames = ["<span style='color:" + WR_CONFIG.mainColor + ";'>" + wrEscape(document.getElementById('wr-main-name').textContent) + "</span>"];
     allNames = allNames.concat(nodeNamesHtml);
     wrSetHtml('wr-all-names', allNames.join(bullet));
+
+    var allNamesEl = document.getElementById('wr-all-names');
+    if (allNamesEl) {
+        allNamesEl.classList.remove('pulse-active');
+    }
+
     var allDiagParts = [mainDiag].concat(nodeDiagParts.slice());
     wrSetHtml('wr-all-footer', allDiagParts.length ? allDiagParts.join('<br>') : 'No diagnostic telemetry available.');
 
