@@ -81,7 +81,7 @@ install_menu() {
         echo -e "  $N5  Set Device Colors                             "
 		echo -e "  $N6  Set Theme ($TM_STAT)                          "
         echo -e "  $N7  Set Options                                   "
-        echo -e "  $N8  RSSI History Tooltip Config ($RH_STAT)        "
+        echo -e "  $N8  Config RSSI Tooltip History ($RH_STAT)        "
 		echo -e "                                                     "
         echo -e "  $LE  Exit                                          "
 		echo -e "                                                     "
