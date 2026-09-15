@@ -816,28 +816,25 @@ set_options() {
                     done
                     pause ;;
                 4)
-                    if grep -q "IPPAD=" "$CONFIG"; then
-                        echo -e "\n$BL IP Column Padding$NC --> ($PD_STAT)\n"
-                        echo -e "  $N1 192.168.50.3     $RD(Disabled)$NC"
-                        echo -e "  $N2 192.168.50.003   $BL(Last Octet)$NC"
-                        echo -e "  $N3 192.168.050.003  $GR(Last 2 Octets)$NC"
-                        echo -e ""
-                        echo -e "  $LE Exit back to Set Options Menu"
-                        while true; do
-                            selection
-                            case "$choice" in
-                                1) NEW_PAD="0" ;;
-                                2) NEW_PAD="1" ;;
-                                3) NEW_PAD="2" ;;
-                                e|E) break 2 ;;
-                                *) freeze 2; continue ;;
-                            esac
-                            break
-                        done
-                        sed -i "s/IPPAD=.*/IPPAD=\"$NEW_PAD\"/" "$CONFIG"
-                    else
-                        NEW_PAD="0"; echo 'IPPAD="0"' >> "$CONFIG"
-                    fi
+                    echo -e "\n$BL IP Column Padding$NC --> ($PD_STAT) \n"
+                    echo -e "  $N1 192.168.50.3     $RD(Disabled)     $NC"
+                    echo -e "  $N2 192.168.50.003   $BL(Last Octet)   $NC"
+                    echo -e "  $N3 192.168.050.003  $GR(Last 2 Octets)$NC"
+                    echo -e "                                            "
+                    echo -e "  $LE Exit back to Set Options Menu         "
+                    while true; do
+                        selection
+                        case "$choice" in
+                            1) NEW_PAD="0" ;;
+                            2) NEW_PAD="1" ;;
+                            3) NEW_PAD="2" ;;
+                            e|E) break 2 ;;
+                            *) freeze 2; continue ;;
+                        esac
+                        break
+                    done
+                    if grep -q "IPPAD=" "$CONFIG"; then sed -i "s/IPPAD=.*/IPPAD=\"$NEW_PAD\"/" "$CONFIG"
+                    else echo 'IPPAD="'"$NEW_PAD"'"' >> "$CONFIG"; fi
                     case "$NEW_PAD" in
                         0) echo -e "\n[+] 192.168.50.3 $RD(Disabled)$NC" ;;
                         1) echo -e "\n[+] 192.168.50.003 $BL(Last Octet)$NC" ;;
