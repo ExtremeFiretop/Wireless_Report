@@ -920,7 +920,7 @@ set_rssi() {
     while true; do
         show_header
         echo -e "$BL=================================================="
-        echo -e "$NC          RSSI History Tooltip Config             "
+        echo -e "$NC          Config RSSI Tooltip History             "
         echo -e "$BL=================================================="
         echo -e "                                                     "
         echo -e "  $N1 Toggle RSSI History: [$CH]                     "
