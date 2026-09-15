@@ -817,16 +817,33 @@ set_options() {
                     pause ;;
                 4)
                     if grep -q "IPPAD=" "$CONFIG"; then
-                        case "$IPPAD" in
-                            1) echo -e "\n$RD[-] Disabled:$NC 192.168.050.003 -->$RD 192.168.50.3$NC"; NEW_PAD="0" ;;
-                            0) echo -e "\n$GR[+] Mode 2:$NC 192.168.50.3 -->$GR 192.168.050.003$NC (Last 2 Octets)";  NEW_PAD="2" ;;
-                            *) echo -e "\n$GR[+] Mode 1:$NC 192.168.50.3 -->$GR 192.168.50.003$NC (Last Octet Only)"; NEW_PAD="1" ;;
-                        esac
+                        echo -e "\n$BL IP Column Padding$NC --> ($PD_STAT)\n"
+                        echo -e "  $N1 192.168.50.3     $RD(Disabled)$NC"
+                        echo -e "  $N2 192.168.50.003   $BL(Last Octet)$NC"
+                        echo -e "  $N3 192.168.050.003  $GR(Last 2 Octets)$NC"
+                        echo -e ""
+                        echo -e "  $LE Exit back to Set Options Menu"
+                        while true; do
+                            selection
+                            case "$choice" in
+                                1) NEW_PAD="0" ;;
+                                2) NEW_PAD="1" ;;
+                                3) NEW_PAD="2" ;;
+                                e|E) break 2 ;;
+                                *) freeze 2; continue ;;
+                            esac
+                            break
+                        done
                         sed -i "s/IPPAD=.*/IPPAD=\"$NEW_PAD\"/" "$CONFIG"
                     else
-                        echo -e "\n$RD[-] Disabled:$NC 192.168.050.003 -->$RD 192.168.50.3$NC"; NEW_PAD="0"
-                        echo 'IPPAD="0"' >> "$CONFIG"
+                        NEW_PAD="0"; echo 'IPPAD="0"' >> "$CONFIG"
                     fi
+                    case "$NEW_PAD" in
+                        0) echo -e "\n[+] 192.168.50.3 $RD(Disabled)$NC" ;;
+                        1) echo -e "\n[+] 192.168.50.003 $BL(Last Octet)$NC" ;;
+                        2) echo -e "\n[+] 192.168.050.003 $GR(Last 2 Octets)$NC" ;;
+                    esac
+                    echo -e "\n$YL[!] CONFIG Updated.$NC"
                     pause ;;
                 5)
                     if grep -q "HOST_COLOR=" "$CONFIG"; then
