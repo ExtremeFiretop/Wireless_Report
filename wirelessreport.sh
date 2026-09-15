@@ -4645,8 +4645,8 @@ document.addEventListener('mouseout', function(e) {
                                 Updated: <span class="wr-updated-time">--- ---</span>
                                 <hr class="separator-line">
                                 <div class="temp-load-row">
-                                    CPU: <span id='wr-all-cpu'>--</span>
-                                    Memory: <span id='wr-all-memory'>--</span>
+                                    CPU: <span id='wr-all-cpu' class='stat-cool'>--</span>
+                                    Memory: <span id='wr-all-memory' class='stat-cool'>--</span>
                                     Devices: <span id='wr-all-count' class='stat-cool'>--</span>
                                 </div>
                             </div>
