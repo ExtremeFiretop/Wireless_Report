@@ -28,7 +28,7 @@
 #        shellcheck shell=sh disable=SC2086,SC2155,SC3043         #
 #=================================================================#
 
-SCRIPT_VERSION="3.2.6"
+SCRIPT_VERSION="3.2.7"
 INSTALL_DIR="/jffs/addons/wireless_report"
 REPORT_SCRIPT="$INSTALL_DIR/wirelessreport.sh"
 CONFIG="$INSTALL_DIR/webui.conf"
@@ -4614,11 +4614,11 @@ document.addEventListener('mouseout', function(e) {
                                 <table id="mainTable" class="report_table show-ip">
                                     <thead><tr>
                                         <th onclick="sortTable(0, 'mainTable')">HOSTNAME</th>
-                                        <th onclick="toggleCols('mainTable', 'show-ip', this, 'MAC ADDRESS', 'IP ADDRESS')">IP ADDRESS</th>
-                                        <th onclick="sortTable(2, 'mainTable')">RSSI</th>
-                                        <th onclick="sortTable(3, 'mainTable')">RX/TX PHY</th>
-                                        <th onclick="toggleCols('mainTable', 'show-iface', this, 'SSID', 'IFACE')">SSID</th>
-                                        <th onclick="sortTable(5, 'mainTable')">BAND</th>
+                                        <th onclick="toggleCols('mainTable', 'show-ip', this, 'MAC ADDRESS', 'IP ADDRESS')">IP ADDRESS ⇵</th>
+                                        <th onclick="sortTable(2, 'mainTable')">RSSI<span class='sup-header'>ᵈᴮᵐ</span></th>
+                                        <th onclick="sortTable(3, 'mainTable')">RX/TX<span class='sup-header'>ᵐᵇᵖˢ</span></th>
+                                        <th onclick="toggleCols('mainTable', 'show-iface', this, 'SSID', 'IFACE')">SSID ⇵</th>
+                                        <th onclick="sortTable(5, 'mainTable')">BAND<span class='sup-header'>ᵐʰᶻ</span></th>
                                         <th onclick="sortTable(6, 'mainTable')">UPTIME</th>
                                     </tr></thead>
                                     <tbody>$MAIN_ROWS</tbody>
@@ -4649,11 +4649,11 @@ document.addEventListener('mouseout', function(e) {
                                 <table id="nodeTable" class="report_table show-ip">
                                     <thead><tr>
                                         <th onclick="sortTable(0, 'nodeTable')">HOSTNAME</th>
-                                        <th onclick="toggleCols('nodeTable', 'show-ip', this, 'MAC ADDRESS', 'IP ADDRESS')">IP ADDRESS</th>
-                                        <th onclick="sortTable(2, 'nodeTable')">RSSI</th>
-                                        <th onclick="sortTable(3, 'nodeTable')">RX/TX PHY</th>
-                                        <th onclick="toggleCols('nodeTable', 'show-iface', this, 'SSID', 'IFACE')">SSID</th>
-                                        <th onclick="sortTable(5, 'nodeTable')">BAND</th>
+                                        <th onclick="toggleCols('nodeTable', 'show-ip', this, 'MAC ADDRESS', 'IP ADDRESS')">IP ADDRESS ⇵</th>
+                                        <th onclick="sortTable(2, 'nodeTable')">RSSI<span class='sup-header'>ᵈᴮᵐ</span></th>
+                                        <th onclick="sortTable(3, 'nodeTable')">RX/TX<span class='sup-header'>ᵐᵇᵖˢ</span></th>
+                                        <th onclick="toggleCols('nodeTable', 'show-iface', this, 'SSID', 'IFACE')">SSID ⇵</th>
+                                        <th onclick="sortTable(5, 'nodeTable')">BAND<span class='sup-header'>ᵐʰᶻ</span></th>
                                         <th onclick="sortTable(6, 'nodeTable')">UPTIME</th>
                                     </tr></thead>
                                     <tbody>$NODE_ROWS</tbody>
@@ -4681,11 +4681,11 @@ document.addEventListener('mouseout', function(e) {
                             <table id="allTable" class="report_table show-ip">
                                 <thead><tr>
                                     <th onclick="sortTable(0, 'allTable')">HOSTNAME</th>
-                                    <th onclick="toggleCols('allTable', 'show-ip', this, 'MAC ADDRESS', 'IP ADDRESS')">IP ADDRESS</th>
-                                    <th onclick="sortTable(2, 'allTable')">RSSI</th>
-                                    <th onclick="sortTable(3, 'allTable')">RX/TX PHY</th>
-                                    <th onclick="toggleCols('allTable', 'show-iface', this, 'SSID', 'IFACE')">SSID</th>
-                                    <th onclick="sortTable(5, 'allTable')">BAND</th>
+                                    <th onclick="toggleCols('allTable', 'show-ip', this, 'MAC ADDRESS', 'IP ADDRESS')">IP ADDRESS ⇵</th>
+                                    <th onclick="sortTable(2, 'allTable')">RSSI<span class='sup-header'>ᵈᴮᵐ</span></th>
+                                    <th onclick="sortTable(3, 'allTable')">RX/TX<span class='sup-header'>ᵐᵇᵖˢ</span></th>
+                                    <th onclick="toggleCols('allTable', 'show-iface', this, 'SSID', 'IFACE')">SSID ⇵</th>
+                                    <th onclick="sortTable(5, 'allTable')">BAND<span class='sup-header'>ᵐʰᶻ</span></th>
                                     <th onclick="sortTable(6, 'allTable')">UPTIME</th>
                                 </tr></thead>
                                 <tbody>$ALL_ROWS</tbody>
