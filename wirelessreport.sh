@@ -4022,7 +4022,7 @@ async function loadWirelessReport() {
     wrSetHtml('wr-node-cpu', cpuHtml.length ? cpuHtml.join(bullet) : '--');
     wrSetHtml('wr-node-memory', memHtml.length ? memHtml.join(bullet) : '--');
     wrSetHtml('wr-node-count', nodes.length > 1 && nodeCountParts.length ? nodeItems.length + " <span class='right-arrow'>—›</span> " + nodeCountParts.join(bullet) : nodeItems.length);
-    wrSetHtml('wr-node-diag', nodeDiagParts.length ? nodeDiagParts.join('<br>') : 'No node diagnostic telemetry available.');
+    wrSetHtml('wr-node-footer', nodeDiagParts.length ? nodeDiagParts.join('<br>') : 'No node diagnostic telemetry available.');
 
     var nodeNamesEl = document.getElementById('wr-node-names');
     if (nodeNamesEl) {
@@ -4651,7 +4651,7 @@ document.addEventListener('mouseout', function(e) {
                                     <tfoot>
                                         <tr>
                                             <td colspan="7" class="uptime-row">
-                                                <span><span id='wr-node-diag'>Controller telemetry pending...</span></span>
+                                                <span><span id='wr-node-footer'>Controller telemetry pending...</span></span>
                                             </td>
                                         </tr>
                                     </tfoot>
