@@ -1236,9 +1236,9 @@ cat <<HTML >> "$WEB_PAGE"
     .router-style { color: $MAIN_COLOR; font-size: 20px; font-weight: bold; display: inline-block; margin-bottom: 4px; }
     @keyframes routerPulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
     .router-style.pulse-active { animation: routerPulse 1.5s infinite ease-in-out; }
-    .temp-load-row { display: block; font-size: 14px; color: #f2f2f7; margin-top: 11px; font-weight: bold; white-space: nowrap; width: 100%; overflow: visible !important; text-align: center; justify-content: center; }
-    .temp-load-row > span:not(:last-child) { margin-right: 1px; }
-	.uptime-row { text-align: center; justify-content: center; font-size: 14px; }
+    .cpu-mem-row { display: block; font-size: 14px; color: #f2f2f7; margin-top: 11px; font-weight: bold; white-space: nowrap; width: 100%; overflow: visible !important; text-align: center; justify-content: center; }
+    .cpu-mem-row > span:not(:last-child) { margin-right: 1px; }
+	.uptime-footer-row { text-align: center; justify-content: center; font-size: 14px; }
     .stat-cool { color: #0096ff !important; font-weight: bold; }
     .stat-warm { color: #ffa500 !important; font-weight: bold; }
 	.stat-hot { color: #ff453a !important; font-weight: bold; }
@@ -1297,8 +1297,8 @@ cat <<HTML >> "$WEB_PAGE"
     #popoutModal table.report_table tbody td[style*="font-weight: bold"] { font-size: 12px !important; }
     #popoutModal table.report_table tbody td:nth-child(7) { font-weight: normal !important; }
     #popoutModal table.report_table thead th { font-size: 12px !important; font-weight: bold !important; white-space: nowrap; vertical-align: middle !important; height: 32px !important; padding: 0 4px !important; }
-    #popoutModal .report-column .section-header .temp-load-row { margin-top: -2px !important; margin-bottom: -2px !important; display: block !important; }
-    #popoutModal .report-column .section-header .temp-load-row span { font-size: 14px !important; font-weight: bold !important; }
+    #popoutModal .report-column .section-header .cpu-mem-row { margin-top: -2px !important; margin-bottom: -2px !important; display: block !important; }
+    #popoutModal .report-column .section-header .cpu-mem-row span { font-size: 14px !important; font-weight: bold !important; }
     #popoutModal .report-column div:last-child, #popoutModal .table-footer, #popoutModal tfoot td { font-size: 14px !important; font-weight: bold !important; line-height: normal !important; padding-top: 12px !important; padding-bottom: 12px !important; background: transparent !important; white-space: nowrap !important; }
     #popoutModal .rssi-container { position: relative !important; }
     #popoutModal .rssi-tooltip { position: absolute !important; bottom: 100% !important; left: 50% !important; top: auto !important; right: auto !important; transform: translateX(-50%) !important; margin-bottom: 6px !important; z-index: 999999 !important; }
@@ -4442,7 +4442,7 @@ function openPopout() {
     mCol = mCol.cloneNode(true);
     nCol = nCol.cloneNode(true);
     [mCol, nCol].forEach(c => {
-        let h = c.querySelector('.temp-load-row'), s = c.querySelector('.section-header'), r = c.querySelector('.separator-line');
+        let h = c.querySelector('.cpu-mem-row'), s = c.querySelector('.section-header'), r = c.querySelector('.separator-line');
         if(h) Object.assign(h.style, { fontSize: "14px", lineHeight: "1.1", padding: "1px 0", margin: "0", height: "auto" });
         if(s) Object.assign(s.style, { paddingBottom: "0px", height: "auto" });
         if(r) Object.assign(r.style, { margin: "8px -11px 2px -11px" });
@@ -4593,7 +4593,7 @@ document.addEventListener('mouseout', function(e) {
                                     <span id='wr-main-name' class='router-style pulse-active'>Loading Main Router Devices...</span><br>
                                     Updated: <span class="wr-updated-time">--- ---</span>
                                     <hr class="separator-line">
-                                    <div class="temp-load-row">
+                                    <div class="cpu-mem-row">
                                         CPU: <span id='wr-main-cpu' class='stat-cool'>--</span>
                                         Memory: <span id='wr-main-memory' class='stat-cool'>--</span>
                                         Devices: <span id='wr-main-count' class='main-color'>--</span>
@@ -4612,7 +4612,7 @@ document.addEventListener('mouseout', function(e) {
                                     <tbody></tbody>
                                     <tfoot>
                                         <tr>
-                                            <td colspan="7" class="uptime-row">
+                                            <td colspan="7" class="uptime-footer-row">
                                                 <span>Uptime: <span id='wr-main-uptime' class='main-color'>--</span></span>
                                                 <span>Reboot: <span id='wr-main-reboot' class='main-color'>--</span></span>
                                             </td>
@@ -4631,7 +4631,7 @@ document.addEventListener('mouseout', function(e) {
                                     <span id='wr-node-names' class='router-style pulse-active'>Loading AiMesh Node Devices...</span><br>
                                     Updated: <span class="wr-updated-time">--- ---</span>
                                     <hr class="separator-line">
-                                    <div class="temp-load-row">
+                                    <div class="cpu-mem-row">
                                         CPU: <span id='wr-node-cpu' class='stat-cool'>--</span>
                                         Memory: <span id='wr-node-memory' class='stat-cool'>--</span>
                                         Devices: <span id='wr-node-count' class='stat-cool'>--</span>
@@ -4650,7 +4650,7 @@ document.addEventListener('mouseout', function(e) {
                                     <tbody></tbody>
                                     <tfoot>
                                         <tr>
-                                            <td colspan="7" class="uptime-row">
+                                            <td colspan="7" class="uptime-footer-row">
                                                 <span><span id='wr-node-footer'>Controller telemetry pending...</span></span>
                                             </td>
                                         </tr>
@@ -4663,7 +4663,7 @@ document.addEventListener('mouseout', function(e) {
                                 <span id='wr-all-names' class='router-style pulse-active'>Loading All Devices...</span><br>
                                 Updated: <span class="wr-updated-time">--- ---</span>
                                 <hr class="separator-line">
-                                <div class="temp-load-row">
+                                <div class="cpu-mem-row">
                                     CPU: <span id='wr-all-cpu' class='stat-cool'>--</span>
                                     Memory: <span id='wr-all-memory' class='stat-cool'>--</span>
                                     Devices: <span id='wr-all-count' class='stat-cool'>--</span>
@@ -4682,7 +4682,7 @@ document.addEventListener('mouseout', function(e) {
                                 <tbody></tbody>
                                 <tfoot>
                                     <tr>
-                                        <td colspan="7" class="uptime-row">
+                                        <td colspan="7" class="uptime-footer-row">
                                             <span><span id='wr-all-footer'>Controller telemetry pending...</span></span>
                                         </td>
                                     </tr>
