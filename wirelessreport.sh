@@ -202,8 +202,10 @@ menu_vars() {
     ON="${GR}ON$NC"; OFF="${RD}OFF$NC"; echo -e "$BL"
     STATUS="$NC STATUS:"
     CURRENT="CURRENT:$GR v$SCRIPT_VERSION$DEV$NC"
+
     SS_FILE="/jffs/scripts/services-start"
     SE_FILE="/jffs/scripts/service-event"
+    PROFILE_ADD="/jffs/configs/profile.add"
 
     DATE_ISO="$GR$(date +"%Y-%m-%d %H:%M:%S")$NC"
     DATE_INTL="$GR$(date +"%-d-%b %-H:%M:%S")$NC"
@@ -271,8 +273,14 @@ menu_vars() {
 }
 
 do_install() {
-	mkdir -p "$INSTALL_DIR" 2>/dev/null
+	if [ "$(nvram get jffs2_scripts)" != "1" ]; then
+        echo -e "\n$RD[!] ERROR: JFFS custom scripts not enabled.$NC"
+        pause; return 1
+    fi
+
+    mkdir -p "$INSTALL_DIR" 2>/dev/null
     if [ ! -f "$CONFIG" ]; then touch "$CONFIG"; fi
+
     local is_update=0
 	if [ -f "$REPORT_SCRIPT" ]; then
         is_update=1
@@ -284,8 +292,10 @@ do_install() {
             case "$update" in y|Y) break ;; n|N) return ;; *) freeze 4 ;; esac
         done
     fi
+
     echo -e "\n$GR[+] Downloading latest version (${NC}v$REMOTE_VERSION$GR)$NC"
     do_update || return 1
+
     if [ "$is_update" = "1" ]; then
         echo -e "\n$BL[✓] Wireless Report successfully installed.$NC"
 		printf "\nPress $BL[Enter]$NC to apply changes & restart script..."; read -r discard
@@ -293,20 +303,20 @@ do_install() {
         exec "$REPORT_SCRIPT" install "$@"
 		echo -e "\n$RD[!] Error: Failed to restart script!$NC" >&2; exit 1
 	fi
+
     echo -e "$GR[+] Mounting Tab Wireless Report$NC\n"
-    if [ "$(nvram get jffs2_scripts)" != "1" ]; then
-        echo -e "\n$RD[!] ERROR: JFFS custom scripts not enabled.$NC"
-        pause; return 1
-    fi
-    echo -e "\n$GR[+] Processing Wireless Report Files...$NC\n"
+    echo -e "$GR[+] Processing Wireless Report Files...$NC\n"
+
     if [ ! -f "$SS_FILE" ]; then echo "#!/bin/sh" > "$SS_FILE"; fi
     sed -i "\|$REPORT_SCRIPT|d" "$SS_FILE" 2>/dev/null
     echo "$REPORT_SCRIPT inject & # Inject Wireless Report" >> "$SS_FILE"
     chmod +x "$SS_FILE"
-    if ! grep -F "sh /jffs/addons/wireless_report/wirelessreport.sh" /jffs/configs/profile.add >/dev/null 2>/dev/null; then
-        echo "alias wr=\"sh /jffs/addons/wireless_report/wirelessreport.sh install\" # added by Wireless Report" >> /jffs/configs/profile.add
-        echo -e "$GR[+] Adding alias 'wr' to /jffs/configs/profile.add$NC\n"
+
+    if ! grep -F "$REPORT_SCRIPT" "$PROFILE_ADD" >/dev/null 2>/dev/null; then
+        echo "alias wr=\"$REPORT_SCRIPT install\" # added by Wireless Report" >> "$PROFILE_ADD"
+        echo -e "$GR[+] Adding alias 'wr' to $PROFILE_ADD$NC\n"
     fi
+
     SCRIPT_VERSION="$REMOTE_VERSION"
     sys_log "(v$SCRIPT_VERSION) successfully installed."
     echo -e "$GR[✓] SUCCESS: Installation complete!$NC\n"
@@ -496,6 +506,7 @@ do_uninstall() {
         printf "Are you sure? (y/n): "; read -r confirm
         case "$confirm" in y|Y) break ;; n|N) return ;; *) freeze ;; esac
     done
+
     if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
     if mount | grep -q "menuTree.js"; then
 		umount -l "$SYSTEM_MENU" >/dev/null 2>&1
@@ -509,15 +520,15 @@ do_uninstall() {
 		umount -l "/www/user/$INSTALLED_PAGE" >/dev/null 2>&1
 		rm -f /www/user/"${INSTALLED_PAGE}" >/dev/null 2>&1
 	fi
-    sed -i "\|$REPORT_SCRIPT|d" "$SS_FILE" 2>/dev/null
-    sed -i '/# added by Wireless Report/d' /jffs/configs/profile.add 2>/dev/null
+
+    sed -i "\|$REPORT_SCRIPT|d" "$PROFILE_ADD" "$SS_FILE" "$SE_FILE" 2>/dev/null
     rm -rf "$INSTALL_DIR" "$WEB_PAGE" 2>/dev/null
-    sed -i '/# Wireless Report Syslog$/d' "$SE_FILE" 2>/dev/null
-    sed -i '/# Wireless Report runtime syslog$/d' "$SE_FILE" 2>/dev/null
-    restart_httpd
+
     unset MAIN_COLOR NODE_COLORS REPORT_UNIT THEME RTIME RTIME_LOG BACKHAUL PULSE_MINS IPPAD HOST_COLOR
     unset RS_HIST RS_HIST_ENTRIES RS_HIST_DATE CUR_RS_HIST CUR_ENTRIES CUR_DATE BRANCH INJECT
     nvram unset wirelessreport_gen >/dev/null 2>&1
+
+    restart_httpd
     sys_log "(v$SCRIPT_VERSION) successfully uninstalled."
     echo -e "$GR[+] Success: Wireless Report uninstalled.$NC\n"
 	pause
@@ -689,7 +700,8 @@ set_nicknames() {
                 e|E)
                     return ;;
                 *)
-                    freeze 2; continue ;;
+                    freeze 2
+                    continue ;;
             esac
             pause
             break
@@ -734,12 +746,14 @@ set_colors() {
     local main_name=$(nvram get productid)
     local main_ip=$(nvram get lan_ipaddr)
     local m_color_hex="" current_colors=""
+
     if [ -f "$CONFIG" ]; then
         m_color_hex=$(grep "^MAIN_COLOR=" "$CONFIG" | cut -d'"' -f2)
         current_colors=$(grep "^NODE_COLORS=" "$CONFIG" | cut -d'"' -f2)
     fi
     [ -z "$m_color_hex" ] && m_color_hex="$MAIN_COLOR"
     [ -z "$current_colors" ] && current_colors="$NODE_COLORS"
+
     local total_nodes=0
     for node in $MESH_NODES; do total_nodes=$((total_nodes + 1)); done
     local working_colors="" i=1
@@ -865,6 +879,7 @@ set_colors() {
             break
         done
     done
+
     update_config_var() {
         local var_name="$1" var_val="$2"
         if grep -q "^${var_name}=" "$CONFIG" 2>/dev/null; then
@@ -875,6 +890,7 @@ set_colors() {
     }
     update_config_var "MAIN_COLOR" "$m_color_hex"
     update_config_var "NODE_COLORS" "$working_colors"
+
     echo -e "$BL\nDevice colors successfully saved to CONFIG.$NC"
     run_report
     pause
@@ -994,7 +1010,8 @@ set_options() {
                 e|E)
                     return 0 ;;
                 *)
-                    freeze 2; continue ;;
+                    freeze 2
+                    continue ;;
             esac
             break
         done
@@ -1026,13 +1043,19 @@ set_runtime() {
                             sed -i '/# Wireless Report runtime syslog$/d' "$SE_FILE" 2>/dev/null
                             ;;
                         *)
-                            NEW_RTIME="1"
-                            ;;
+                            NEW_RTIME="1" ;;
                     esac
                     if grep -q "RTIME=" "$CONFIG"; then
                         sed -i "s/RTIME=.*/RTIME=\"$NEW_RTIME\"/" "$CONFIG"
                     else
                         echo "RTIME=\"$NEW_RTIME\"" >> "$CONFIG"
+                    fi
+                    if [ "$NEW_RTIME" = "0" ]; then
+                        if grep -q "RTIME_LOG=" "$CONFIG"; then
+                            sed -i "s/RTIME_LOG=.*/RTIME_LOG=\"0\"/" "$CONFIG"
+                        else
+                            echo "RTIME_LOG=\"0\"" >> "$CONFIG"
+                        fi
                     fi
                     ;;
                 2)
@@ -1059,7 +1082,8 @@ set_runtime() {
                 e|E)
                     break 2 ;;
                 *)
-                    freeze 2; continue ;;
+                    freeze 2
+                    continue ;;
             esac
             break
         done
@@ -1202,7 +1226,8 @@ set_rssi() {
                     return 0
                     ;;
                 *)
-                    freeze 2; continue ;;
+                    freeze 2
+                    continue ;;
             esac
             break
         done
@@ -1324,17 +1349,20 @@ if [ "$1" = "service_event" ]; then runtime_syslog "$@"; exit 0; fi
 mesh_init; check_github; hex_to_ansi
 
 run_report() {
-#======================================#
-#  Browser/API Report Page Preparation #
-#======================================#
-# The generated page uses the browser's
-# already-authenticated primary-router WebUI session:
-#   /appGet.cgi
-#   /get_diag_latest_content_data.cgi   (3006/newer)
-#   /get_diag_content_data.cgi          (388 legacy diagnostic fallback)
-# All client/node refreshes happen in-page with same-origin fetch() calls.
-if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
+#==========================================================================#
+#                  Browser/API Report Page Preparation                     #
+#==========================================================================#
+#                                                                          #
+# The generated page uses the browser's                                    #
+# already-authenticated primary-router WebUI session:                      #
+#   /appGet.cgi                                                            #
+#   /get_diag_latest_content_data.cgi   (3006/newer)                       #
+#   /get_diag_content_data.cgi          (388 legacy diagnostic fallback)   #
+# All client/node refreshes happen in-page with same-origin fetch() calls. #
+#                                                                          #
+#==========================================================================#
 
+if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
 WR_GENERATION=$(nvram get wirelessreport_gen 2>/dev/null)
 case "$WR_GENERATION" in ""|*[!0-9]*) WR_GENERATION=0 ;; esac
 WR_GENERATION=$((WR_GENERATION + 1))
