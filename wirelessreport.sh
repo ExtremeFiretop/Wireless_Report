@@ -296,6 +296,13 @@ do_install() {
     echo -e "\n$GR[+] Downloading latest version (${NC}v$REMOTE_VERSION$GR)$NC"
     do_update || return 1
 
+    mkdir -p "$(dirname "$PROFILE_ADD")"
+    [ ! -f "$PROFILE_ADD" ] && touch "$PROFILE_ADD"
+    if ! grep -q "alias wr=" "$PROFILE_ADD" 2>/dev/null; then
+        echo "alias wr=\"$REPORT_SCRIPT install\" # added by Wireless Report" >> "$PROFILE_ADD"
+        echo -e "\n$GR[+] Adding alias 'wr' to $PROFILE_ADD$NC"
+    fi
+
     if [ "$is_update" = "1" ]; then
         echo -e "\n$BL[✓] Wireless Report successfully installed.$NC"
 		printf "\nPress $BL[Enter]$NC to apply changes & restart script..."; read -r discard
@@ -311,11 +318,6 @@ do_install() {
     sed -i "\|$REPORT_SCRIPT|d" "$SS_FILE" 2>/dev/null
     echo "$REPORT_SCRIPT inject & # Inject Wireless Report" >> "$SS_FILE"
     chmod +x "$SS_FILE"
-
-    if ! grep -F "$REPORT_SCRIPT" "$PROFILE_ADD" >/dev/null 2>/dev/null; then
-        echo "alias wr=\"$REPORT_SCRIPT install\" # added by Wireless Report" >> "$PROFILE_ADD"
-        echo -e "$GR[+] Adding alias 'wr' to $PROFILE_ADD$NC\n"
-    fi
 
     SCRIPT_VERSION="$REMOTE_VERSION"
     sys_log "(v$SCRIPT_VERSION) successfully installed."
