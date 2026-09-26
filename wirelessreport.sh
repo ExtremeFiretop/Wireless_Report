@@ -311,7 +311,7 @@ do_install() {
 		echo -e "\n$RD[!] Error: Failed to restart script!$NC" >&2; exit 1
 	fi
 
-    echo -e "$GR[+] Mounting Tab Wireless Report$NC\n"
+    echo -e "\n$GR[+] Mounting Tab Wireless Report$NC\n"
     echo -e "$GR[+] Processing Wireless Report Files...$NC\n"
 
     if [ ! -f "$SS_FILE" ]; then echo "#!/bin/sh" > "$SS_FILE"; fi
@@ -816,7 +816,7 @@ set_colors() {
                         working_colors="${working_colors:+$working_colors }$next_color"
                         idx=$((idx + 1))
                     done
-                    echo -e "$BL\nColors restored to defaults.$NC"
+                    echo -e "$BL\n[+] Colors restored to defaults.$NC"
                     pause; continue 2 ;;
                 s|S) break 2 ;;
                 e|E) return 0 ;;
@@ -893,7 +893,7 @@ set_colors() {
     update_config_var "MAIN_COLOR" "$m_color_hex"
     update_config_var "NODE_COLORS" "$working_colors"
 
-    echo -e "$BL\nDevice colors successfully saved to CONFIG.$NC"
+    echo -e "$BL\n[+] Device colors successfully saved to CONFIG.$NC"
     run_report
     pause
 }
@@ -1041,8 +1041,7 @@ set_runtime() {
                     case "$RTIME" in
                         1)
                             NEW_RTIME="0"
-                            sed -i '/# Wireless Report Syslog$/d' "$SE_FILE" 2>/dev/null
-                            sed -i '/# Wireless Report runtime syslog$/d' "$SE_FILE" 2>/dev/null
+                            sed -i "\|$REPORT_SCRIPT|d" "$SE_FILE" 2>/dev/null
                             ;;
                         *)
                             NEW_RTIME="1" ;;
@@ -1064,13 +1063,20 @@ set_runtime() {
                     case "$RTIME_LOG" in
                         1)
                             NEW_LOG="0"
-                            sed -i '/# Wireless Report Syslog$/d' "$SE_FILE" 2>/dev/null
-                            sed -i '/# Wireless Report runtime syslog$/d' "$SE_FILE" 2>/dev/null
+                            sed -i "\|$REPORT_SCRIPT|d" "$SE_FILE" 2>/dev/null
                             ;;
                         *)
                             NEW_LOG="1"
+                            if [ "$RTIME" != "1" ]; then
+                                NEW_RTIME="1"
+                                if grep -q "RTIME=" "$CONFIG"; then
+                                    sed -i "s/RTIME=.*/RTIME=\"1\"/" "$CONFIG"
+                                else
+                                    echo "RTIME=\"1\"" >> "$CONFIG"
+                                fi
+                            fi
                             [ ! -f "$SE_FILE" ] && printf '#!/bin/sh\n' > "$SE_FILE"
-                            sed -i '/# Wireless Report Syslog$/d' "$SE_FILE" 2>/dev/null
+                            sed -i "\|$REPORT_SCRIPT|d" "$SE_FILE" 2>/dev/null
                             printf '%s\n' 'case "$1:$2" in start:WirelessReportRuntime_*) '"$REPORT_SCRIPT"' service_event "$@" & ;; esac # Wireless Report Syslog' >> "$SE_FILE"
                             chmod +x "$SE_FILE"
                             ;;
