@@ -163,18 +163,12 @@ sh /jffs/addons/wireless_report/wirelessreport.sh install
 ```
 \
 \
-$\color{blue}{\Large\text{PRO-TIP}}$ <br>
-Create a Command Shortcut (Alias)
+$\color{blue}{\Large\text{CLI-ALIAS}}$ <br>
+Command Shortcut (Alias)
 
-To run the update or configuration menu from any directory (including root), you can add an alias to your router's profile. Open /jffs/configs/profile.add and add the following line:
-```
-alias wr="sh /jffs/addons/wireless_report/wirelessreport.sh install" # Allows Wireless Report install script to be run from anywhere, including root.
-```
-After saving, apply the changes by running:
-```
-source /jffs/configs/profile.add
-```
-Once configured, simply typing wr from any location in the SSH terminal will launch the installer.
+alias 'wr' is automatically created on new installs/updates.
+
+Typing wr from any location in the SSH terminal will launch the installer.
 
 \
 \
