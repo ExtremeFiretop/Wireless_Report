@@ -28,7 +28,7 @@
 #        shellcheck shell=sh disable=SC2086,SC2155,SC3043         #
 #=================================================================#
 
-SCRIPT_VERSION="3.3.0"
+SCRIPT_VERSION="3.3.1"
 INSTALL_DIR="/jffs/addons/wireless_report"
 REPORT_SCRIPT="$INSTALL_DIR/wirelessreport.sh"
 CONFIG="$INSTALL_DIR/webui.conf"
@@ -183,6 +183,11 @@ version_compare() {
         }'
 }
 
+set_default_colors() {
+    MAIN_COLOR="${MAIN_COLOR:-#0096ff}"
+    NODE_COLORS="${NODE_COLORS:-#30d158 #bf40bf #ffd60a #64d2ff #ff9500 #ff453a #ffffff #ff70a6 #64ffda}"
+}
+
 menu_vars() {
     if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
     trap 'printf "\033[0m"' 0; trap 'exit 130' INT TERM HUP
@@ -195,9 +200,6 @@ menu_vars() {
 
     for i in 0 1 2 3 4 5 6 7 8; do eval "N${i}=\"\$BL(${i})\$NC\""; done
 	for i in E S R; do eval "L${i}=\"\$BL(${i})\$NC\""; done
-
-    : "${MAIN_COLOR:=#0096ff}"
-    : "${NODE_COLORS:=#30d158 #bf40bf #ffd60a #64d2ff #ff9500 #ff453a #ffffff #ff70a6 #64ffda}"
 
     ON="${GR}ON$NC"; OFF="${RD}OFF$NC"; echo -e "$BL"
     STATUS="$NC STATUS:"
@@ -806,12 +808,13 @@ set_colors() {
             printf "\n$NC Select a Device number to change color $BL(0-$total_nodes): $NC"; read -r node_choice
             case "$node_choice" in
                 r|R)
-                    m_color_hex="#0096ff"
-                    local default_node_pool="#30d158 #bf40bf #ffd60a #64d2ff #ff9500 #ff453a #ffffff #ff70a6 #64ffda"
+                    unset MAIN_COLOR NODE_COLORS
+                    set_default_colors
+                    m_color_hex="$MAIN_COLOR"
                     working_colors=""
                     local idx=1
                     while [ $idx -le $total_nodes ]; do
-                        local next_color=$(echo "$default_node_pool" | awk -v col="$idx" '{print $col}')
+                        local next_color=$(echo "$NODE_COLORS" | awk -v col="$idx" '{print $col}')
                         next_color="${next_color:-#30d158}"
                         working_colors="${working_colors:+$working_colors }$next_color"
                         idx=$((idx + 1))
@@ -1354,7 +1357,7 @@ runtime_syslog() {
 
 if [ "$1" = "service_event" ]; then runtime_syslog "$@"; exit 0; fi
 
-mesh_init; check_github; hex_to_ansi
+mesh_init; check_github; hex_to_ansi; set_default_colors
 
 run_report() {
 #==========================================================================#
@@ -1374,9 +1377,6 @@ if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
 WR_GENERATION=$(nvram get wirelessreport_gen 2>/dev/null)
 case "$WR_GENERATION" in ""|*[!0-9]*) WR_GENERATION=0 ;; esac
 WR_GENERATION=$((WR_GENERATION + 1))
-
-: "${MAIN_COLOR:=#0096ff}"
-: "${NODE_COLORS:=#30d158 #bf40bf #ffd60a #64d2ff #ff9500 #ff453a #ffffff #ff70a6 #64ffda}"
 
 NODE_NICK_JS=""
 if [ -f "$CONFIG" ]; then
