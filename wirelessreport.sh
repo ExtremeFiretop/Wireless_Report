@@ -5859,8 +5859,10 @@ document.addEventListener('contextmenu', function(e) {
 </body>
 </html>
 HTML
+
 nvram set wirelessreport_gen="$WR_GENERATION" >/dev/null 2>&1
 }
+
 case "$1" in
     install)
         install_menu
