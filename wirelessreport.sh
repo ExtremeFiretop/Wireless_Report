@@ -820,9 +820,12 @@ set_colors() {
                         idx=$((idx + 1))
                     done
                     echo -e "$BL\n[+] Colors restored to defaults.$NC"
-                    pause; continue 2 ;;
-                s|S) break 2 ;;
-                e|E) return 0 ;;
+                    pause
+                    continue 2 ;;
+                s|S)
+                    break 2 ;;
+                e|E)
+                    return 0 ;;
             esac
             case "$node_choice" in ""|*[!0-9]*) freeze 2; continue ;; esac
             if [ "$node_choice" -gt "$total_nodes" ]; then freeze 2; continue; fi
@@ -996,17 +999,21 @@ set_options() {
                     ;;
                 dev)
                     set_branch ;;
-                inject)
-                    if grep -q 'INJECT="2"' "$CONFIG"; then
-                        echo -e "\n$YL[!] INJECT=\"2\" already exists in CONFIG.$NC"
-                    else
+                inject|inject2)
+                    if [ "$choice" = "inject2" ]; then
                         if grep -q "INJECT=" "$CONFIG"; then
                             sed -i 's/INJECT=.*/INJECT="2"/' "$CONFIG"
                         else
                             echo 'INJECT="2"' >> "$CONFIG"
                         fi
-                        echo -e "\n$GR[+] Adding INJECT=\"2\" to CONFIG.$NC"
                         INJECT="2"
+                        echo -e "\n$YL[!] Menu injection applied.$NC"
+                    else
+                        if grep -q 'INJECT="2"' "$CONFIG"; then
+                            sed -i '/^INJECT="2"/d' "$CONFIG"
+                            INJECT=""
+                        fi
+                        echo -e "\n$YL[!] TAB injection applied.$NC"
                     fi
                     inject_menu
                     pause
