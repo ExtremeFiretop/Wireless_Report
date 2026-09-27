@@ -1067,14 +1067,6 @@ set_runtime() {
                             ;;
                         *)
                             NEW_LOG="1"
-                            if [ "$RTIME" != "1" ]; then
-                                NEW_RTIME="1"
-                                if grep -q "RTIME=" "$CONFIG"; then
-                                    sed -i "s/RTIME=.*/RTIME=\"1\"/" "$CONFIG"
-                                else
-                                    echo "RTIME=\"1\"" >> "$CONFIG"
-                                fi
-                            fi
                             [ ! -f "$SE_FILE" ] && printf '#!/bin/sh\n' > "$SE_FILE"
                             sed -i "\|$REPORT_SCRIPT|d" "$SE_FILE" 2>/dev/null
                             printf '%s\n' 'case "$1:$2" in start:WirelessReportRuntime_*) '"$REPORT_SCRIPT"' service_event "$@" & ;; esac # Wireless Report Syslog' >> "$SE_FILE"
@@ -1085,6 +1077,14 @@ set_runtime() {
                         sed -i "s/RTIME_LOG=.*/RTIME_LOG=\"$NEW_LOG\"/" "$CONFIG"
                     else
                         echo "RTIME_LOG=\"$NEW_LOG\"" >> "$CONFIG"
+                    fi
+                    if [ "$RTIME" != "1" ]; then
+                        NEW_RTIME="1"
+                        if grep -q "RTIME=" "$CONFIG"; then
+                            sed -i "s/RTIME=.*/RTIME=\"1\"/" "$CONFIG"
+                        else
+                            echo "RTIME=\"1\"" >> "$CONFIG"
+                        fi
                     fi
                     ;;
                 e|E)
