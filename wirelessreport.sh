@@ -180,22 +180,22 @@ version_compare() {
 }
 
 printm() {
-    _box_color="$BL"
-    _text="$1"
-    _target="${2:-60}"
-    _esc=$(printf '\033')
-    _plain=$(printf "%b" "$_text" | sed "s/${_esc}\[[0-9;]*m//g")
-    _len=${#_plain}
-    _pad=$((_target - _len))
-    [ "$_pad" -lt 0 ] && _pad=0
-    _line="${_box_color}║${_text}"
-    _i=0
-    while [ "$_i" -lt "$_pad" ]; do
-        _line="${_line} "
-        _i=$((_i + 1))
+    box_color="$BL"
+    text="$1"
+    target="${2:-60}"
+    esc=$(printf '\033')
+    plain=$(printf "%b" "$text" | sed "s/${esc}\[[0-9;]*m//g")
+    len=${#plain}
+    pad=$((target - len))
+    [ "$pad" -lt 0 ] && pad=0
+    line="${box_color}║${text}"
+    i=0
+    while [ "$i" -lt "$pad" ]; do
+        line="${line} "
+        i=$((i + 1))
     done
-    _line="${_line}${_box_color}║$NC\n"
-    MB="${MB}${_line}"
+    line="${line}${box_color}║$NC\n"
+    MB="${MB}${line}"
 }
 
 printb() {
@@ -643,9 +643,9 @@ set_device_nicknames() {
         MAIN_IP=$(nvram get lan_ipaddr)
         MAIN_CLR=$(hex_to_ansi "$MAIN_COLOR")
 
-        _formatted_main=$(printf "  Main %s -> %s" "$MAIN_IP" "${MAIN_NICK:-$MAIN_ROUTER}")
-        _row_text="${MAIN_CLR}${_formatted_main}$NC"
-        printm "$_row_text"
+        formatted_main=$(printf "  Main %s -> %s" "$MAIN_IP" "${MAIN_NICK:-$MAIN_ROUTER}")
+        row_text="${MAIN_CLR}${formatted_main}$NC"
+        printm "$row_text"
 
         get_node_color() { idx="$1"; echo "$NODE_COLORS" | awk -v i="$idx" '{print $i}'; }
 
@@ -657,9 +657,9 @@ set_device_nicknames() {
             HEX_CLR=$(get_node_color "$node_idx")
             NODE_CLR=$(hex_to_ansi "$HEX_CLR")
 
-            _formatted_node=$(printf "  Node %s -> %s" "$IP" "${SAVED_NICK:-$MODEL}")
-            _row_text="${NODE_CLR}${_formatted_node}$NC"
-            printm "$_row_text"
+            formatted_node=$(printf "  Node %s -> %s" "$IP" "${SAVED_NICK:-$MODEL}")
+            row_text="${NODE_CLR}${formatted_node}$NC"
+            printm "$row_text"
 
             node_idx=$((node_idx + 1))
         done
@@ -900,9 +900,9 @@ set_device_colors() {
         local main_display_color=$(hex_to_ansi "$m_color_hex")
         local formatted_main_ip=$(printf "(%s)" "$main_ip")
 
-        _formatted_inner=$(printf "  (0) %-14s %-16s (Main)" "$main_display_name" "($main_ip)")
-        _row_text="${main_display_color}${_formatted_inner}$NC"
-        printm "$_row_text"
+        formatted_inner=$(printf "  (0) %-14s %-16s (Main)" "$main_display_name" "($main_ip)")
+        row_text="${main_display_color}${formatted_inner}$NC"
+        printm "$row_text"
 
         local idx=1
         for node in $MESH_NODES; do
@@ -914,9 +914,9 @@ set_device_colors() {
             local display_color=$(hex_to_ansi "$active_color")
             local formatted_ip=$(printf "(%s)" "$node_ip")
 
-            _formatted_inner=$(printf "  (%s) %-14s %-16s (Node)" "$idx" "$node_display_name" "$formatted_ip")
-            _row_text="${display_color}${_formatted_inner}$NC"
-            printm "$_row_text"
+            formatted_inner=$(printf "  (%s) %-14s %-16s (Node)" "$idx" "$node_display_name" "$formatted_ip")
+            row_text="${display_color}${formatted_inner}$NC"
+            printm "$row_text"
 
             idx=$((idx + 1))
         done
