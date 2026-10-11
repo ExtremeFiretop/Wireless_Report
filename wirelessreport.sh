@@ -200,7 +200,7 @@ printm() {
 }
 
 printb() {
-    MB="${MB}${BL}$1${NC}\n"
+    MB="${MB}$BL$1$NC\n"
 }
 
 menu_vars() {
