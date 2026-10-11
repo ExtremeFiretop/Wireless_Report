@@ -74,7 +74,7 @@ install_menu() {
         printm "  $N2  Uninstall"
 		printm "  $N3  Set Date/Time ($DU) ($CT)"
 		printm "  $N4  Set Nicknames & Node Display Order"
-        printm "  $N5  Set Device Colors"
+        printm "  $N5  Set Device $COLORS"
         printm "  $N6  Set Theme ($TM_STAT)"
         printm "  $N7  Set Options"
         printm "  $N8  Config RSSI Tooltip History ($CH)"
@@ -209,6 +209,7 @@ menu_vars() {
 
     UL='\033[4m'; YL='\033[0;33m'; NC='\033[0m'
     BL='\033[38;5;39m'; GR='\033[0;32m'; RD='\033[0;31m'
+    COLORS="${MP}C${NB}o${LG}l${YW}o${SB}r${OR}s"
 
     JB_1366="$NC Copyright (c) 2026 JB_1366 - All Rights Reserved"
     JB1366="$GR${UL}https://github.com/JB1366/Wireless_Report$NC"
