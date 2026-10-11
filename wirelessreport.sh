@@ -194,7 +194,7 @@ printm() {
         _line="${_line} "
         _i=$((_i + 1))
     done
-    _line="${_line}${_box_color}║\033[0m\n"
+    _line="${_line}${_box_color}║$NC\n"
     MB="${MB}${_line}"
 }
 
@@ -890,7 +890,7 @@ set_device_colors() {
     while true; do
         show_header
         printb "╔════════════════════════════════════════════════════════════╗"
-        printm "$NC                      Set Device Colors"
+        printm "$NC                      Set Device $COLORS"
         printb "╠════════════════════════════════════════════════════════════╣"
         printm ""
         printm "$NC  Current Device Configuration:"
