@@ -2,6 +2,7 @@
 # Wireless Report - Changelog #
 #=============================#
 
+v3.3.8-menu upgrades cleanup.
 v3.3.7-menu upgrades.
 v3.3.6-fix sort node display order.
 v3.3.5-install menu updates.
