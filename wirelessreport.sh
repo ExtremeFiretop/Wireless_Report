@@ -189,7 +189,7 @@ printm() {
     len=${#plain}
     pad=$((target - len))
     [ "$pad" -lt 0 ] && pad=0
-    line="${box_color}║${text}"
+    line="${box_color}║$NC${text}"
     i=0
     while [ "$i" -lt "$pad" ]; do
         line="${line} "
@@ -580,16 +580,16 @@ set_date_time() {
     while true; do
         show_header
         printb "╔════════════════════════════════════════════════════════════╗"
-        printm "$NC                        Set Date/Time"
+        printm "                        Set Date/Time"
         printb "╠════════════════════════════════════════════════════════════╣"
-        printm "$NC  Format: $DU               Current: $CT"
+        printm "  Format: $DU               Current: $CT"
         printb "╠════════════════════════════════════════════════════════════╣"
-        printm "$NC                                       [MILITARY]"
+        printm "                                       [MILITARY]"
         printm "   $N1  USA                         ($DATE_USA)"
         printm "   $N2  INTL                        ($DATE_INTL)"
         printm "   $N3  ISO                       ($DATE_ISO)"
         printm ""
-        printm "$NC                                      [12-HR AM/PM]"
+        printm "                                      [12-HR AM/PM]"
         printm "   $N4  USA                       ($DATE_USA1)"
         printm "   $N5  INTL                      ($DATE_INTL1)"
         printm "   $N6  ISO                     ($DATE_ISO1)"
@@ -626,7 +626,7 @@ set_device_nicknames() {
     while true; do
         show_header
         printb "╔════════════════════════════════════════════════════════════╗"
-        printm "$NC             Set Nicknames & Node Display Order"
+        printm "             Set Nicknames & Node Display Order"
         printb "╠════════════════════════════════════════════════════════════╣"
         printm ""
 		printm "  $N1 Reset to Default Nicknames"
@@ -891,10 +891,10 @@ set_device_colors() {
     while true; do
         show_header
         printb "╔════════════════════════════════════════════════════════════╗"
-        printm "$NC                      Set Device $COLORS"
+        printm "                      Set Device $COLORS"
         printb "╠════════════════════════════════════════════════════════════╣"
         printm ""
-        printm "$NC  Current Device Configuration:"
+        printm "  Current Device Configuration:"
         printm ""
         #═════════════════════════════════════════════════════════════════════#
         local main_display_name="${MAIN_NICK:-$main_name}"
@@ -1034,7 +1034,7 @@ set_theme() {
     while true; do
         show_header
         printb "╔════════════════════════════════════════════════════════════╗"
-        printm "$NC     Set Theme                          Current: $TM_STAT"
+        printm "     Set Theme                          Current: $TM_STAT"
         printb "╠════════════════════════════════════════════════════════════╣"
         printm ""
         printm "  $N1 Original Theme"
@@ -1067,7 +1067,7 @@ set_options() {
     while true; do
         show_header
         printb "╔════════════════════════════════════════════════════════════╗"
-        printm "$NC                        Set Options"
+        printm "                        Set Options"
         printb "╠════════════════════════════════════════════════════════════╣"
         printm ""
         printm "  $N1  Toggle Runtime Tracking: ($RT_STAT)"
@@ -1162,7 +1162,7 @@ set_runtime_tracking() {
     while true; do
         show_header
         printb "╔════════════════════════════════════════════════════════════╗"
-        printm "$NC                     Runtime Tracking"
+        printm "                     Runtime Tracking"
         printb "╠════════════════════════════════════════════════════════════╣"
         printm ""
         printm "  $N1 Toggle Runtime Tracking: ($RT_STAT)"
@@ -1239,7 +1239,7 @@ set_ip_padding() {
     while true; do
         show_header
         printb "╔════════════════════════════════════════════════════════════╗"
-        printm "$NC    IP Column Padding              Current: ($PD_STAT)"
+        printm "    IP Column Padding              Current: ($PD_STAT)"
         printb "╠════════════════════════════════════════════════════════════╣"
         printm ""
         printm "  $N1 192.168.50.3                         (${RD}Disabled$NC)"
@@ -1272,9 +1272,9 @@ set_github_branch() {
     while true; do
         show_header
         printb "╔════════════════════════════════════════════════════════════╗"
-        printm "$NC                      Set Github Branch"
+        printm "                      Set Github Branch"
         printb "╠════════════════════════════════════════════════════════════╣"
-        printm "$NC  Branch: [$BN]                $CURRENT"
+        printm "  Branch: [$BN]                $CURRENT"
         printb "╠════════════════════════════════════════════════════════════╣"
         printm ""
         printm "  $N1 main (JB1366)"
@@ -1316,7 +1316,7 @@ set_rssi_tooltip() {
     while true; do
         show_header
         printb "╔════════════════════════════════════════════════════════════╗"
-        printm "$NC                Config RSSI Tooltip History"
+        printm "                Config RSSI Tooltip History"
 		printb "╠════════════════════════════════════════════════════════════╣"
 		printm ""
 		printm "  $N1 Toggle RSSI History: [$CH]"
