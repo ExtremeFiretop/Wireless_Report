@@ -28,7 +28,7 @@
 #        shellcheck shell=sh disable=SC2086,SC2155,SC3043         #
 #═════════════════════════════════════════════════════════════════#
 
-SCRIPT_VERSION="3.3.8"
+SCRIPT_VERSION="3.3.9"
 INSTALL_DIR="/jffs/addons/wireless_report"
 REPORT_SCRIPT="$INSTALL_DIR/wirelessreport.sh"
 CONFIG="$INSTALL_DIR/webui.conf"
@@ -108,7 +108,7 @@ check_version() {
     local mode="$1" version_cmp=""
     froze() { return 0; }
     if [ ! -f "$REPORT_SCRIPT" ]; then
-        STATE="NOT_INSTALLED"
+        STATE="NOT_INSTALLED";  N1="$BL(1)"
         froze() { freeze 2; return 1; }
     elif [ -z "$REMOTE_VERSION" ]; then
         STATE="OFFLINE"
@@ -152,13 +152,12 @@ check_version() {
             ;;
         *)
             case "$STATE" in
-                OFFLINE)       SL=" $STATUS $RD[Offline]                    [GitHub Unreachable]" ;;
-                NOT_INSTALLED) SL=" $STATUS $GR[Not Installed]$NC         Latest Available:$GR v$REMOTE_VERSION$NC";  N1="$BL(1)" ;;
-                OUTDATED)      SL=" $STATUS $GR[New Version ${WH}v$REMOTE_VERSION$GR Available]$NC   $CURRENT" ;;
-                HASH_DIFF)     SL=" $STATUS $GR[Hash Update Available]$NC          $CURRENT" ;;
-                UP_TO_DATE|*)  SL=" $STATUS $GR[Up to date]$NC                    $CURRENT" ;;
+                OFFLINE)       printm " $STATUS $RD[Offline]                    [GitHub Unreachable]" ;;
+                NOT_INSTALLED) printm " $STATUS $GR[Not Installed]$NC         Latest Available:$GR v$REMOTE_VERSION$NC" ;;
+                OUTDATED)      printm " $STATUS $GR[New Version ${WH}v$REMOTE_VERSION$GR Available]  $CURRENT" ;;
+                HASH_DIFF)     printm " $STATUS $GR[Hash Update Available]        $CURRENT" ;;
+                UP_TO_DATE|*)  printm " $STATUS $GR[Up to date]                   $CURRENT" ;;
             esac
-            printm  "$SL"
             ;;
     esac
 }
@@ -222,7 +221,7 @@ menu_vars() {
     MB=""; echo -e "$BL"
     ON="${GR}ON$NC"; OFF="${RD}OFF$NC"
     STATUS="$NC STATUS:"
-    CURRENT="CURRENT:$GR v$SCRIPT_VERSION$DEV$NC"
+    CURRENT="$NC CURRENT:$GR v$SCRIPT_VERSION$DEV$NC"
 
     SS_FILE="/jffs/scripts/services-start"
     SE_FILE="/jffs/scripts/service-event"
