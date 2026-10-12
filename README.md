@@ -1,4 +1,4 @@
-$\color{blue}{\Large\text{WIRELESS REPORT}}$<br>
+$\color{blue}{\Large\text{Wireless Report - available on AMTM!}}$<br>
 **Developer:** JB_1366<br>
 \
 \
