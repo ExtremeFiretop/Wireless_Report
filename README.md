@@ -2,27 +2,27 @@ $\color{blue}{\Large\text{Wireless Report - available on AMTM!}}$<br>
 **Developer:** JB_1366<br>
 \
 \
-$\color{blue}{\Large\text{OVERVIEW}}$<br>
+$\color{blue}{\Large\text{Overview}}$<br>
 Wireless Report provides a comprehensive, sortable overview of your entire wireless network. It brings critical data to the forefront—such as real-time RSSI for node-connected devices—that is typically missing from the ASUS Network Map. Once installed, a dedicated tab is added to the Wireless menu in the ASUS WebGUI. This interface features interactive column headers for custom sorting and multi-view columns that allow you to toggle between data points like MAC/IP addresses and SSID/Wireless Interface.
 \
 \
-$\color{blue}{\Large\text{THE MOTIVATION}}$<br>
+$\color{blue}{\Large\text{The Motivation}}$<br>
 I created this script to solve a specific gap in the ASUS WebGUI: the lack of real-time AiMesh node data. The absence of RSSI parameters on nodes was the primary motivation for this addon. By consolidating all wireless devices into a single, unified table, this report allows you to monitor your entire network at a glance. Because ASUS firmware can be slow to roam devices to the optimal router or node, this report provides the visibility needed to manually tune and optimize client connectivity much faster and more accurately.
 \
 \
-$\color{blue}{\Large\text{NODE DATA INTEGRATION}}$<br>
+$\color{blue}{\Large\text{Node Data Integration}}$<br>
 The script now utilizes inline Browser/API data integration to seamlessly display data for AiMesh nodes.
 \
 \
-$\color{blue}{\Large\text{PRO-TIP: CUSTOMIZING HOSTNAMES}}$<br>
+$\color{blue}{\Large\text{Pro-Tip: Customizing Hostnames}}$<br>
 To ensure your report shows clean Hostnames (e.g., "Living Room TV") rather than default device names, it is highly recommended to assign manual Hostnames for your frequent clients. You can do this in the LAN > DHCP Server tab, or within Network > Guest Network Pro > Advanced Settings for your specific guest networks.
 \
 \
-$\color{blue}{\Large\text{RECOMMENDATION}}$<br>
+$\color{blue}{\Large\text{Recommendation}}$<br>
 Since your main router is running Merlin, consider using YazDHCP (available via amtm option j7). It provides a much more intuitive interface for managing assignments, supports easy import/export, and—most importantly—combines both Main and GNP assignments into a single, unified view. While not required for this script to function, it significantly improves the readability of your report.<br>
 \
 \
-$\color{blue}{\Large\text{INSTALL}}$<br>
+$\color{blue}{\Large\text{Install}}$<br>
 
 $\color{blue}{\text{Step 1:}}$ Initiate the Installation.<br>
 You can launch the installer using either of the following methods:
@@ -50,7 +50,7 @@ You only need to perform this full step during the initial setup and subsequent 
 $\color{blue}{\text{Note:}}$ At this stage, Wireless Report is active and ready to view in your WebGUI. However, it is highly recommended to explore the Optional Configuration items in the menu before exiting.<br>
 \
 \
-$\color{blue}{\Large\text{OPTIONAL CONFIGURATION:}}$<br>
+$\color{blue}{\Large\text{Optional Configuration:}}$<br>
 
 $\color{green}{\text{Option (3):}}$ Set Date/Time: Toggle different date/time formats. Default is $\color{green}{\text{(1)}}$, if you do nothing.<br>
 
@@ -93,11 +93,11 @@ $\color{green}{\text{Option (8):}}$ Configure RSSI History
 ![Instructions14](https://raw.githubusercontent.com/JB1366/Wireless_Report/main/images/Instructions14.png)<br>
 \
 \
-$\color{blue}{\Large\text{VIEWING THE REPORT}}$<br>
+$\color{blue}{\Large\text{Viwing The Report}}$<br>
 To access your data, navigate to Advanced Settings > Wireless in the ASUS WebGUI and select the Wireless Report tab on the far right.<br>
 \
 \
-$\color{blue}{\Large\text{KEY FEATURES + NAVIGATION}}$
+$\color{blue}{\Large\text{Key Features + Navigation}}$
 
 * $\color{green}{\text{Unified Dashboard:}}$ View all connected clients across your entire mesh system in one place. The table includes Hostnames, IP/MAC Addresses, RSSI, RX/TX Rates, SSID/Interface, Band, and Client Uptime.
 * $\color{green}{\text{Interactive Sorting:}}$ Click any column header (except IP and SSID) to sort data alphabetically or numerically.
@@ -106,32 +106,32 @@ $\color{blue}{\Large\text{KEY FEATURES + NAVIGATION}}$
 
 \
 \
-$\color{blue}{\Large\text{PRO-TIP: ALTERNATE VIEWS}}$<br>
+$\color{blue}{\Large\text{Pro-Tip: Alternate Views}}$<br>
 Remember that your UI is interactive! You can toggle between IP vs. MAC and SSID vs. Interface by clicking the respective column headers to customize your view on the fly.<br>
 \
 \
-$\color{blue}{\Large\text{MAIN VIEW - COLORED HOSTNAMES - DARK MODE}}$<br>
+$\color{blue}{\Large\text{Main View - Colored Hostnames - Dark Mode Theme}}$<br>
 
 ![Instructions6](https://raw.githubusercontent.com/JB1366/Wireless_Report/main/images/Instructions6.png)<br>
 \
 \
-$\color{blue}{\Large\text{MAIN VIEW - NUMBERED HOSTNAMES - ORIGINAL MODE}}$<br>
+$\color{blue}{\Large\text{Main View - Numbered Hostnames - Original Theme}}$<br>
 
 ![Instructions11](https://raw.githubusercontent.com/JB1366/Wireless_Report/main/images/Instructions11.png)<br>
 \
 \
-$\color{blue}{\Large\text{MAIN VIEW - COLORED HOSTNAMES - ASUS WEBUI MODE}}$<br>
+$\color{blue}{\Large\text{Main View - Colored Hostnames - Asus WEBUI Theme}}$<br>
 
 ![Instructions7](https://raw.githubusercontent.com/JB1366/Wireless_Report/main/images/Instructions7.png)<br>
 \
 \
-$\color{blue}{\Large\text{SIDE-BY-SIDE VIEW - COLORED HOSTNAMES - DARK MODE}}$<br>
+$\color{blue}{\Large\text{Popout View - Colored Hostnames - Dark Mode Theme}}$<br>
 
 ![Instructions8](https://raw.githubusercontent.com/JB1366/Wireless_Report/main/images/Instructions8.png)
 
 \
 \
-$\color{blue}{\Large\text{ADVANCED VIEWING + INTERACTIVE FEATURES}}$<br>
+$\color{blue}{\Large\text{Advanced Viewing + Interactive Features}}$<br>
 Wireless Report is designed to be more than just a static table. Use these interactive elements to manage your network:
   * $\color{green}{\text{Version, Hash + Update Alerts:}}$ Hover your mouse over the "Wireless Report" header to instantly check your current script version and view file hash updates—when an update or hash change is available, the header text softly pulses twice to catch your eye. Additionally, the browser tab title displays the active Wireless Report version, dynamically appending an alert whenever a new version or hash update is detected.
   * $\color{green}{\text{Dynamic UI Modes:}}$ Choose how you view your data using the built-in button toggles:<br>
@@ -149,7 +149,7 @@ Wireless Report is designed to be more than just a static table. Use these inter
 
 \
 \
-$\color{blue}{\Large\text{UPDATES}}$<br>
+$\color{blue}{\Large\text{Updates}}$<br>
 You can update Wireless Report using one of the following two methods:
 
 $\color{green}{\text{Method A:}}$ Via amtm (Recommended)
@@ -164,7 +164,7 @@ sh /jffs/addons/wireless_report/wirelessreport.sh install
 ```
 \
 \
-$\color{blue}{\Large\text{ALIAS}}$ <br>
+$\color{blue}{\Large\text{Alias}}$ <br>
 Command Shortcut (Alias)
 
 alias 'wr' is automatically created on new installs/updates.
@@ -173,7 +173,7 @@ Typing wr from any location in the SSH terminal will launch the installer.
 
 \
 \
-$\color{blue}{\Large\text{UNINSTALL}}$<br>
+$\color{blue}{\Large\text{Uninstall}}$<br>
 If you need to remove Wireless Report, you can do so through the installer menu. Both methods below will strip the script files and remove the WebGUI tab.
 
 $\color{green}{\text{Method A:}}$ Via amtm<br>
