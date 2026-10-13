@@ -791,6 +791,7 @@ set_device_nicknames() {
                                 printf "\n$GR[+] Reset node order to default.$NC\n"
                                 AIMESH_NODES=""; MESH_NODES=""
                                 get_mesh_nodes
+                                pause
                                 break 2
                                 ;;
                         esac
