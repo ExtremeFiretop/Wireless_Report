@@ -443,30 +443,32 @@ get_mesh_nodes() {
 	local ASUS_DEVICE_LIST MAIN_IP
 	MAIN_IP=$(nvram get lan_ipaddr)
 	ASUS_DEVICE_LIST=$(nvram get asus_device_list)
-	MESH_NODES=$(printf '%s\n' "$ASUS_DEVICE_LIST" | sed 's/</\n/g' | \
+	MESH_NODES=$(printf '%s\n' "$ASUS_DEVICE_LIST" |
+        sed 's/</\n/g' |
 		awk -F '>' -v main_ip="$MAIN_IP" '
 			NF >= 4 && $2 != "" && $3 != "" && $3 != main_ip && $NF == "2" && !seen[$3]++ {
 				print $2 "|" $3
 			}
-		' | sort -t . -k 4,4n)
+		' |
+        sort -t . -k 4,4n)
 
     if [ -f "$CONFIG" ]; then
-        local saved_ssh_nodes=""
-        saved_ssh_nodes=$(grep '^SSH_NODES=' "$CONFIG" 2>/dev/null | cut -d'"' -f2)
-        if [ -n "$saved_ssh_nodes" ]; then
+        local saved_mesh_nodes=""
+        saved_mesh_nodes=$(grep '^SSH_NODES=' "$CONFIG" 2>/dev/null | cut -d'"' -f2)
+        if [ -n "$saved_mesh_nodes" ]; then
             local live_count=0
             for node in $MESH_NODES; do
                 live_count=$((live_count + 1))
             done
             local saved_count=0
-            for node in $saved_ssh_nodes; do
+            for node in $saved_mesh_nodes; do
                 saved_count=$((saved_count + 1))
             done
             if [ "$live_count" -ne "$saved_count" ]; then
                 sed -i '/^SSH_NODES=/d' "$CONFIG"
                 SSH_NODES=""; RR="1"
             else
-                MESH_NODES="$saved_ssh_nodes"
+                MESH_NODES="$saved_mesh_nodes"
             fi
         fi
     fi
@@ -800,12 +802,12 @@ set_device_nicknames() {
                                 freeze 2
                                 continue
                             fi
-                            new_ssh_nodes=""
+                            new_mesh_nodes=""
                             for idx in $new_order_input; do
                                 current_idx=1
                                 for node in $MESH_NODES; do
                                     if [ "$current_idx" -eq "$idx" ]; then
-                                        new_ssh_nodes="$new_ssh_nodes $node"
+                                        new_mesh_nodes="$new_mesh_nodes $node"
                                         break
                                     fi
                                     current_idx=$((current_idx + 1))
@@ -818,8 +820,8 @@ set_device_nicknames() {
                         fi
                     done
                     sed -i '/^SSH_NODES=/d' "$CONFIG"
-                    echo "SSH_NODES=\"$new_ssh_nodes\"" >> "$CONFIG"
-                    MESH_NODES="$new_ssh_nodes"
+                    echo "SSH_NODES=\"$new_mesh_nodes\"" >> "$CONFIG"
+                    MESH_NODES="$new_mesh_nodes"
                     printf "\n$GR[+] Node order successfully updated!$NC\n"
                     ;;
                 e|E)
@@ -2737,6 +2739,7 @@ var WR_CONFIG = {
     ipPad: Number("${IPPAD:-1}") || 0,
     mainColor: "$MAIN_COLOR",
     mainNick: "${MAIN_NICK:-}",
+    meshNodes: "${SSH_NODES:-}",
     nodeColors: String("$NODE_COLORS").trim().split(/\s+/).filter(Boolean),
     pulseMins: Number("${PULSE_MINS:-15}") || 15,
     reportUnit: String("${REPORT_UNIT:-USA}"),
@@ -2744,8 +2747,7 @@ var WR_CONFIG = {
     rssiHistoryDate: Number("${RS_HIST_DATE:-0}") || 0,
     rssiHistoryEntries: Number("${RS_HIST_ENTRIES:-5}") || 5,
     runtimeLog: Number("${RTIME_LOG:-0}") || 0,
-    runtimeTracking: Number("${RTIME:-1}") || 0,
-    sshNodes: "${SSH_NODES:-}"
+    runtimeTracking: Number("${RTIME:-1}") || 0
 };
 
 var WR_PAGE_GENERATION = "$WR_GENERATION";
@@ -5173,11 +5175,11 @@ async function loadWirelessReport() {
         return false;
     });
 
-    // Check if custom node order exists in CONFIG via WR_CONFIG.sshNodes,
+    // Check if custom node order exists in CONFIG via WR_CONFIG.meshNodes,
     // otherwise fallback to deterministic IP sorting.
     var customOrder = [];
-    if (typeof WR_CONFIG !== 'undefined' && WR_CONFIG.sshNodes) {
-        var rawNodes = String(WR_CONFIG.sshNodes).trim().split(/\s+/);
+    if (typeof WR_CONFIG !== 'undefined' && WR_CONFIG.meshNodes) {
+        var rawNodes = String(WR_CONFIG.meshNodes).trim().split(/\s+/);
         rawNodes.forEach(function(token) {
             var parts = token.split('|');
             var ip = parts.length > 1 ? parts[1] : parts[0];
