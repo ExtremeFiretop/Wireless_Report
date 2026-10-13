@@ -453,8 +453,13 @@ get_mesh_nodes() {
         sort -t . -k 4,4n)
 
     if [ -f "$CONFIG" ]; then
+        # Migrate legacy SSH_NODES key to AIMESH_NODES if found
+        if grep -q '^SSH_NODES=' "$CONFIG" 2>/dev/null; then
+            sed -i 's/^SSH_NODES=/AIMESH_NODES=/' "$CONFIG"
+        fi
+
         local saved_mesh_nodes=""
-        saved_mesh_nodes=$(grep '^SSH_NODES=' "$CONFIG" 2>/dev/null | cut -d'"' -f2)
+        saved_mesh_nodes=$(grep '^AIMESH_NODES=' "$CONFIG" 2>/dev/null | cut -d'"' -f2)
         if [ -n "$saved_mesh_nodes" ]; then
             local live_count=0
             for node in $MESH_NODES; do
@@ -465,8 +470,8 @@ get_mesh_nodes() {
                 saved_count=$((saved_count + 1))
             done
             if [ "$live_count" -ne "$saved_count" ]; then
-                sed -i '/^SSH_NODES=/d' "$CONFIG"
-                SSH_NODES=""; RR="1"
+                sed -i '/^AIMESH_NODES=/d' "$CONFIG"
+                AIMESH_NODES=""; RR="1"
             else
                 MESH_NODES="$saved_mesh_nodes"
             fi
@@ -819,8 +824,8 @@ set_device_nicknames() {
                             continue
                         fi
                     done
-                    sed -i '/^SSH_NODES=/d' "$CONFIG"
-                    echo "SSH_NODES=\"$new_mesh_nodes\"" >> "$CONFIG"
+                    sed -i '/^AIMESH_NODES=/d' "$CONFIG"
+                    echo "AIMESH_NODES=\"$new_mesh_nodes\"" >> "$CONFIG"
                     MESH_NODES="$new_mesh_nodes"
                     printf "\n$GR[+] Node order successfully updated!$NC\n"
                     ;;
@@ -2739,7 +2744,7 @@ var WR_CONFIG = {
     ipPad: Number("${IPPAD:-1}") || 0,
     mainColor: "$MAIN_COLOR",
     mainNick: "${MAIN_NICK:-}",
-    meshNodes: "${SSH_NODES:-}",
+    meshNodes: "${AIMESH_NODES:-}",
     nodeColors: String("$NODE_COLORS").trim().split(/\s+/).filter(Boolean),
     pulseMins: Number("${PULSE_MINS:-15}") || 15,
     reportUnit: String("${REPORT_UNIT:-USA}"),
