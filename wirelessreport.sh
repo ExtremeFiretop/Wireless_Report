@@ -782,9 +782,9 @@ set_device_nicknames() {
                     echo -e "  [${BL}E$NC] Exit with no changes.      \n"
                     while true; do
                         printf " Enter new order by index (e.g., ${BL}2 1 3$NC): "
-                        read -r new_order_input
-                        [ -z "$new_order_input" ] && { freeze; continue; }
-                        case "$new_order_input" in
+                        read -r new_order
+                        [ -z "$new_order" ] && { freeze; continue; }
+                        case "$new_order" in
                             e|E)
                                 break 2 ;;
                             r|R)
@@ -798,7 +798,7 @@ set_device_nicknames() {
                         esac
                         valid="true"
                         entered_count=0
-                        for idx in $new_order_input; do
+                        for idx in $new_order; do
                             entered_count=$((entered_count + 1))
                             case "$idx" in
                                 *[!0-9]*|'')
@@ -816,13 +816,13 @@ set_device_nicknames() {
                             valid="false"
                         fi
                         if [ "$valid" = "true" ]; then
-                            unique_check=$(for idx in $new_order_input; do echo "$idx"; done | sort -n | uniq | wc -l | tr -d ' ')
+                            unique_check=$(for idx in $new_order; do echo "$idx"; done | sort -n | uniq | wc -l | tr -d ' ')
                             if [ "$unique_check" -ne "$orig_count" ]; then
                                 freeze
                                 continue
                             fi
                             new_mesh_nodes=""
-                            for idx in $new_order_input; do
+                            for idx in $new_order; do
                                 current_idx=1
                                 for node in $MESH_NODES; do
                                     if [ "$current_idx" -eq "$idx" ]; then
