@@ -777,12 +777,13 @@ set_device_nicknames() {
                         node_idx=$((node_idx + 1))
                     done
                     orig_count=$((node_idx - 1))
-                    printf "\n  [${BL}R$NC] Reset to default, sort by IP.\n"
-                    printf "  [${BL}E$NC] Exit with no changes.\n"
+                    echo -e "                                           "
+                    echo -e "  [${BL}R$NC] Reset to default, sort by IP."
+                    echo -e "  [${BL}E$NC] Exit with no changes.      \n"
                     while true; do
-                        printf "\n Enter new order by index (e.g., ${BL}2 1 3$NC): "
+                        printf " Enter new order by index (e.g., ${BL}2 1 3$NC): "
                         read -r new_order_input
-                        [ -z "$new_order_input" ] && { freeze 2; continue; }
+                        [ -z "$new_order_input" ] && { freeze; continue; }
                         case "$new_order_input" in
                             e|E)
                                 break 2 ;;
@@ -817,7 +818,7 @@ set_device_nicknames() {
                         if [ "$valid" = "true" ]; then
                             unique_check=$(for idx in $new_order_input; do echo "$idx"; done | sort -n | uniq | wc -l | tr -d ' ')
                             if [ "$unique_check" -ne "$orig_count" ]; then
-                                freeze 2
+                                freeze
                                 continue
                             fi
                             new_mesh_nodes=""
@@ -833,7 +834,7 @@ set_device_nicknames() {
                             done
                             break
                         else
-                            freeze 2
+                            freeze
                             continue
                         fi
                     done
