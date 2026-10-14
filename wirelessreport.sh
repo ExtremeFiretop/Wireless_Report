@@ -238,7 +238,7 @@ menu_vars() {
     DATE_INTL1="$BL$(date +"%d-%b %I:%M:%S %p")$NC"
     DATE_USA1="$BL$(date +"%b-%d %I:%M:%S %p")$NC"
 
-    REPORT_UNIT="${REPORT_UNIT:-USA}"
+    REPORT_UNIT=${REPORT_UNIT:-USA}
     case "$REPORT_UNIT" in
         ISO)  DU="${GR}ISO$NC";  CT="$DATE_ISO" ;;
         INTL) DU="${GR}INTL$NC"; CT="$DATE_INTL" ;;
