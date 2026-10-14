@@ -907,7 +907,7 @@ get_hex_ansi_selection() {
             9)  selected_hex="#ff70a6"; BORDER="$PK" ;;
             10) selected_hex="#64ffda"; BORDER="$MT" ;;
             11) selected_hex="#555555"; BORDER="$DG" ;;
-            e|E) break 2;;
+            e|E) break 2 ;;
             *)  freeze; continue ;;
         esac
         break
