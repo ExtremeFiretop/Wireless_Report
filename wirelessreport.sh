@@ -28,7 +28,7 @@
 #        shellcheck shell=sh disable=SC2086,SC2155,SC3043         #
 #═════════════════════════════════════════════════════════════════#
 
-SCRIPT_VERSION="3.4.0"
+SCRIPT_VERSION="3.4.1"
 INSTALL_DIR="/jffs/addons/wireless_report"
 REPORT_SCRIPT="$INSTALL_DIR/wirelessreport.sh"
 CONFIG="$INSTALL_DIR/webui.conf"
@@ -1184,6 +1184,12 @@ set_options() {
                         echo -e "\n$YL[!] TAB injection applied.$NC"
                     fi
                     inject_menu
+                    pause
+                    continue 2
+                    ;;
+                s|S)
+                    sort -u -o "$CONFIG" "$CONFIG"
+                    echo -e "\n$YL[!] CONFIG Sorted.$NC"
                     pause
                     continue 2
                     ;;
