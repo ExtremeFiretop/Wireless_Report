@@ -80,7 +80,7 @@ install_menu() {
         printm "  $N8  Config RSSI Tooltip History ($CH)"
 		printm ""
         printb "╚════════════════════════════════════════════════════════════╝"
-        printf "%b" "$MB"
+        printf "%b" "$menu_buffer"
 		while true; do
 			selection
 			case "$choice" in
@@ -180,7 +180,7 @@ version_compare() {
 
 printm() {
     local box_color text target esc plain len pad line i
-    box_color="$BORDER"
+    box_color="$B_COLOR"
     text="$1"
     target="${2:-60}"
     esc=$(printf '\033')
@@ -195,11 +195,11 @@ printm() {
         i=$((i + 1))
     done
     line="${line}${box_color}║$NC\n"
-    MB="${MB}${line}"
+    menu_buffer="${menu_buffer}${line}"
 }
 
 printb() {
-    MB="${MB}$BORDER$1$NC\n"
+    menu_buffer="${menu_buffer}$B_COLOR$1$NC\n"
 }
 
 menu_vars() {
@@ -209,16 +209,16 @@ menu_vars() {
 
     UL='\033[4m'; YL='\033[0;33m'; NC='\033[0m'
     BL='\033[38;5;39m'; GR='\033[0;32m'; RD='\033[0;31m'
-    COLORS="${MP}C${NB}o${LG}l${YW}o${SB}r${OR}s";  MB=""
+    COLORS="${MP}C${NB}o${LG}l${YW}o${SB}r${OR}s";  menu_buffer=""
 
     JB_1366="$NC Copyright (c) 2026 JB_1366 - All Rights Reserved"
-    JB1366="$BORDER${UL}https://github.com/JB1366/Wireless_Report$NC"
+    JB1366="$B_COLOR${UL}https://github.com/JB1366/Wireless_Report$NC"
 
-    BORDER=${BORDER:-$BL} # Menu Header & Border Color
-    echo -e "$BORDER" # Set color for show_header()
+    B_COLOR=${B_COLOR:-$BL} # Menu Header & Border Color
+    echo -e "$B_COLOR" # Set color for show_header()
 
-    for i in 0 1 2 3 4 5 6 7 8; do eval "N${i}=\"\$BORDER(${i})\$NC\""; done
-	for i in E S R; do eval "L${i}=\"\$BORDER(${i})\$NC\""; done
+    for i in 0 1 2 3 4 5 6 7 8; do eval "N${i}=\"\$B_COLOR(${i})\$NC\""; done
+	for i in E S R; do eval "L${i}=\"\$B_COLOR(${i})\$NC\""; done
 
     ON="${GR}ON$NC"; OFF="${RD}OFF$NC"
     STATUS="$NC STATUS:"
@@ -603,7 +603,7 @@ set_date_time() {
         printm "   $N6  ISO                     ($DATE_ISO1)"
         printm ""
 		printb "╚════════════════════════════════════════════════════════════╝"
-        printf "%b" "$MB"
+        printf "%b" "$menu_buffer"
         while true; do
             selection
             case "$choice" in
@@ -674,7 +674,7 @@ set_device_nicknames() {
         done
         printm ""
         printb "╚════════════════════════════════════════════════════════════╝"
-        printf "%b" "$MB"
+        printf "%b" "$menu_buffer"
         while true; do
             selection
             case "$choice" in
@@ -773,7 +773,7 @@ set_device_nicknames() {
                         HEX_CLR=$(get_node_color "$node_idx")
                         NODE_CLR=$(get_hex_to_ansi "$HEX_CLR")
 
-                        echo -e "  $BORDER($node_idx) ${NODE_CLR}Node $IP -> ${SAVED_NICK:-$MODEL}$NC"
+                        echo -e "  $B_COLOR($node_idx) ${NODE_CLR}Node $IP -> ${SAVED_NICK:-$MODEL}$NC"
 
                         node_idx=$((node_idx + 1))
                     done
@@ -782,7 +782,7 @@ set_device_nicknames() {
                     echo -e "  $LR Reset to default, sort by IP."
                     echo -e "  $LE Exit with no changes.      \n"
                     while true; do
-                        printf " Enter new order by index (e.g., ${BORDER}2 1 3$NC): "
+                        printf " Enter new order by index (e.g., ${B_COLOR}2 1 3$NC): "
                         read -r new_order
                         [ -z "$new_order" ] && { freeze; continue; }
                         case "$new_order" in
@@ -895,20 +895,20 @@ get_hex_ansi_selection() {
     echo -e "                              "
     #══════════════════════════════════════#
     while true; do
-        printf "$NC Choose option [${BORDER}E$NC=Exit] (${BORDER}1-12$NC): "; read -r color_choice
+        printf "$NC Choose option [${B_COLOR}E$NC=Exit] (${B_COLOR}1-12$NC): "; read -r color_choice
         case "$color_choice" in
-            1)  selected_hex="#0096ff"; BORDER="$NB" ;;
-            2)  selected_hex="#30d158"; BORDER="$LG" ;;
-            3)  selected_hex="#bf40bf"; BORDER="$MP" ;;
-            4)  selected_hex="#ffd60a"; BORDER="$YW" ;;
-            5)  selected_hex="#64d2ff"; BORDER="$SB" ;;
-            6)  selected_hex="#ff9500"; BORDER="$OR" ;;
-            7)  selected_hex="#ff453a"; BORDER="$RD" ;;
-            8)  selected_hex="#ffffff"; BORDER="$WT" ;;
-            9)  selected_hex="#555555"; BORDER="$DG" ;;
-            10) selected_hex="#ff70a6"; BORDER="$PK" ;;
-            11) selected_hex="#64ffda"; BORDER="$MT" ;;
-            12) selected_hex="#000000"; BORDER="$DG" ;;
+            1)  selected_hex="#0096ff"; B_COLOR="$NB" ;;
+            2)  selected_hex="#30d158"; B_COLOR="$LG" ;;
+            3)  selected_hex="#bf40bf"; B_COLOR="$MP" ;;
+            4)  selected_hex="#ffd60a"; B_COLOR="$YW" ;;
+            5)  selected_hex="#64d2ff"; B_COLOR="$SB" ;;
+            6)  selected_hex="#ff9500"; B_COLOR="$OR" ;;
+            7)  selected_hex="#ff453a"; B_COLOR="$RD" ;;
+            8)  selected_hex="#ffffff"; B_COLOR="$WT" ;;
+            9)  selected_hex="#555555"; B_COLOR="$DG" ;;
+            10) selected_hex="#ff70a6"; B_COLOR="$PK" ;;
+            11) selected_hex="#64ffda"; B_COLOR="$MT" ;;
+            12) selected_hex="#000000"; B_COLOR="$DG" ;;
             e|E) break 2 ;;
             *)  freeze; continue ;;
         esac
@@ -990,9 +990,9 @@ set_device_colors() {
         printm "  $LS Save Changes & Exit"
         printm ""
         printb "╚════════════════════════════════════════════════════════════╝"
-        printf "%b" "$MB"
+        printf "%b" "$menu_buffer"
         while true; do
-            printf "\n$NC Select number to change color [${BORDER}E$NC]xit (${BORDER}0-$total_nodes$NC): "; read -r node_choice
+            printf "\n$NC Select number to change color [${B_COLOR}E$NC]xit (${B_COLOR}0-$total_nodes$NC): "; read -r node_choice
             case "$node_choice" in
                 r|R)
                     unset MAIN_COLOR NODE_COLORS
@@ -1077,7 +1077,7 @@ set_theme() {
         printm "  $N3 Asus WebUI Theme"
         printm ""
         printb "╚════════════════════════════════════════════════════════════╝"
-        printf "%b" "$MB"
+        printf "%b" "$menu_buffer"
         while true; do
             selection
             case "$choice" in
@@ -1113,7 +1113,7 @@ set_options() {
         printm "  $N6  Change Logo/Menu Border Color"
         printm ""
         printb "╚════════════════════════════════════════════════════════════╝"
-        printf "%b" "$MB"
+        printf "%b" "$menu_buffer"
         while true; do
             selection
             case "$choice" in
@@ -1160,11 +1160,11 @@ set_options() {
                     fi
                     ;;
                 6)
-                    echo -e "\n$BORDER Select Logo/Menu Border Color:"
+                    echo -e "\n$B_COLOR Select Logo/Menu Border Color:"
                     get_hex_ansi_selection
-                    if [ -f "$CONFIG" ]; then sed -i '/^BORDER=/d' "$CONFIG"; fi
-                    echo "BORDER=\"$BORDER\"" >> "$CONFIG"
-                    echo -e "\n$BORDER[+] Logo/Menu Border Color changed.$NC"
+                    if [ -f "$CONFIG" ]; then sed -i '/^B_COLOR=/d' "$CONFIG"; fi
+                    echo "B_COLOR=\"$B_COLOR\"" >> "$CONFIG"
+                    echo -e "\n$B_COLOR[+] Logo/Menu Border Color changed.$NC"
                     pause
                     continue 2 ;;
                 inject|inject2)
@@ -1219,7 +1219,7 @@ set_runtime_tracking() {
         printm "  $N2 Log Stats to Syslog: ($WS_STAT)"
         printm ""
         printb "╚════════════════════════════════════════════════════════════╝"
-        printf "%b" "$MB"
+        printf "%b" "$menu_buffer"
         while true; do
             selection
             case "$choice" in
@@ -1297,7 +1297,7 @@ set_ip_padding() {
         printm "  $N3 192.168.050.003                   (${GR}Last 2 Octets$NC)"
         printm ""
         printb "╚════════════════════════════════════════════════════════════╝"
-        printf "%b" "$MB"
+        printf "%b" "$menu_buffer"
         while true; do
             selection
             case "$choice" in
@@ -1332,7 +1332,7 @@ set_github_branch() {
         printm "  $N3 Development (ExtremeFiretop)"
         printm ""
         printb "╚════════════════════════════════════════════════════════════╝"
-        printf "%b" "$MB"
+        printf "%b" "$menu_buffer"
         while true; do
             selection
             case "$choice" in
@@ -1376,7 +1376,7 @@ set_rssi_tooltip() {
 		printm "  $LS Save Changes & Exit"
 		printm ""
         printb "╚════════════════════════════════════════════════════════════╝"
-        printf "%b" "$MB"
+        printf "%b" "$menu_buffer"
         while true; do
             selection
             case "$choice" in
@@ -1484,7 +1484,7 @@ get_theme() {
 }
 
 hasta_la_vista() {
-echo -e "\n\n\n$BORDER" #════════════════════════════════════════════════════════════════════════════════════════════════════════════#
+echo -e "\n\n\n$B_COLOR" #════════════════════════════════════════════════════════════════════════════════════════════════════════════#
 echo -e "                                                                                                                        "
 echo -e "                                                                                                                        "
 echo -e "             ██╗  ██╗ █████╗ ███████╗████████╗ █████╗      ██╗      █████╗      ██╗   ██╗██╗███████╗████████╗ █████╗    "
@@ -1500,11 +1500,11 @@ echo -e "$NC\n\n\n" #═══════════════════�
 
 sys_log() { logger -p user.info -t "Wireless_Report" "$1"; }
 
-selection() { printf "\n$NC Selection [${BORDER}E$NC=Exit]: "; read -r choice; }
+selection() { printf "\n$NC Selection [${B_COLOR}E$NC=Exit]: "; read -r choice; }
 
 restart_httpd() { service restart_httpd >/dev/null 2>&1; killall -HUP httpd >/dev/null 2>&1; }
 
-pause() { printf "\nPress $BORDER[Enter]$NC to return..."; read -r discard; }
+pause() { printf "\nPress $B_COLOR[Enter]$NC to return..."; read -r discard; }
 
 freeze() { printf "\033[%dA\033[J" "${1:-1}"; }
 
