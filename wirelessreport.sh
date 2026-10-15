@@ -28,7 +28,7 @@
 #        shellcheck shell=sh disable=SC2086,SC2155,SC3043         #
 #═════════════════════════════════════════════════════════════════#
 
-SCRIPT_VERSION="3.3.9"
+SCRIPT_VERSION="3.4.0"
 INSTALL_DIR="/jffs/addons/wireless_report"
 REPORT_SCRIPT="$INSTALL_DIR/wirelessreport.sh"
 CONFIG="$INSTALL_DIR/webui.conf"
@@ -986,7 +986,6 @@ set_device_colors() {
         done
         #═════════════════════════════════════════════════════════════════════#
         printm ""
-        printm "  $BORDER(B) Change Logo/Menu Border Color"
         printm "  $LR Restore Default Colors"
         printm "  $LS Save Changes & Exit"
         printm ""
@@ -995,14 +994,6 @@ set_device_colors() {
         while true; do
             printf "\n$NC Select number to change color [${BORDER}E$NC]xit (${BORDER}0-$total_nodes$NC): "; read -r node_choice
             case "$node_choice" in
-                b|B)
-                    echo -e "\n$BORDER Select Logo/Menu Border Color:"
-                    get_hex_ansi_selection
-                    if [ -f "$CONFIG" ]; then sed -i '/^BORDER=/d' "$CONFIG"; fi
-                    echo "BORDER=\"$BORDER\"" >> "$CONFIG"
-                    echo -e "\n$BORDER[+] Logo/Menu Border Color changed.$NC"
-                    pause
-                    continue 2 ;;
                 r|R)
                     unset MAIN_COLOR NODE_COLORS
                     device_default_colors
@@ -1119,6 +1110,7 @@ set_options() {
         printm "  $N3  Configure Uptime Alert Pulse: ($UP_STAT)"
         printm "  $N4  Toggle IP Column Padding: ($PD_STAT)"
         printm "  $N5  Toggle Node Hostname Display: ($HN_STAT)"
+        printm "  $N6  Change Logo/Menu Border Color"
         printm ""
         printb "╚════════════════════════════════════════════════════════════╝"
         printf "%b" "$MB"
@@ -1167,6 +1159,14 @@ set_options() {
                         echo 'HOST_COLOR="1"' >> "$CONFIG"
                     fi
                     ;;
+                6)
+                    echo -e "\n$BORDER Select Logo/Menu Border Color:"
+                    get_hex_ansi_selection
+                    if [ -f "$CONFIG" ]; then sed -i '/^BORDER=/d' "$CONFIG"; fi
+                    echo "BORDER=\"$BORDER\"" >> "$CONFIG"
+                    echo -e "\n$BORDER[+] Logo/Menu Border Color changed.$NC"
+                    pause
+                    continue 2 ;;
                 inject|inject2)
                     if [ "$choice" = "inject2" ]; then
                         if grep -q "INJECT=" "$CONFIG"; then
