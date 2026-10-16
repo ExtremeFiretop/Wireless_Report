@@ -32,6 +32,7 @@ if [ "$0" != "/jffs/scripts/wirelessreport.sh" ] && [ -f "$0" ]; then
     mkdir -p /jffs/scripts
     cp -f "$0" /jffs/scripts/wirelessreport.sh
     chmod +x /jffs/scripts/wirelessreport.sh
+    rm -rf /jffs/addons/wireless_report 2>/dev/null
     exec /jffs/scripts/wirelessreport.sh "$@"
 fi
 
@@ -353,9 +354,6 @@ do_install() {
 }
 
 dir_upgrade() {
-    # Step 1: Detach the running process from /jffs/addons/ immediately
-    cd /tmp || cd /
-
     # If the new .d directory already exists, migration is complete—skip everything
     [ -d "/jffs/addons/wireless_report.d" ] && return
 
@@ -367,8 +365,7 @@ dir_upgrade() {
 
     # Migrate legacy folder structure
     if [ -d "/jffs/addons/wireless_report" ]; then
-        rm -f /jffs/addons/wireless_report/wirelessreport.sh 2>/dev/null
-        mv /jffs/addons/wireless_report /jffs/addons/wireless_report.d 2>/dev/null
+        mv /jffs/addons/wireless_report/webui.conf /jffs/addons/wireless_report.d 2>/dev/null
     fi
 
     # Update profile.add (Alias)
