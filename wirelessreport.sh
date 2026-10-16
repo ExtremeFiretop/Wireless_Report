@@ -32,7 +32,6 @@ if [ "$0" != "/jffs/scripts/wirelessreport.sh" ] && [ -f "$0" ]; then
     mkdir -p /jffs/scripts
     cp -f "$0" /jffs/scripts/wirelessreport.sh
     chmod +x /jffs/scripts/wirelessreport.sh
-    rm -rf /jffs/addons/wireless_report 2>/dev/null
     exec /jffs/scripts/wirelessreport.sh "$@"
 fi
 
