@@ -353,6 +353,9 @@ do_install() {
 }
 
 dir_upgrade() {
+    # Step 1: Detach the running process from /jffs/addons/ immediately
+    cd /tmp || cd /
+
     # If the new .d directory already exists, migration is complete—skip everything
     [ -d "/jffs/addons/wireless_report.d" ] && return
 
@@ -383,6 +386,8 @@ dir_upgrade() {
     # Update service-event
     [ ! -f "$SE_FILE" ] && echo '#!/bin/sh' > "$SE_FILE"
     sed -i '/WirelessReportRuntime/d' "$SE_FILE"
+    echo 'case "$1:$2" in start:WirelessReportRuntime_*) /jffs/scripts/wirelessreport.sh service_event "$@" & ;; esac # Wireless Report Syslog' >> "$SE_FILE"
+    chmod +x "$SE_FILE"
 }
 
 do_update() {
