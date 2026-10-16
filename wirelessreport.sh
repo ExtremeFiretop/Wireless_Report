@@ -37,7 +37,7 @@ fi
 
 SCRIPT_VERSION="3.4.1"
 REPORT_SCRIPT="/jffs/scripts/wirelessreport.sh"
-CONFIG_DIR="/jffs/addons/wirelessreport.d"
+CONFIG_DIR="/jffs/addons/wireless_report.d"
 CONFIG="$CONFIG_DIR/webui.conf"
 SYSTEM_MENU="/www/require/modules/menuTree.js"
 TEMP_MENU="/tmp/menuTree.js"
@@ -354,7 +354,7 @@ do_install() {
 
 dir_upgrade() {
     # If the new .d directory already exists, migration is complete—skip everything
-    [ -d "/jffs/addons/wirelessreport.d" ] && return
+    [ -d "/jffs/addons/wireless_report.d" ] && return
 
     SS_FILE="/jffs/scripts/services-start"
     SE_FILE="/jffs/scripts/service-event"
@@ -365,7 +365,7 @@ dir_upgrade() {
     # Migrate legacy folder structure
     if [ -d "/jffs/addons/wireless_report" ]; then
         rm -f /jffs/addons/wireless_report/wirelessreport.sh 2>/dev/null
-        mv /jffs/addons/wireless_report /jffs/addons/wirelessreport.d 2>/dev/null
+        mv /jffs/addons/wireless_report /jffs/addons/wireless_report.d 2>/dev/null
     fi
 
     # Update profile.add (Alias)
