@@ -325,7 +325,7 @@ do_install() {
         echo -e "\n$BL[✓] Wireless Report successfully installed.$NC"
 		printf "\nPress $BL[Enter]$NC to apply changes & restart script..."; read -r discard
         sys_log "(v$REMOTE_VERSION) successfully installed."
-        exec "$REPORT_SCRIPT" install "$@"
+        exec /jffs/scripts/wirelessreport.sh install "$@"
 		echo -e "\n$RD[!] Error: Failed to restart script!$NC" >&2; exit 1
 	fi
 
