@@ -325,7 +325,18 @@ do_install() {
         echo -e "\n$BL[✓] Wireless Report successfully installed.$NC"
 		printf "\nPress $BL[Enter]$NC to apply changes & restart script..."; read -r discard
         sys_log "(v$REMOTE_VERSION) successfully installed."
-        exec /jffs/scripts/wirelessreport.sh install "$@"
+
+        echo "--- DEBUG EXEC START ---"
+        echo "Target path:   '$REPORT_SCRIPT'"
+        echo "File exists?:  $( [ -f "$REPORT_SCRIPT" ] && echo "YES" || echo "NO" )"
+        echo "File size?:    $(wc -c < "$REPORT_SCRIPT") bytes"
+        echo "Is executable: $( [ -x "$REPORT_SCRIPT" ] && echo "YES" || echo "NO" )"
+        echo "Shebang line:  $(head -n 1 "$REPORT_SCRIPT")"
+        echo "Current CWD:   $(pwd)"
+        echo "Arguments:     $*"
+        echo "--- DEBUG EXEC END ---"
+
+        exec "$REPORT_SCRIPT" install "$@"
 		echo -e "\n$RD[!] Error: Failed to restart script!$NC" >&2; exit 1
 	fi
 
