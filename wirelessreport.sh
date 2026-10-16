@@ -28,6 +28,13 @@
 #        shellcheck shell=sh disable=SC2086,SC2155,SC3043         #
 #═════════════════════════════════════════════════════════════════#
 
+if [ "$0" != "/jffs/scripts/wirelessreport.sh" ] && [ -f "$0" ]; then
+    mkdir -p /jffs/scripts
+    cp -f "$0" /jffs/scripts/wirelessreport.sh
+    chmod +x /jffs/scripts/wirelessreport.sh
+    exec /jffs/scripts/wirelessreport.sh "$@"
+fi
+
 SCRIPT_VERSION="3.4.1"
 REPORT_SCRIPT="/jffs/scripts/wirelessreport.sh"
 CONFIG_DIR="/jffs/addons/wireless_report.d"
@@ -376,8 +383,6 @@ dir_upgrade() {
     # Update service-event
     [ ! -f "$SE_FILE" ] && echo '#!/bin/sh' > "$SE_FILE"
     sed -i '/WirelessReportRuntime/d' "$SE_FILE"
-    echo 'case "$1:$2" in start:WirelessReportRuntime_*) /jffs/scripts/wirelessreport.sh service_event "$@" & ;; esac # Wireless Report Syslog' >> "$SE_FILE"
-    chmod +x "$SE_FILE"
 }
 
 do_update() {
