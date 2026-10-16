@@ -28,7 +28,7 @@
 #        shellcheck shell=sh disable=SC2086,SC2155,SC3043         #
 #═════════════════════════════════════════════════════════════════#
 
-echo ""$REPORT_SCRIPT"
+echo "$REPORT_SCRIPT"
 if [ "$0" != "/jffs/scripts/wirelessreport.sh" ] && [ -f "$0" ]; then
     mkdir -p /jffs/scripts
     cp -f "$0" /jffs/scripts/wirelessreport.sh
@@ -326,7 +326,7 @@ do_install() {
         echo -e "\n$BL[✓] Wireless Report successfully installed.$NC"
 		printf "\nPress $BL[Enter]$NC to apply changes & restart script..."; read -r discard
         sys_log "(v$REMOTE_VERSION) successfully installed."
-        echo ""$REPORT_SCRIPT"
+        echo "$REPORT_SCRIPT"
         exec "$REPORT_SCRIPT" install "$@"
 		echo -e "\n$RD[!] Error: Failed to restart script!$NC" >&2; exit 1
 	fi
