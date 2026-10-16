@@ -28,10 +28,17 @@
 #        shellcheck shell=sh disable=SC2086,SC2155,SC3043         #
 #═════════════════════════════════════════════════════════════════#
 
+if [ "$0" != "/jffs/scripts/wirelessreport.sh" ] && [ -f "$0" ]; then
+    mkdir -p /jffs/scripts
+    cp -f "$0" /jffs/scripts/wirelessreport.sh
+    chmod +x /jffs/scripts/wirelessreport.sh
+    exec /jffs/scripts/wirelessreport.sh "$@"
+fi
+
 SCRIPT_VERSION="3.4.1"
-INSTALL_DIR="/jffs/addons/wireless_report"
-REPORT_SCRIPT="$INSTALL_DIR/wirelessreport.sh"
-CONFIG="$INSTALL_DIR/webui.conf"
+REPORT_SCRIPT="/jffs/scripts/wirelessreport.sh"
+CONFIG_DIR="/jffs/addons/wirelessreport.d"
+CONFIG="$CONFIG_DIR/webui.conf"
 SYSTEM_MENU="/www/require/modules/menuTree.js"
 TEMP_MENU="/tmp/menuTree.js"
 WEB_PAGE="/tmp/wireless.asp"
@@ -298,14 +305,11 @@ do_install() {
         echo -e "\n$RD[!] ERROR: JFFS custom scripts not enabled.$NC"
         pause; return 1
     fi
-
-    mkdir -p "$INSTALL_DIR" 2>/dev/null
     if [ ! -f "$CONFIG" ]; then touch "$CONFIG"; fi
 
     local is_update=0
-	if [ -f "$REPORT_SCRIPT" ]; then
-        is_update=1
-    fi
+	if [ -f "$REPORT_SCRIPT" ]; then is_update=1; fi
+
     if [ "$is_update" = "1" ]; then
         while true; do
             check_version do_install
@@ -316,13 +320,6 @@ do_install() {
 
     echo -e "\n$GR[+] Downloading latest version (${NC}v$REMOTE_VERSION$GR)$NC"
     do_update || return 1
-
-    mkdir -p "$(dirname "$PROFILE_ADD")"
-    [ ! -f "$PROFILE_ADD" ] && touch "$PROFILE_ADD"
-    if ! grep -q "alias wr=" "$PROFILE_ADD" 2>/dev/null; then
-        echo "alias wr=\"$REPORT_SCRIPT install\" # added by Wireless Report" >> "$PROFILE_ADD"
-        echo -e "\n$GR[+] Adding alias 'wr' to $PROFILE_ADD$NC"
-    fi
 
     if [ "$is_update" = "1" ]; then
         echo -e "\n$BL[✓] Wireless Report successfully installed.$NC"
@@ -335,6 +332,13 @@ do_install() {
     echo -e "\n$GR[+] Mounting Tab Wireless Report$NC\n"
     echo -e "$GR[+] Processing Wireless Report Files...$NC\n"
 
+    mkdir -p "$(dirname "$PROFILE_ADD")"
+    [ ! -f "$PROFILE_ADD" ] && touch "$PROFILE_ADD"
+    if ! grep -q "alias wr=" "$PROFILE_ADD" 2>/dev/null; then
+        echo "alias wr=\"$REPORT_SCRIPT install\" # added by Wireless Report" >> "$PROFILE_ADD"
+        echo -e "\n$GR[+] Adding alias 'wr' to $PROFILE_ADD$NC"
+    fi
+
     if [ ! -f "$SS_FILE" ]; then echo "#!/bin/sh" > "$SS_FILE"; fi
     sed -i "\|$REPORT_SCRIPT|d" "$SS_FILE" 2>/dev/null
     echo "$REPORT_SCRIPT inject & # Inject Wireless Report" >> "$SS_FILE"
@@ -346,6 +350,41 @@ do_install() {
     echo -e "$YL[i] To access Report, navigate to Advanced Settings > Wireless "
     echo -e "$YL    in the ASUS WebGUI and select the Wireless Report tab on the far right.$NC\n"
     pause
+}
+
+dir_upgrade() {
+    # If the new .d directory already exists, migration is complete—skip everything
+    [ -d "/jffs/addons/wirelessreport.d" ] && return
+
+    SS_FILE="/jffs/scripts/services-start"
+    SE_FILE="/jffs/scripts/service-event"
+    PROFILE_ADD="/jffs/configs/profile.add"
+
+    is_update=1
+
+    # Migrate legacy folder structure
+    if [ -d "/jffs/addons/wireless_report" ]; then
+        rm -f /jffs/addons/wireless_report/wirelessreport.sh 2>/dev/null
+        mv /jffs/addons/wireless_report /jffs/addons/wirelessreport.d 2>/dev/null
+    fi
+
+    # Update profile.add (Alias)
+    mkdir -p "$(dirname "$PROFILE_ADD")"
+    [ ! -f "$PROFILE_ADD" ] && touch "$PROFILE_ADD"
+    sed -i '/alias wr=/d' "$PROFILE_ADD"
+    echo "alias wr=\"/jffs/scripts/wirelessreport.sh install\" # added by Wireless Report" >> "$PROFILE_ADD"
+
+    # Update services-start
+    [ ! -f "$SS_FILE" ] && echo '#!/bin/sh' > "$SS_FILE"
+    sed -i '/wireless_report/d' "$SS_FILE"
+    echo "/jffs/scripts/wirelessreport.sh inject & # Inject Wireless Report" >> "$SS_FILE"
+    chmod +x "$SS_FILE"
+
+    # Update service-event
+    [ ! -f "$SE_FILE" ] && echo '#!/bin/sh' > "$SE_FILE"
+    sed -i '/WirelessReportRuntime/d' "$SE_FILE"
+    echo 'case "$1:$2" in start:WirelessReportRuntime_*) /jffs/scripts/wirelessreport.sh service_event "$@" & ;; esac # Wireless Report Syslog' >> "$SE_FILE"
+    chmod +x "$SE_FILE"
 }
 
 do_update() {
@@ -572,7 +611,8 @@ do_uninstall() {
 	fi
 
     sed -i "\|$REPORT_SCRIPT|d" "$PROFILE_ADD" "$SS_FILE" "$SE_FILE" 2>/dev/null
-    rm -rf "$INSTALL_DIR" "$WEB_PAGE" 2>/dev/null
+    rm -f "$REPORT_SCRIPT" "$WEB_PAGE" 2>/dev/null
+    rm -rf "$CONFIG_DIR" 2>/dev/null
 
     unset MAIN_COLOR NODE_COLORS REPORT_UNIT THEME RTIME RTIME_LOG BACKHAUL PULSE_MINS IPPAD HOST_COLOR
     unset RS_HIST RS_HIST_ENTRIES RS_HIST_DATE CUR_RS_HIST CUR_ENTRIES CUR_DATE BRANCH INJECT
@@ -6061,6 +6101,7 @@ HTML
 nvram set wirelessreport_gen="$WR_GENERATION" >/dev/null 2>&1
 }
 
+dir_upgrade
 case "$1" in
     install)
         install_menu
