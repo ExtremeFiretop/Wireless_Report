@@ -364,7 +364,8 @@ dir_upgrade() {
 
     # Migrate legacy folder structure
     if [ -d "/jffs/addons/wireless_report" ]; then
-        mv /jffs/addons/wireless_report/webui.conf /jffs/addons/wireless_report.d 2>/dev/null
+        rm -f /jffs/addons/wireless_report/wirelessreport.sh 2>/dev/null
+        mv /jffs/addons/wireless_report /jffs/addons/wireless_report.d 2>/dev/null
     fi
 
     # Update profile.add (Alias)
@@ -391,7 +392,7 @@ do_update() {
     if curl -sfL --retry 3 "$GITHUB" -o "$TEMP_SCRIPT" 2>/dev/null && [ -s "$TEMP_SCRIPT" ]; then
         mv "$TEMP_SCRIPT" "$REPORT_SCRIPT"
         chmod +x "$REPORT_SCRIPT" 2>/dev/null
-        inject_menu
+
         return 0
     else
         rm -f "$TEMP_SCRIPT"
