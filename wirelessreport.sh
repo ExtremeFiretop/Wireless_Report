@@ -392,7 +392,7 @@ do_update() {
     if curl -sfL --retry 3 "$GITHUB" -o "$TEMP_SCRIPT" 2>/dev/null && [ -s "$TEMP_SCRIPT" ]; then
         mv "$TEMP_SCRIPT" "$REPORT_SCRIPT"
         chmod +x "$REPORT_SCRIPT" 2>/dev/null
-        if [ "$FLAG" = "1" ]; then return 0; else inject_menu; fi
+        inject_menu
         return 0
     else
         rm -f "$TEMP_SCRIPT"
