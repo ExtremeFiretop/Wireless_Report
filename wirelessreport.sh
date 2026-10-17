@@ -28,7 +28,7 @@
 #        shellcheck shell=sh disable=SC2086,SC2155,SC3043         #
 #═════════════════════════════════════════════════════════════════#
 
-SCRIPT_VERSION="3.4.1"
+SCRIPT_VERSION="3.4.2"
 INSTALL_DIR="/jffs/addons/wireless_report"
 REPORT_SCRIPT="$INSTALL_DIR/wirelessreport.sh"
 CONFIG="$INSTALL_DIR/webui.conf"
@@ -205,7 +205,6 @@ printb() {
 menu_vars() {
     if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
     if [ "$RR" = "1" ]; then RR=""; run_report; fi
-
     trap 'printf "\033[0m"' 0; trap 'exit 130' INT TERM HUP
 
     UL='\033[4m'; YL='\033[0;33m'; NC='\033[0m'; WH='\e[1;37m'
@@ -6062,8 +6061,8 @@ HTML
 nvram set wirelessreport_gen="$WR_GENERATION" >/dev/null 2>&1
 }
 
-if ! grep -q "FLAG=" "$CONFIG_FILE"; then
-    echo 'FLAG=1' >> "$CONFIG_FILE"
+if ! grep -q "FLAG=" "$CONFIG"; then
+    echo 'FLAG=1' >> "$CONFIG"
 fi
 
 case "$1" in
