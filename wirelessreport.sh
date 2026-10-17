@@ -32,11 +32,6 @@ if [ "$0" != "/jffs/scripts/wirelessreport.sh" ] && [ -f "$0" ]; then
     mkdir -p /jffs/scripts
     cp -f "$0" /jffs/scripts/wirelessreport.sh
     chmod +x /jffs/scripts/wirelessreport.sh
-    if [ "$FLAG" = "1" ]; then
-        inject_menu
-        FLAG="0"
-        sed -i 's/^FLAG=.*/FLAG=0/' "$CONFIG"
-    fi
     exec /jffs/scripts/wirelessreport.sh "$@"
 fi
 SCRIPT_VERSION="3.4.3"
@@ -6106,6 +6101,11 @@ HTML
 nvram set wirelessreport_gen="$WR_GENERATION" >/dev/null 2>&1
 }
 
+if [ "$FLAG" = "1" ]; then
+        inject_menu
+        FLAG="0"
+        sed -i 's/^FLAG=.*/FLAG=0/' "$CONFIG"
+    fi
 dir_upgrade
 case "$1" in
     install)
