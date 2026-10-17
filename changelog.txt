@@ -2,6 +2,7 @@
 # Wireless Report - Changelog #
 #=============================#
 
+v3.4.1-minor updates.
 v3.4.0-moved change menu color to Set Options.
 v3.3.9-fix node sort order.
       -add optional color to install menus.
