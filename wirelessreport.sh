@@ -6101,6 +6101,11 @@ HTML
 nvram set wirelessreport_gen="$WR_GENERATION" >/dev/null 2>&1
 }
 
+if [ "$FLAG" = "1" ]; then
+inject_menu; FLAG="0"
+sed -i 's/^FLAG=.*/FLAG=0/' "$CONFIG"
+fi
+
 dir_upgrade
 case "$1" in
     install)
