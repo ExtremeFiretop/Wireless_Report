@@ -353,7 +353,7 @@ do_update() {
     if curl -sfL --retry 3 "$GITHUB" -o "$TEMP_SCRIPT" 2>/dev/null && [ -s "$TEMP_SCRIPT" ]; then
         mv "$TEMP_SCRIPT" "$REPORT_SCRIPT"
         chmod +x "$REPORT_SCRIPT" 2>/dev/null
-        inject_menu
+        if [ "$FLAG" = "1" ]; then return 0; else inject_menu; fi
         return 0
     else
         rm -f "$TEMP_SCRIPT"
@@ -6060,6 +6060,10 @@ HTML
 
 nvram set wirelessreport_gen="$WR_GENERATION" >/dev/null 2>&1
 }
+
+if ! grep -q "FLAG=" "$CONFIG_FILE"; then
+    echo 'FLAG=1' >> "$CONFIG_FILE"
+fi
 
 case "$1" in
     install)
