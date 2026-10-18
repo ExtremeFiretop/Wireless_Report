@@ -879,7 +879,7 @@ get_hex_to_ansi() {
 
 get_hex_ansi_selection() {
     #══════════════════════════════════════#
-    echo -e "                              "
+    echo -e "                             "
     echo -e "$NB  (1) Neon-Blue (#0096ff)  "
     echo -e "$LG  (2) Lime-Green (#30d158) "
     echo -e "$MP  (3) Med-Purple (#bf40bf) "
@@ -892,23 +892,23 @@ get_hex_ansi_selection() {
     echo -e "$PK (10) Light-Pink (#ff70a6) "
     echo -e "$MT (11) Mint-Green (#64ffda) "
     echo -e "$DG (12) Black (#000000)      "
-    echo -e "                              "
+    echo -e "                             "
     #══════════════════════════════════════#
     while true; do
         printf "$NC Choose option [${B_COLOR}E$NC=Exit] (${B_COLOR}1-12$NC): "; read -r color_choice
         case "$color_choice" in
-            1)  selected_hex="#0096ff"; B_COLOR="$NB" ;;
-            2)  selected_hex="#30d158"; B_COLOR="$LG" ;;
-            3)  selected_hex="#bf40bf"; B_COLOR="$MP" ;;
-            4)  selected_hex="#ffd60a"; B_COLOR="$YW" ;;
-            5)  selected_hex="#64d2ff"; B_COLOR="$SB" ;;
-            6)  selected_hex="#ff9500"; B_COLOR="$OR" ;;
-            7)  selected_hex="#ff453a"; B_COLOR="$RD" ;;
-            8)  selected_hex="#ffffff"; B_COLOR="$WT" ;;
-            9)  selected_hex="#555555"; B_COLOR="$DG" ;;
-            10) selected_hex="#ff70a6"; B_COLOR="$PK" ;;
-            11) selected_hex="#64ffda"; B_COLOR="$MT" ;;
-            12) selected_hex="#000000"; B_COLOR="$DG" ;;
+            1)  selected_hex="#0096ff"; selected_ansi="$NB" ;;
+            2)  selected_hex="#30d158"; selected_ansi="$LG" ;;
+            3)  selected_hex="#bf40bf"; selected_ansi="$MP" ;;
+            4)  selected_hex="#ffd60a"; selected_ansi="$YW" ;;
+            5)  selected_hex="#64d2ff"; selected_ansi="$SB" ;;
+            6)  selected_hex="#ff9500"; selected_ansi="$OR" ;;
+            7)  selected_hex="#ff453a"; selected_ansi="$RD" ;;
+            8)  selected_hex="#ffffff"; selected_ansi="$WT" ;;
+            9)  selected_hex="#555555"; selected_ansi="$DG" ;;
+            10) selected_hex="#ff70a6"; selected_ansi="$PK" ;;
+            11) selected_hex="#64ffda"; selected_ansi="$MT" ;;
+            12) selected_hex="#000000"; selected_ansi="$DG" ;;
             e|E) break 2 ;;
             *)  freeze; continue ;;
         esac
@@ -1162,6 +1162,7 @@ set_options() {
                 6)
                     echo -e "\n$B_COLOR Select Logo/Menu Border Color:"
                     get_hex_ansi_selection
+                    B_COLOR="$selected_ansi"
                     if [ -f "$CONFIG" ]; then sed -i '/^B_COLOR=/d' "$CONFIG"; fi
                     echo "B_COLOR=\"$B_COLOR\"" >> "$CONFIG"
                     echo -e "\n$B_COLOR[+] Logo/Menu Border Color changed.$NC"
