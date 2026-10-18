@@ -304,13 +304,11 @@ do_install() {
         echo -e "\n$RD[!] ERROR: JFFS custom scripts not enabled.$NC"
         pause; return 1
     fi
-
     if [ ! -f "$CONFIG" ]; then touch "$CONFIG"; fi
 
     local is_update=0
-	if [ -f "$REPORT_SCRIPT" ]; then
-        is_update=1
-    fi
+	if [ -f "$REPORT_SCRIPT" ]; then is_update=1; fi
+
     if [ "$is_update" = "1" ]; then
         while true; do
             check_version do_install
@@ -322,13 +320,6 @@ do_install() {
     echo -e "\n$GR[+] Downloading latest version (${WH}v$REMOTE_VERSION$GR)$NC"
     do_update || return 1
 
-    mkdir -p "$(dirname "$PROFILE_ADD")"
-    [ ! -f "$PROFILE_ADD" ] && touch "$PROFILE_ADD"
-    if ! grep -q "alias wr=" "$PROFILE_ADD" 2>/dev/null; then
-        echo "alias wr=\"$REPORT_SCRIPT install\" # added by Wireless Report" >> "$PROFILE_ADD"
-        echo -e "\n$GR[+] Adding alias 'wr' to $PROFILE_ADD$NC"
-    fi
-
     if [ "$is_update" = "1" ]; then
         echo -e "\n$BL[✓] Wireless Report successfully installed.$NC"
 		printf "\nPress $BL[Enter]$NC to apply changes & restart script..."; read -r discard
@@ -339,6 +330,13 @@ do_install() {
 
     echo -e "\n$GR[+] Mounting Tab Wireless Report$NC\n"
     echo -e "$GR[+] Processing Wireless Report Files...$NC\n"
+
+    mkdir -p "$(dirname "$PROFILE_ADD")"
+    [ ! -f "$PROFILE_ADD" ] && touch "$PROFILE_ADD"
+    if ! grep -q "alias wr=" "$PROFILE_ADD" 2>/dev/null; then
+        echo "alias wr=\"$REPORT_SCRIPT install\" # added by Wireless Report" >> "$PROFILE_ADD"
+        echo -e "\n$GR[+] Adding alias 'wr' to $PROFILE_ADD$NC"
+    fi
 
     if [ ! -f "$SS_FILE" ]; then echo "#!/bin/sh" > "$SS_FILE"; fi
     sed -i "\|$REPORT_SCRIPT|d" "$SS_FILE" 2>/dev/null
@@ -579,6 +577,7 @@ inject_menu() {
             ;;
     esac
 
+    # v10 <#AiProtection_title#>
     umount "$SYSTEM_MENU" && mount -o bind "$TEMP_MENU" "$SYSTEM_MENU"
     umount "/www/user/$am_webui_page" 2>/dev/null
 	mount -o bind "$WEB_PAGE" "/www/user/$am_webui_page"
