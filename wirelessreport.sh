@@ -569,7 +569,7 @@ inject_menu() {
             \n{url: \"NULL\", tabName: \"__INHERIT__\"}\
             \n]\
             \n},"
-            sed -i "/^.*{[[:space:]]*$/ { N; /menuName: \"<#AiProtection_title#>\",/ i $INSERT_DATA
+            sed -i "/^.*{[[:space:]]*$/ { N; /menuName: \"<#1558#>\",/ i $INSERT_DATA
             }" "$TEMP_MENU"
             sys_log "Mounting Menu $TAB_LABEL as $am_webui_page"
             ;;
