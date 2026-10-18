@@ -2,6 +2,7 @@
 # Wireless Report - Changelog #
 #=============================#
 
+v3.4.5-minor updates.
 v3.4.4-fix change menu color.
 v3.4.3-minor updates.
 v3.4.2-minor updates.
