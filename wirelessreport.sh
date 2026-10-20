@@ -1319,6 +1319,7 @@ go_developer() {
         printm "  $N5 View CONGIG"
         printm "  $N6 Sort CONFIG"
         printm "  $N7 View ALIAS'S"
+        printm "  $N8 View SYSLOG"
         printm ""
         printm "  $LZ Power Exit from any Menu"
         printm ""
@@ -1379,6 +1380,16 @@ go_developer() {
                     echo -e "\n$B_COLOR═══════════════════════$NC profile.add $B_COLOR══════════════════════════$NC\n"
                     if [ -f "$PROFILE_ADD" ]; then
                         awk -v bc="$B_COLOR" -v nc="$NC" '{printf "%s[%02d]%s  %s\n", bc, NR, nc, $0}' "$PROFILE_ADD" | more
+                    else
+                        echo -e "$YL[!] File not found.$NC"
+                    fi
+                    echo -e "\n$B_COLOR══════════════════════════════════════════════════════════════$NC"
+                    pause
+                    ;;
+                8)
+                    echo -e "\n$B_COLOR═══════════════════════$NC syslog.log $B_COLOR═══════════════════════════$NC\n"
+                    if [ -f "/jffs/syslog.log" ]; then
+                        awk -v bc="$B_COLOR" -v nc="$NC" '{printf "%s[%03d]%s  %s\n", bc, NR, nc, $0}' "/jffs/syslog.log" | more
                     else
                         echo -e "$YL[!] File not found.$NC"
                     fi
