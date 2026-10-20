@@ -97,7 +97,7 @@ install_menu() {
                         8) set_rssi_tooltip ;;
 					esac
 					break ;;
-				e|E) clear; hasta_la_vista; exit 0 ;;
+				e|E) goodbye ;;
 				*) freeze 2; continue ;;
 			esac
 		done
@@ -616,6 +616,7 @@ set_date_time() {
                 5) NEW_UNIT="INTL1" ;;
                 6) NEW_UNIT="ISO1" ;;
                 e|E) return ;;
+                z|Z) goodbye ;;
                 *) freeze 2; continue ;;
             esac
             sed -i '/REPORT_UNIT=/d' "$CONFIG"
@@ -848,6 +849,8 @@ set_device_nicknames() {
                     ;;
                 e|E)
                     return ;;
+                z|Z)
+                    goodbye ;;
                 *)
                     freeze 2
                     continue ;;
@@ -1015,6 +1018,8 @@ set_device_colors() {
                     break 2 ;;
                 e|E)
                     return 0 ;;
+                z|Z)
+                    goodbye ;;
             esac
             case "$node_choice" in ""|*[!0-9]*) freeze 2; continue ;; esac
             if [ "$node_choice" -gt "$total_nodes" ]; then freeze 2; continue; fi
@@ -1087,6 +1092,7 @@ set_theme() {
                 2) TM="DARKMODE" ;;
                 3) TM="ASUS_WEBUI" ;;
                 e|E) return 0 ;;
+                z|Z) goodbye ;;
                 *) freeze 2; continue ;;
             esac
             if grep -q "^THEME=" "$CONFIG"; then
@@ -1171,36 +1177,11 @@ set_options() {
                     pause
                     continue 2 ;;
                 dev)
-                    set_github_branch
-                    continue 2 ;;
+                    go_developer ;;
                 e|E)
                     return 0 ;;
-                inject|inject2)
-                    if [ "$choice" = "inject2" ]; then
-                        if grep -q "INJECT=" "$CONFIG"; then
-                            sed -i 's/INJECT=.*/INJECT="2"/' "$CONFIG"
-                        else
-                            echo 'INJECT="2"' >> "$CONFIG"
-                        fi
-                        INJECT="2"
-                        echo -e "\n$YL[!] Menu injection applied.$NC"
-                    else
-                        if grep -q 'INJECT="2"' "$CONFIG"; then
-                            sed -i '/^INJECT="2"/d' "$CONFIG"
-                            INJECT=""
-                        fi
-                        echo -e "\n$YL[!] TAB injection applied.$NC"
-                    fi
-                    inject_menu
-                    pause
-                    continue 2
-                    ;;
-                sort)
-                    sort -u -o "$CONFIG" "$CONFIG"
-                    echo -e "\n$YL[!] CONFIG Sorted.$NC"
-                    pause
-                    continue 2
-                    ;;
+                z|Z)
+                    goodbye ;;
                 *)
                     freeze 2
                     continue ;;
@@ -1278,6 +1259,8 @@ set_runtime_tracking() {
                     ;;
                 e|E)
                     return 0 ;;
+                z|Z)
+                    goodbye ;;
                 *)
                     freeze 2
                     continue ;;
@@ -1308,6 +1291,7 @@ set_ip_padding() {
                 2) NEW_PAD="1" ;;
                 3) NEW_PAD="2" ;;
                 e|E) break 2 ;;
+                z|Z) goodbye ;;
                 *) freeze 2; continue ;;
             esac
             break
@@ -1318,6 +1302,75 @@ set_ip_padding() {
             echo "IPPAD=\"$NEW_PAD\"" >> "$CONFIG"
         fi
         run_report
+    done
+}
+
+go_developer() {
+     while true; do
+        show_header
+        printb "╔════════════════════════════════════════════════════════════╗"
+        printm "                      Developers Menu"
+        printb "╠════════════════════════════════════════════════════════════╣"
+        printm ""
+        printm "  $N1 Change Github Branch"
+        printm "  $N2 Inject WR TAB  --> menuTree.js"
+        printm "  $N3 Inject WR Menu --> menuTree.js"
+        printm "  $N4 Show CONGIG"
+        printm "  $N5 Sort CONFIG"
+        printm ""
+        printb "╚════════════════════════════════════════════════════════════╝"
+        printf "%b" "$menu_buffer"
+        while true; do
+            selection
+            case "$choice" in
+                1)
+                    set_github_branch ;;
+                2|3)
+                    if [ "$choice" = "3" ]; then
+                        if grep -q "INJECT=" "$CONFIG"; then
+                            sed -i 's/INJECT=.*/INJECT="2"/' "$CONFIG"
+                        else
+                            echo 'INJECT="2"' >> "$CONFIG"
+                        fi
+                        INJECT="2"
+                        echo -e "\n$YL[!] Menu injection applied.$NC"
+                    else
+                        if grep -q 'INJECT="2"' "$CONFIG"; then
+                            sed -i '/^INJECT="2"/d' "$CONFIG"
+                            INJECT=""
+                        fi
+                        echo -e "\n$YL[!] TAB injection applied.$NC"
+                    fi
+                    pause
+                    inject_menu
+                    continue 2
+                    ;;
+                4)
+                    echo -e "\n$B_COLOR═══════════════════════════ CONFIG ═══════════════════════════$NC\n"
+                        if [ -f "$CONFIG" ]; then
+                            cat "$CONFIG"
+                        else
+                            echo -e "$YL[!] File not found.$NC"
+                        fi
+                        echo -e "\n$B_COLOR══════════════════════════════════════════════════════════════$NC"
+                        pause
+                        ;;
+                5)
+                    sort -u -o "$CONFIG" "$CONFIG"
+                    echo -e "\n$YL[!] CONFIG Sorted.$NC"
+                    pause
+                    continue 2
+                    ;;
+                e|E)
+                    return 0 ;;
+                z|Z)
+                    goodbye ;;
+                *)
+                    freeze 2
+                    continue ;;
+            esac
+            break
+        done
     done
 }
 
@@ -1343,6 +1396,7 @@ set_github_branch() {
                 2) BRANCH="1" ;;
                 3) BRANCH="2" ;;
                 e|E) break 2 ;;
+                z|Z) goodbye ;;
                 *) freeze 2; continue ;;
             esac
             break
@@ -1422,6 +1476,8 @@ set_rssi_tooltip() {
                     unset CUR_RS_HIST CUR_ENTRIES CUR_DATE
                     return 0
                     ;;
+                z|Z)
+                    goodbye ;;
                 *)
                     freeze 2
                     continue ;;
@@ -1510,6 +1566,8 @@ restart_httpd() { service restart_httpd >/dev/null 2>&1; killall -HUP httpd >/de
 pause() { printf "\nPress $B_COLOR[Enter]$NC to return..."; read -r discard; }
 
 freeze() { printf "\033[%dA\033[J" "${1:-1}"; }
+
+goodbye() { clear; hasta_la_vista; exit 0; }
 
 runtime_syslog() {
     [ "$2" = "start" ] || return 0
