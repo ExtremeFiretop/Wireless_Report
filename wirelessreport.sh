@@ -219,6 +219,31 @@ menu_vars() {
     JB_1366="$NC Copyright (c) 2026 JB_1366 - All Rights Reserved"
     JB1366="$B_COLOR${UL}https://github.com/JB1366/Wireless_Report$NC"
 
+    prodid=$(nvram get productid)
+    firmver="$(nvram get firmver | tr -d '.')"
+    buildno="$(nvram get buildno)"
+    extendno="$(nvram get extendno)"
+
+    fwVersion="${firmver}.${buildno}"
+    if [ "${extendno:-0}" -gt 0 ]; then
+        fwVersion="${fwVersion}.${extendno}"
+    fi
+    if [ "$buildno" = "102.10" ]; then
+        INSERT_BEFORE="${INSERT_BEFORE:-<#AiProtection_title#>}"
+    else
+        INSERT_BEFORE="${INSERT_BEFORE:-<#1558#>}"
+    fi
+
+    PID="Router: $prodid   FW: $fwVersion"
+    len=${#PID}; target_width=61
+    pad1=$(((target_width - len) / 2))
+    pad2=""; i=0
+    while [ $i -lt $pad1 ]; do
+        pad2="$pad2 "
+        i=$((i + 1))
+    done
+    MODELID="${pad2}$B_COLOR Router: $NC$prodid$B_COLOR   FW:$NC $fwVersion"
+
     for i in 0 1 2 3 4 5 6 7 8; do eval "N${i}=\"\$B_COLOR(${i})\$NC\""; done
 	for i in E S R Z; do eval "L${i}=\"\$B_COLOR(${i})\$NC\""; done
 
@@ -291,32 +316,6 @@ menu_vars() {
 
     CUR_DATE=${CUR_DATE:-$RS_HIST_DATE}
     case "$CUR_DATE" in 1) TS="$ON" ;; *) TS="$OFF" ;; esac
-
-    prodid=$(nvram get productid)
-    firmver="$(nvram get firmver | tr -d '.')"
-    buildno="$(nvram get buildno)"
-    extendno="$(nvram get extendno)"
-
-    fwVersion="${firmver}.${buildno}"
-    if [ "${extendno:-0}" -gt 0 ]; then
-        fwVersion="${fwVersion}.${extendno}"
-    fi
-    if [ "$buildno" = "102.10" ]; then
-        INSERT_BEFORE="${INSERT_BEFORE:-<#AiProtection_title#>}"
-    else
-        INSERT_BEFORE="${INSERT_BEFORE:-<#1558#>}"
-    fi
-
-    PID="Router: $prodid   FW: $fwVersion"
-    len=${#PID}; target_width=61
-    pad1=$(((target_width - len) / 2))
-    pad2=""; i=0
-    while [ $i -lt $pad1 ]; do
-        pad2="$pad2 "
-        i=$((i + 1))
-    done
-    MODELID="${pad2}$B_COLOR Router: $NC$prodid$B_COLOR   FW:$NC $fwVersion"
-
 
     case "$BRANCH" in 2) BRANCH_NAME="EFT-Development" ;; esac
     BN="$GR$BRANCH_NAME$NC"
