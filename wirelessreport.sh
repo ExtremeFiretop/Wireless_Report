@@ -67,9 +67,9 @@ show_header() {
 install_menu() {
 	while true; do
 		show_header
-        printb "╔════════════════════════════════════════════════════════════╗"
+        printb "╔═════════════════════════════════════════════════════════════╗"
         check_version
-        printb "╠════════════════════════════════════════════════════════════╣"
+        printb "╠═════════════════════════════════════════════════════════════╣"
         printm ""
         printm "  $N1  Install/Update"
         printm "  $N2  Uninstall"
@@ -80,7 +80,7 @@ install_menu() {
         printm "  $N7  Set Options"
         printm "  $N8  Config RSSI Tooltip History ($CH)"
 		printm ""
-        printb "╚════════════════════════════════════════════════════════════╝"
+        printb "╚═════════════════════════════════════════════════════════════╝"
         printf "%b" "$menu_buffer"
 		while true; do
 			selection
@@ -153,11 +153,11 @@ check_version() {
             ;;
         *)
             case "$STATE" in
-                OFFLINE)       printm " $STATUS $RD[Offline]                    [GitHub Unreachable]" ;;
-                NOT_INSTALLED) printm " $STATUS $GR[Not Installed]$NC         Latest Available:$GR v$REMOTE_VERSION$NC" ;;
-                OUTDATED)      printm " $STATUS $GR[New Version ${WH}v$REMOTE_VERSION$GR Available]  $CURRENT" ;;
-                HASH_DIFF)     printm " $STATUS $GR[Hash Update Available]        $CURRENT" ;;
-                UP_TO_DATE|*)  printm " $STATUS $GR[Up to date]                   $CURRENT" ;;
+                OFFLINE)       printm " $STATUS $RD[Offline]                     [GitHub Unreachable]" ;;
+                NOT_INSTALLED) printm " $STATUS $GR[Not Installed]$NC          Latest Available:$GR v$REMOTE_VERSION$NC" ;;
+                OUTDATED)      printm " $STATUS $GR[New Version ${WH}v$REMOTE_VERSION$GR Available]   $CURRENT" ;;
+                HASH_DIFF)     printm " $STATUS $GR[Hash Update Available]         $CURRENT" ;;
+                UP_TO_DATE|*)  printm " $STATUS $GR[Up to date]                    $CURRENT" ;;
             esac
             ;;
     esac
@@ -183,7 +183,7 @@ printm() {
     local box_color text target esc plain len pad line i
     box_color="$B_COLOR"
     text="$1"
-    target="${2:-60}"
+    target="${2:-61}"
     esc=$(printf '\033')
     plain=$(printf "%b" "$text" | sed "s/${esc}\[[0-9;]*m//g")
     len=${#plain}
@@ -217,31 +217,6 @@ menu_vars() {
 
     JB_1366="$NC Copyright (c) 2026 JB_1366 - All Rights Reserved"
     JB1366="$B_COLOR${UL}https://github.com/JB1366/Wireless_Report$NC"
-
-    prodid=$(nvram get productid)
-    firmver="$(nvram get firmver | tr -d '.')"
-    buildno="$(nvram get buildno)"
-    extendno="$(nvram get extendno)"
-
-    fwVersion="${firmver}.${buildno}"
-    if [ "${extendno:-0}" -gt 0 ]; then
-        fwVersion="${fwVersion}.${extendno}"
-    fi
-    if [ "$buildno" = "102.10" ]; then
-        INSERT_BEFORE="${INSERT_BEFORE:-<#AiProtection_title#>}"
-    else
-        INSERT_BEFORE="${INSERT_BEFORE:-<#1558#>}"
-    fi
-
-    PID="Router: $prodid   FW: $fwVersion"
-    len=${#PID}; target_width=61
-    pad1=$(((target_width - len) / 2))
-    pad2=""; i=0
-    while [ $i -lt $pad1 ]; do
-        pad2="$pad2 "
-        i=$((i + 1))
-    done
-    MODELID="${pad2}$B_COLOR Router: $NC$prodid$B_COLOR   FW:$NC $fwVersion"
 
     for i in 0 1 2 3 4 5 6 7 8; do eval "N${i}=\"\$B_COLOR(${i})\$NC\""; done
 	for i in E S R Z; do eval "L${i}=\"\$B_COLOR(${i})\$NC\""; done
@@ -318,6 +293,33 @@ menu_vars() {
 
     case "$BRANCH" in 2) BRANCH_NAME="EFT-Development" ;; esac
     BN="$GR$BRANCH_NAME$NC"
+}
+
+get_modelid_fw() {
+    prodid=$(nvram get productid)
+    firmver="$(nvram get firmver | tr -d '.')"
+    buildno="$(nvram get buildno)"
+    extendno="$(nvram get extendno)"
+
+    fwVersion="${firmver}.${buildno}"
+    if [ "${extendno:-0}" -gt 0 ]; then
+        fwVersion="${fwVersion}.${extendno}"
+    fi
+    if [ "$buildno" = "102.10" ]; then
+        INSERT_BEFORE="${INSERT_BEFORE:-<#AiProtection_title#>}"
+    else
+        INSERT_BEFORE="${INSERT_BEFORE:-<#1558#>}"
+    fi
+
+    PID="Router: $prodid   FW: $fwVersion"
+    len=${#PID}; target_width=61
+    pad1=$(((target_width - len) / 2))
+    pad2=""; i=0
+    while [ $i -lt $pad1 ]; do
+        pad2="$pad2 "
+        i=$((i + 1))
+    done
+    MODELID="${pad2}$B_COLOR Router: $NC$prodid$B_COLOR   FW:$NC $fwVersion"
 }
 
 do_install() {
@@ -617,22 +619,22 @@ do_uninstall() {
 set_date_time() {
     while true; do
         show_header
-        printb "╔════════════════════════════════════════════════════════════╗"
+        printb "╔═════════════════════════════════════════════════════════════╗"
         printm "                        Set Date/Time"
-        printb "╠════════════════════════════════════════════════════════════╣"
-        printm "  Format: $DU               Current: $CT"
-        printb "╠════════════════════════════════════════════════════════════╣"
-        printm "                                       [MILITARY]"
-        printm "   $N1  USA                         ($DATE_USA)"
-        printm "   $N2  INTL                        ($DATE_INTL)"
-        printm "   $N3  ISO                       ($DATE_ISO)"
+        printb "╠═════════════════════════════════════════════════════════════╣"
+        printm "  Format: $DU                Current: $CT"
+        printb "╠═════════════════════════════════════════════════════════════╣"
+        printm "                                        [MILITARY]"
+        printm "   $N1  USA                          ($DATE_USA)"
+        printm "   $N2  INTL                         ($DATE_INTL)"
+        printm "   $N3  ISO                        ($DATE_ISO)"
         printm ""
-        printm "                                      [12-HR AM/PM]"
-        printm "   $N4  USA                       ($DATE_USA1)"
-        printm "   $N5  INTL                      ($DATE_INTL1)"
-        printm "   $N6  ISO                     ($DATE_ISO1)"
+        printm "                                       [12-HR AM/PM]"
+        printm "   $N4  USA                        ($DATE_USA1)"
+        printm "   $N5  INTL                       ($DATE_INTL1)"
+        printm "   $N6  ISO                      ($DATE_ISO1)"
         printm ""
-		printb "╚════════════════════════════════════════════════════════════╝"
+		printb "╚═════════════════════════════════════════════════════════════╝"
         printf "%b" "$menu_buffer"
         while true; do
             selection
@@ -664,9 +666,9 @@ device_default_colors() {
 set_device_nicknames() {
     while true; do
         show_header
-        printb "╔════════════════════════════════════════════════════════════╗"
+        printb "╔═════════════════════════════════════════════════════════════╗"
         printm "             Set Nicknames & Node Display Order"
-        printb "╠════════════════════════════════════════════════════════════╣"
+        printb "╠═════════════════════════════════════════════════════════════╣"
         printm ""
 		printm "  $N1 Reset to Default Nicknames"
 		printm "  $N2 Location-Based Nicknames"
@@ -674,7 +676,7 @@ set_device_nicknames() {
 		printm ""
         printm "  $N4 Sort Node Display Order"
         printm ""
-        printb "╠════════════════════════════════════════════════════════════╣"
+        printb "╠═════════════════════════════════════════════════════════════╣"
         printm ""
         local MAIN_ROUTER MAIN_IP MAIN_CLR node_idx node MODEL IP CLEAN_IP HEX_CLR
         local NODE_CLR OLD_NAME NEW_LOC NODE_LOC OLD_NICK manual_main input_node row_text
@@ -704,7 +706,7 @@ set_device_nicknames() {
             node_idx=$((node_idx + 1))
         done
         printm ""
-        printb "╚════════════════════════════════════════════════════════════╝"
+        printb "╚═════════════════════════════════════════════════════════════╝"
         printf "%b" "$menu_buffer"
         while true; do
             selection
@@ -916,7 +918,7 @@ get_hex_to_ansi() {
 
 get_hex_ansi_selection() {
     #══════════════════════════════════════#
-    echo -e "                             "
+    echo -e "                              "
     echo -e "$NB  (1) Neon-Blue (#0096ff)  "
     echo -e "$LG  (2) Lime-Green (#30d158) "
     echo -e "$MP  (3) Med-Purple (#bf40bf) "
@@ -929,7 +931,7 @@ get_hex_ansi_selection() {
     echo -e "$PK (10) Light-Pink (#ff70a6) "
     echo -e "$MT (11) Mint-Green (#64ffda) "
     echo -e "$DG (12) Black (#000000)      "
-    echo -e "                             "
+    echo -e "                              "
     #══════════════════════════════════════#
     while true; do
         printf "$NC Choose option [${B_COLOR}E=Exit$NC] (${B_COLOR}1-12$NC): "
@@ -991,9 +993,9 @@ set_device_colors() {
     done
     while true; do
         show_header
-        printb "╔════════════════════════════════════════════════════════════╗"
+        printb "╔═════════════════════════════════════════════════════════════╗"
         printm "                     Set Device $COLORS"
-        printb "╠════════════════════════════════════════════════════════════╣"
+        printb "╠═════════════════════════════════════════════════════════════╣"
         printm ""
         printm "  Current Device Configuration:"
         printm ""
@@ -1027,7 +1029,7 @@ set_device_colors() {
         printm "  $LR Restore Default Colors"
         printm "  $LS Save Changes & Exit"
         printm ""
-        printb "╚════════════════════════════════════════════════════════════╝"
+        printb "╚═════════════════════════════════════════════════════════════╝"
         printf "%b" "$menu_buffer"
         while true; do
             printf "\n$NC Select number to change color [${B_COLOR}E=Exit$NC] (${B_COLOR}0-$total_nodes$NC): "
@@ -1109,15 +1111,15 @@ set_device_colors() {
 set_theme() {
     while true; do
         show_header
-        printb "╔════════════════════════════════════════════════════════════╗"
-        printm "     Set Theme                          Current: $TM_STAT"
-        printb "╠════════════════════════════════════════════════════════════╣"
+        printb "╔═════════════════════════════════════════════════════════════╗"
+        printm "     Set Theme                           Current: $TM_STAT"
+        printb "╠═════════════════════════════════════════════════════════════╣"
         printm ""
         printm "  $N1 Original Theme"
         printm "  $N2 Darkmode Theme"
         printm "  $N3 Asus WebUI Theme"
         printm ""
-        printb "╚════════════════════════════════════════════════════════════╝"
+        printb "╚═════════════════════════════════════════════════════════════╝"
         printf "%b" "$menu_buffer"
         while true; do
             selection
@@ -1143,9 +1145,9 @@ set_theme() {
 set_options() {
     while true; do
         show_header
-        printb "╔════════════════════════════════════════════════════════════╗"
+        printb "╔═════════════════════════════════════════════════════════════╗"
         printm "                        Set Options"
-        printb "╠════════════════════════════════════════════════════════════╣"
+        printb "╠═════════════════════════════════════════════════════════════╣"
         printm ""
         printm "  $N1  Toggle Runtime Tracking: ($RT_STAT)"
         printm "  $N2  Toggle Wireless Backhaul: ($WB_STAT)"
@@ -1154,7 +1156,7 @@ set_options() {
         printm "  $N5  Toggle Node Hostname Display: ($HN_STAT)"
         printm "  $N6  Change Logo/Menu Border Color"
         printm ""
-        printb "╚════════════════════════════════════════════════════════════╝"
+        printb "╚═════════════════════════════════════════════════════════════╝"
         printf "%b" "$menu_buffer"
         while true; do
             selection
@@ -1206,6 +1208,7 @@ set_options() {
                     echo -e "\n$B_COLOR Select Logo/Menu Border Color:"
                     get_hex_ansi_selection
                     B_COLOR="$selected_ansi"
+                    get_modelid_fw
                     if [ -f "$CONFIG" ]; then sed -i '/^B_COLOR=/d' "$CONFIG"; fi
                     echo "B_COLOR=\"$B_COLOR\"" >> "$CONFIG"
                     echo -e "\n$B_COLOR[+] Logo/Menu Border Color changed.$NC"
@@ -1232,14 +1235,14 @@ set_options() {
 set_runtime_tracking() {
     while true; do
         show_header
-        printb "╔════════════════════════════════════════════════════════════╗"
+        printb "╔═════════════════════════════════════════════════════════════╗"
         printm "                     Runtime Tracking"
-        printb "╠════════════════════════════════════════════════════════════╣"
+        printb "╠═════════════════════════════════════════════════════════════╣"
         printm ""
         printm "  $N1 Toggle Runtime Tracking: ($RT_STAT)"
         printm "  $N2 Log Stats to Syslog: ($WS_STAT)"
         printm ""
-        printb "╚════════════════════════════════════════════════════════════╝"
+        printb "╚═════════════════════════════════════════════════════════════╝"
         printf "%b" "$menu_buffer"
         while true; do
             selection
@@ -1311,15 +1314,15 @@ set_runtime_tracking() {
 set_ip_padding() {
     while true; do
         show_header
-        printb "╔════════════════════════════════════════════════════════════╗"
-        printm "    IP Column Padding              Current: ($PD_STAT)"
-        printb "╠════════════════════════════════════════════════════════════╣"
+        printb "╔═════════════════════════════════════════════════════════════╗"
+        printm "    IP Column Padding               Current: ($PD_STAT)"
+        printb "╠═════════════════════════════════════════════════════════════╣"
         printm ""
-        printm "  $N1 192.168.50.3                         ($PD3)"
-        printm "  $N2 192.168.50.003                      ($PD2)"
-        printm "  $N3 192.168.050.003                   ($PD1)"
+        printm "  $N1 192.168.50.3                          ($PD3)"
+        printm "  $N2 192.168.50.003                       ($PD2)"
+        printm "  $N3 192.168.050.003                    ($PD1)"
         printm ""
-        printb "╚════════════════════════════════════════════════════════════╝"
+        printb "╚═════════════════════════════════════════════════════════════╝"
         printf "%b" "$menu_buffer"
         while true; do
             selection
@@ -1345,9 +1348,9 @@ set_ip_padding() {
 go_developer() {
      while true; do
         show_header
-        printb "╔════════════════════════════════════════════════════════════╗"
+        printb "╔═════════════════════════════════════════════════════════════╗"
         printm "                      Developers Menu"
-        printb "╠════════════════════════════════════════════════════════════╣"
+        printb "╠═════════════════════════════════════════════════════════════╣"
         printm ""
         printm "  $N1 Inject WR TAB  --> menuTree"
         printm "  $N2 Inject WR Menu --> menuTree"
@@ -1360,7 +1363,7 @@ go_developer() {
         printm ""
         printm "  $LZ Power Exit from any Menu"
         printm ""
-        printb "╚════════════════════════════════════════════════════════════╝"
+        printb "╚═════════════════════════════════════════════════════════════╝"
         printf "%b" "$menu_buffer"
         while true; do
             selection
@@ -1405,23 +1408,23 @@ go_developer() {
                     pause
                     ;;
                 4)
-                    echo -e "\n$B_COLOR═══════════════════════$NC menuTree.js $B_COLOR══════════════════════════$NC"
+                    echo -e "\n$B_COLOR═══════════════════════$NC menuTree.js $B_COLOR═══════════════════════════$NC"
                     if [ -f "$TEMP_MENU" ]; then
                         awk -v bc="$B_COLOR" -v nc="$NC" '{printf "%s[%03d]%s  %s\n", bc, NR, nc, $0}' "$TEMP_MENU" | more
                     else
                         not_found
                     fi
-                    echo -e "\n$B_COLOR══════════════════════════════════════════════════════════════$NC"
+                    echo -e "\n$B_COLOR═══════════════════════════════════════════════════════════════$NC"
                     pause
                     ;;
                 5)
-                    echo -e "\n$B_COLOR═══════════════════════════$NC CONFIG $B_COLOR═══════════════════════════$NC\n"
+                    echo -e "\n$B_COLOR═══════════════════════════$NC CONFIG $B_COLOR════════════════════════════$NC\n"
                     if [ -f "$CONFIG" ]; then
                         awk -v bc="$B_COLOR" -v nc="$NC" '{printf "%s[%02d]%s  %s\n", bc, NR, nc, $0}' "$CONFIG" | more
                     else
                         not_found
                     fi
-                    echo -e "\n$B_COLOR══════════════════════════════════════════════════════════════$NC"
+                    echo -e "\n$B_COLOR═══════════════════════════════════════════════════════════════$NC"
                     pause
                     ;;
                 6)
@@ -1431,23 +1434,23 @@ go_developer() {
                     continue 2
                     ;;
                 7)
-                    echo -e "\n$B_COLOR═══════════════════════$NC profile.add $B_COLOR══════════════════════════$NC\n"
+                    echo -e "\n$B_COLOR═══════════════════════$NC profile.add $B_COLOR═══════════════════════════$NC\n"
                     if [ -f "$PROFILE_ADD" ]; then
                         awk -v bc="$B_COLOR" -v nc="$NC" '{printf "%s[%02d]%s  %s\n", bc, NR, nc, $0}' "$PROFILE_ADD" | more
                     else
                         not_found
                     fi
-                    echo -e "\n$B_COLOR══════════════════════════════════════════════════════════════$NC"
+                    echo -e "\n$B_COLOR═══════════════════════════════════════════════════════════════$NC"
                     pause
                     ;;
                 8)
-                    echo -e "\n$B_COLOR═══════════════════════$NC syslog.log $B_COLOR═══════════════════════════$NC\n"
+                    echo -e "\n$B_COLOR═══════════════════════$NC syslog.log $B_COLOR════════════════════════════$NC\n"
                     if [ -f "/jffs/syslog.log" ]; then
                         awk -v bc="$B_COLOR" -v nc="$NC" '{printf "%s[%03d]%s  %s\n", bc, NR, nc, $0}' "/jffs/syslog.log" | more
                     else
                         not_found
                     fi
-                    echo -e "\n$B_COLOR══════════════════════════════════════════════════════════════$NC"
+                    echo -e "\n$B_COLOR═══════════════════════════════════════════════════════════════$NC"
                     pause
                     ;;
                 e|E)
@@ -1466,17 +1469,17 @@ go_developer() {
 set_github_branch() {
     while true; do
         show_header
-        printb "╔════════════════════════════════════════════════════════════╗"
+        printb "╔═════════════════════════════════════════════════════════════╗"
         printm "                      Set Github Branch"
-        printb "╠════════════════════════════════════════════════════════════╣"
-        printm "  Branch: [$BN]                $CURRENT"
-        printb "╠════════════════════════════════════════════════════════════╣"
+        printb "╠═════════════════════════════════════════════════════════════╣"
+        printm "  Branch: [$BN]                  $CURRENT"
+        printb "╠═════════════════════════════════════════════════════════════╣"
         printm ""
         printm "  $N1 main (JB1366)"
         printm "  $N2 Development (JB1366)"
         printm "  $N3 Development (ExtremeFiretop)"
         printm ""
-        printb "╚════════════════════════════════════════════════════════════╝"
+        printb "╚═════════════════════════════════════════════════════════════╝"
         printf "%b" "$menu_buffer"
         while true; do
             selection
@@ -1512,9 +1515,9 @@ set_github_branch() {
 set_rssi_tooltip() {
     while true; do
         show_header
-        printb "╔════════════════════════════════════════════════════════════╗"
+        printb "╔═════════════════════════════════════════════════════════════╗"
         printm "                Config RSSI Tooltip History"
-		printb "╠════════════════════════════════════════════════════════════╣"
+		printb "╠═════════════════════════════════════════════════════════════╣"
 		printm ""
 		printm "  $N1 Toggle RSSI History: [$CH]"
 		printm "  $N2 Set History Depth:   [$CE] entries"
@@ -1522,7 +1525,7 @@ set_rssi_tooltip() {
 		printm ""
 		printm "  $LS Save Changes & Exit"
 		printm ""
-        printb "╚════════════════════════════════════════════════════════════╝"
+        printb "╚═════════════════════════════════════════════════════════════╝"
         printf "%b" "$menu_buffer"
         while true; do
             selection
@@ -1691,7 +1694,12 @@ runtime_syslog() {
 
 if [ "$1" = "service_event" ]; then runtime_syslog "$@"; exit 0; fi
 
-get_mesh_nodes; check_github; get_hex_to_ansi; device_default_colors
+menu_vars
+get_mesh_nodes
+check_github
+get_hex_to_ansi
+device_default_colors
+get_modelid_fw
 
 run_report() {
 #══════════════════════════════════════════════════════════════════════════#
