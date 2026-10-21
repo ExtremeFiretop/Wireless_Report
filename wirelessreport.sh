@@ -97,7 +97,7 @@ install_menu() {
                         8) set_rssi_tooltip ;;
 					esac
 					break ;;
-				e|E) goodbye ;;
+				e|E|z|Z) goodbye ;;
 				*) freeze 2; continue ;;
 			esac
 		done
@@ -115,9 +115,9 @@ check_version() {
     else
         version_cmp=$(version_compare "$SCRIPT_VERSION" "$REMOTE_VERSION")
         case "$version_cmp" in -1|0|1) ;; *) version_cmp=0 ;; esac
-        if [ "$version_cmp" -gt 0 ]; then
+        if [ "${version_cmp:-0}" -gt 0 ]; then
             STATE="UP_TO_DATE"
-        elif [ "$version_cmp" -lt 0 ]; then
+        elif [ "${version_cmp:-0}" -lt 0 ]; then
             STATE="OUTDATED"
         elif [ -n "$REMOTE_HASH" ] && [ "$LOCAL_HASH" != "$REMOTE_HASH" ]; then
             STATE="HASH_DIFF"
