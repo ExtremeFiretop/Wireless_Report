@@ -291,6 +291,13 @@ menu_vars() {
     CUR_DATE=${CUR_DATE:-$RS_HIST_DATE}
     case "$CUR_DATE" in 1) TS="$ON" ;; *) TS="$OFF" ;; esac
 
+    BUILD_NO="$(nvram get buildno)"
+    if [ "$BUILD_NO" = "102.10" ]; then
+        INSERT_BEFORE="${INSERT_BEFORE:-<#AiProtection_title#>}"
+    else
+        INSERT_BEFORE="${INSERT_BEFORE:-<#1558#>}"
+    fi
+
     case "$BRANCH" in 2) BRANCH_NAME="EFT-Development" ;; esac
     BN="$GR$BRANCH_NAME$NC"
 }
@@ -1177,6 +1184,8 @@ set_options() {
                     pause
                     continue 2 ;;
                 dev)
+                    set_github_branch ;;
+                secret)
                     go_developer ;;
                 e|E)
                     return 0 ;;
@@ -1312,14 +1321,14 @@ go_developer() {
         printm "                      Developers Menu"
         printb "╠════════════════════════════════════════════════════════════╣"
         printm ""
-        printm "  $N1 Change Github Branch"
-        printm "  $N2 Inject WR TAB  --> menuTree.js"
-        printm "  $N3 Inject WR Menu --> menuTree.js"
-        printm "  $N4 View menuTree.js"
-        printm "  $N5 View CONGIG"
+        printm "  $N1 Inject WR TAB  --> menuTree"
+        printm "  $N2 Inject WR Menu --> menuTree"
+        printm "  $N3 Insert WR Menu <#TAG#> --> menuTree"
+        printm "  $N4 View menuTree - /tmp/menuTree.js"
+        printm "  $N5 View CONGIG - webui.conf"
         printm "  $N6 Sort CONFIG"
-        printm "  $N7 View ALIAS'S"
-        printm "  $N8 View SYSLOG"
+        printm "  $N7 View ALIAS'S - /jffs/configs/profile.add"
+        printm "  $N8 View SYSLOG - /jffs/syslog.log"
         printm ""
         printm "  $LZ Power Exit from any Menu"
         printm ""
@@ -1328,34 +1337,50 @@ go_developer() {
         while true; do
             selection
             case "$choice" in
-                1)
-                    set_github_branch ;;
-                2|3)
-                    if [ "$choice" = "3" ]; then
+                1|2)
+                    if [ "$choice" = "2" ]; then
                         if grep -q "INJECT=" "$CONFIG"; then
                             sed -i 's/INJECT=.*/INJECT="2"/' "$CONFIG"
                         else
                             echo 'INJECT="2"' >> "$CONFIG"
                         fi
                         INJECT="2"
-                        echo -e "\n$YL[!] Menu injection applied.$NC"
+                        echo -e "\n$B_COLOR[!] Menu injection applied.$NC"
                     else
                         if grep -q 'INJECT="2"' "$CONFIG"; then
                             sed -i '/^INJECT="2"/d' "$CONFIG"
                             INJECT=""
                         fi
-                        echo -e "\n$YL[!] TAB injection applied.$NC"
+                        echo -e "\n$B_COLOR[!] TAB injection applied.$NC"
                     fi
                     pause
                     inject_menu
                     continue 2
+                    ;;
+                3)
+                    echo -e "$B_COLOR\nCurrent Insert Before menuName:$NC $INSERT_BEFORE"
+                    printf "\nEnter menuName <#TAG#> to insert before [Enter=Keep Current]: "; read -r CHOICE
+                    if [ -n "$CHOICE" ]; then
+                        INSERT_BEFORE="$CHOICE"
+                        echo -e "$B_COLOR\nUpdated to:$NC $INSERT_BEFORE"
+                    else
+                        echo -e "$B_COLOR\nKept current value:$NC $INSERT_BEFORE"
+                    fi
+                    if [ -f "$CONFIG" ]; then
+                        if grep -q "^INSERT_BEFORE=" "$CONFIG"; then
+                            sed -i "s|^INSERT_BEFORE=.*|INSERT_BEFORE=\"$INSERT_BEFORE\"|" "$CONFIG"
+                        else
+                            echo "INSERT_BEFORE=\"$INSERT_BEFORE\"" >> "$CONFIG"
+                        fi
+                    fi
+                    pause
                     ;;
                 4)
                     echo -e "\n$B_COLOR═══════════════════════$NC menuTree.js $B_COLOR══════════════════════════$NC"
                     if [ -f "$TEMP_MENU" ]; then
                         awk -v bc="$B_COLOR" -v nc="$NC" '{printf "%s[%03d]%s  %s\n", bc, NR, nc, $0}' "$TEMP_MENU" | more
                     else
-                        echo -e "$YL[!] File not found.$NC"
+                        not_found
                     fi
                     echo -e "\n$B_COLOR══════════════════════════════════════════════════════════════$NC"
                     pause
@@ -1365,7 +1390,7 @@ go_developer() {
                     if [ -f "$CONFIG" ]; then
                         awk -v bc="$B_COLOR" -v nc="$NC" '{printf "%s[%02d]%s  %s\n", bc, NR, nc, $0}' "$CONFIG" | more
                     else
-                        echo -e "$YL[!] File not found.$NC"
+                        not_found
                     fi
                     echo -e "\n$B_COLOR══════════════════════════════════════════════════════════════$NC"
                     pause
@@ -1381,7 +1406,7 @@ go_developer() {
                     if [ -f "$PROFILE_ADD" ]; then
                         awk -v bc="$B_COLOR" -v nc="$NC" '{printf "%s[%02d]%s  %s\n", bc, NR, nc, $0}' "$PROFILE_ADD" | more
                     else
-                        echo -e "$YL[!] File not found.$NC"
+                        not_found
                     fi
                     echo -e "\n$B_COLOR══════════════════════════════════════════════════════════════$NC"
                     pause
@@ -1391,7 +1416,7 @@ go_developer() {
                     if [ -f "/jffs/syslog.log" ]; then
                         awk -v bc="$B_COLOR" -v nc="$NC" '{printf "%s[%03d]%s  %s\n", bc, NR, nc, $0}' "/jffs/syslog.log" | more
                     else
-                        echo -e "$YL[!] File not found.$NC"
+                        not_found
                     fi
                     echo -e "\n$B_COLOR══════════════════════════════════════════════════════════════$NC"
                     pause
