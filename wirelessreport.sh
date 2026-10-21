@@ -337,7 +337,8 @@ do_install() {
     if [ "$is_update" = "1" ]; then
         while true; do
             check_version do_install
-            printf "Do you want to $UP (y/n): "; read -r update
+            printf "Do you want to $UP (y/n): "
+            read -r update
             case "$update" in y|Y) break ;; n|N) return ;; *) freeze 4 ;; esac
         done
     fi
@@ -347,7 +348,8 @@ do_install() {
 
     if [ "$is_update" = "1" ]; then
         echo -e "\n$BL[✓] Wireless Report successfully installed.$NC"
-		printf "\nPress $BL[Enter]$NC to apply changes & restart script..."; read -r discard
+		printf "\nPress $BL[Enter]$NC to apply changes & restart script..."
+        read -r discard
         sys_log "(v$REMOTE_VERSION) successfully installed."
         exec "$REPORT_SCRIPT" install "$@"
 		echo -e "\n$RD[!] Error: Failed to restart script!$NC" >&2; exit 1
@@ -582,7 +584,8 @@ inject_menu() {
 do_uninstall() {
     echo -e "\n$RD[!] WARNING: Removing Wireless Report...$NC\n"
     while true; do
-        printf "Are you sure? (y/n): "; read -r confirm
+        printf "Are you sure? (y/n): "
+        read -r confirm
         case "$confirm" in y|Y) break ;; n|N) return ;; *) freeze ;; esac
     done
 
@@ -766,7 +769,8 @@ set_device_nicknames() {
                     echo -e "\n$BL[*] Manual Entry Mode$NC"
                     OLD_MAIN="${MAIN_NICK:-$MAIN_ROUTER}"
 
-                    printf "\n  ${MAIN_CLR}Main $MAIN_IP [$OLD_MAIN]:$NC "; read -r manual_main
+                    printf "\n  ${MAIN_CLR}Main $MAIN_IP [$OLD_MAIN]:$NC "
+                    read -r manual_main
 
                     if [ -n "$manual_main" ]; then
                         manual_main="${manual_main:0:25}"
@@ -780,7 +784,8 @@ set_device_nicknames() {
                         HEX_CLR=$(echo "$NODE_COLORS" | awk -v i="$node_idx" '{print $i}')
                         NODE_CLR=$(get_hex_to_ansi "$HEX_CLR")
 
-                        printf "  ${NODE_CLR}Node $IP [${OLD_NICK:-$MODEL}]:$NC "; read -r input_node
+                        printf "  ${NODE_CLR}Node $IP [${OLD_NICK:-$MODEL}]:$NC "
+                        read -r input_node
 
                         if [ -n "$input_node" ]; then
                             input_node="${input_node:0:25}"
@@ -890,8 +895,10 @@ set_device_nicknames() {
 }
 
 get_hex_to_ansi() {
-    NB='\033[38;5;39m'; LG='\033[38;5;82m'; MP='\033[38;5;133m'; RD='\033[38;5;196m'; PK='\033[38;5;211m'; BK='\033[30m'
-    YW='\033[38;5;226m'; SB='\033[38;5;75m'; OR='\033[38;5;208m'; WT='\033[38;5;231m'; MT='\033[38;5;86m'; DG='\033[0;90m'
+    PK='\033[38;5;211m'; LG='\033[38;5;82m'; MP='\033[38;5;133m'
+    RD='\033[38;5;196m'; NB='\033[38;5;39m'; OR='\033[38;5;208m'
+    YW='\033[38;5;226m'; SB='\033[38;5;75m'; BK='\033[30m'
+    WT='\033[38;5;231m'; MT='\033[38;5;86m'; DG='\033[0;90m'
     case "$1" in
         "#0096ff") echo -e "$NB" ;;
         "#30d158") echo -e "$LG" ;;
@@ -927,7 +934,8 @@ get_hex_ansi_selection() {
     echo -e "                             "
     #══════════════════════════════════════#
     while true; do
-        printf "$NC Choose option [${B_COLOR}E$NC=Exit] (${B_COLOR}1-12$NC): "; read -r color_choice
+        printf "$NC Choose option [${B_COLOR}E=Exit$NC] (${B_COLOR}1-12$NC): "
+        read -r color_choice
         case "$color_choice" in
             1)  selected_hex="#0096ff"; selected_ansi="$NB" ;;
             2)  selected_hex="#30d158"; selected_ansi="$LG" ;;
@@ -1024,7 +1032,8 @@ set_device_colors() {
         printb "╚════════════════════════════════════════════════════════════╝"
         printf "%b" "$menu_buffer"
         while true; do
-            printf "\n$NC Select number to change color [${B_COLOR}E$NC]xit (${B_COLOR}0-$total_nodes$NC): "; read -r node_choice
+            printf "\n$NC Select number to change color [${B_COLOR}E=Exit$NC] (${B_COLOR}0-$total_nodes$NC): "
+            read -r node_choice
             case "$node_choice" in
                 r|R)
                     unset MAIN_COLOR NODE_COLORS
@@ -1169,7 +1178,8 @@ set_options() {
                 3)
                     while true; do
                         echo -e "\n (${GR}0$NC) disable      (${GR}15$NC)def      (${GR}1440$NC) max "
-                        printf "$BL Enter alert interval in mins $NC[${BL}E$NC=exit]:$GR "; read -r user_mins
+                        printf " Enter alert interval in mins [${B_COLOR}E=exit$NC]: "
+                        read -r user_mins
                         case "$user_mins" in e|E) break 2 ;; ""|*[!0-9]*) freeze 3; continue ;; esac
                         if [ "$user_mins" -le 1440 ]; then
                             if grep -q "PULSE_MINS=" "$CONFIG"; then
@@ -1379,7 +1389,8 @@ go_developer() {
                     ;;
                 3)
                     echo -e "$B_COLOR\nCurrent Insert Before menuName:$NC $INSERT_BEFORE"
-                    printf "\nEnter menuName <#TAG#> to insert before [Enter=Keep Current]: "; read -r CHOICE
+                    printf "\nEnter menuName $B_COLOR<#TAG#>$NC to insert before [${B_COLOR}Enter=Keep Current$NC]: "
+                    read -r CHOICE
                     if [ -n "$CHOICE" ]; then
                         INSERT_BEFORE="$CHOICE"
                         echo -e "$B_COLOR\nUpdated to:$NC $INSERT_BEFORE"
@@ -1489,7 +1500,8 @@ set_github_branch() {
         check_github
         case "$BRANCH" in 2) BRANCH_NAME="EFT-Development" ;; esac
         BN="$GR$BRANCH_NAME$NC"
-        printf "$NC\nPress $BL[Enter]$NC to switch to [$BN] branch & restart script..."; read -r restart
+        printf "$NC\nPress $B_COLOR[Enter]$NC to switch to [$BN] branch & restart script..."
+        read -r restart
         if do_update; then
             exec "$REPORT_SCRIPT" install "$@"
         else
@@ -1522,7 +1534,8 @@ set_rssi_tooltip() {
                     ;;
                 2)
                     while true; do
-                        printf "\n$NC Enter new depth (${BL}5-20$NC) [Current: $CE]: "; read -r new_depth
+                        printf "\n$NC Enter new depth (${B_COLOR}5-20$NC) [Current: $CE]: "
+                        read -r new_depth
                         case "$new_depth" in *[!0-9]*|"") freeze 2; continue ;; esac
                         if [ "$new_depth" -ge 5 ] && [ "$new_depth" -le 20 ]; then
                             CUR_ENTRIES="$new_depth"; break 2
@@ -1637,17 +1650,17 @@ echo -e "                                                                       
 echo -e "$NC\n\n\n" #════════════════════════════════════════════════════════════════════════════════════════════════════════════#
 }
 
-sys_log() { logger -p user.info -t "Wireless_Report" "$1"; }
-
-selection() { printf "\n$NC Selection [${B_COLOR}E$NC=Exit]: "; read -r choice; }
-
-restart_httpd() { service restart_httpd >/dev/null 2>&1; killall -HUP httpd >/dev/null 2>&1; }
-
-pause() { printf "\nPress $B_COLOR[Enter]$NC to return..."; read -r discard; }
-
 freeze() { printf "\033[%dA\033[J" "${1:-1}"; }
 
 goodbye() { clear; hasta_la_vista; exit 0; }
+
+pause() { printf "\nPress $B_COLOR[Enter]$NC to return..."; read -r discard; }
+
+restart_httpd() { service restart_httpd >/dev/null 2>&1; killall -HUP httpd >/dev/null 2>&1; }
+
+selection() { printf "\n$NC Selection [${B_COLOR}E=Exit$NC]: "; read -r choice; }
+
+sys_log() { logger -p user.info -t "Wireless_Report" "$1"; }
 
 runtime_syslog() {
     [ "$2" = "start" ] || return 0
