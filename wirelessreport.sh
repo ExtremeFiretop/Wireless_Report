@@ -750,7 +750,12 @@ set_device_nicknames() {
                     for node in $MESH_NODES; do
                         MODEL="${node%%|*}"; IP="${node#*|}"; CLEAN_IP="${IP//./_}"
                         eval OLD_NICK=\$NODE_NICK_$CLEAN_IP
-                        NODE_LOC=$(cat /jffs/.sys/cfg_mnt/re.info 2>/dev/null | sed 's/},/}\n/g' | grep "$IP" | sed -n 's/.*"alias":"\([^"]*\)".*/\1/p')
+
+                        NODE_LOC=$(cat /jffs/.sys/cfg_mnt/re.info 2>/dev/null |
+                        sed 's/},/}\n/g' |
+                        grep "$IP" |
+                        sed -n 's/.*"alias":"\([^"]*\)".*/\1/p')
+
                         sed -i "/^NODE_NICK_$CLEAN_IP=/d" "$CONFIG"
                         HEX_CLR=$(echo "$NODE_COLORS" | awk -v i="$node_idx" '{print $i}')
                         NODE_CLR=$(get_hex_to_ansi "$HEX_CLR")
@@ -1345,6 +1350,52 @@ set_ip_padding() {
     done
 }
 
+set_github_branch() {
+    while true; do
+        show_header
+        printb "╔═════════════════════════════════════════════════════════════╗"
+        printm "                      Set Github Branch"
+        printb "╠═════════════════════════════════════════════════════════════╣"
+        printm "  Branch: [$BN]                  $CURRENT"
+        printb "╠═════════════════════════════════════════════════════════════╣"
+        printm ""
+        printm "  $N1 main (JB1366)"
+        printm "  $N2 Development (JB1366)"
+        printm "  $N3 Development (ExtremeFiretop)"
+        printm ""
+        printb "╚═════════════════════════════════════════════════════════════╝"
+        printf "%b" "$menu_buffer"
+        while true; do
+            selection
+            case "$choice" in
+                1) BRANCH="0" ;;
+                2) BRANCH="1" ;;
+                3) BRANCH="2" ;;
+                e|E) break 2 ;;
+                z|Z) goodbye ;;
+                *) freeze 2; continue ;;
+            esac
+            break
+        done
+        if grep -q "^BRANCH=" "$CONFIG"; then
+            sed -i "s/^BRANCH=.*/BRANCH=\"$BRANCH\"/" "$CONFIG"
+        else
+            echo "BRANCH=\"$BRANCH\"" >> "$CONFIG"
+        fi
+        check_github
+        case "$BRANCH" in 2) BRANCH_NAME="EFT-Development" ;; esac
+        BN="$GR$BRANCH_NAME$NC"
+        printf "$NC\nPress $B_COLOR[Enter]$NC to switch to [$BN] branch & restart script..."
+        read -r restart
+        if do_update; then
+            exec "$REPORT_SCRIPT" install "$@"
+        else
+            echo -e "$RD[!]Error: Branch update failed!$NC" >&2
+            exit 1
+        fi
+    done
+}
+
 go_developer() {
      while true; do
         show_header
@@ -1357,7 +1408,7 @@ go_developer() {
         printm "  $N3 Insert WR Menu <#TAG#> --> menuTree"
         printm "  $N4 View menuTree - /tmp/menuTree.js"
         printm "  $N5 View CONGIG - webui.conf"
-        printm "  $N6 Sort CONFIG"
+        printm "  $N6 Sort CONFIG - webui.conf"
         printm "  $N7 View ALIAS'S - /jffs/configs/profile.add"
         printm "  $N8 View SYSLOG - /jffs/syslog.log"
         printm ""
@@ -1463,52 +1514,6 @@ go_developer() {
             esac
             break
         done
-    done
-}
-
-set_github_branch() {
-    while true; do
-        show_header
-        printb "╔═════════════════════════════════════════════════════════════╗"
-        printm "                      Set Github Branch"
-        printb "╠═════════════════════════════════════════════════════════════╣"
-        printm "  Branch: [$BN]                  $CURRENT"
-        printb "╠═════════════════════════════════════════════════════════════╣"
-        printm ""
-        printm "  $N1 main (JB1366)"
-        printm "  $N2 Development (JB1366)"
-        printm "  $N3 Development (ExtremeFiretop)"
-        printm ""
-        printb "╚═════════════════════════════════════════════════════════════╝"
-        printf "%b" "$menu_buffer"
-        while true; do
-            selection
-            case "$choice" in
-                1) BRANCH="0" ;;
-                2) BRANCH="1" ;;
-                3) BRANCH="2" ;;
-                e|E) break 2 ;;
-                z|Z) goodbye ;;
-                *) freeze 2; continue ;;
-            esac
-            break
-        done
-        if grep -q "^BRANCH=" "$CONFIG"; then
-            sed -i "s/^BRANCH=.*/BRANCH=\"$BRANCH\"/" "$CONFIG"
-        else
-            echo "BRANCH=\"$BRANCH\"" >> "$CONFIG"
-        fi
-        check_github
-        case "$BRANCH" in 2) BRANCH_NAME="EFT-Development" ;; esac
-        BN="$GR$BRANCH_NAME$NC"
-        printf "$NC\nPress $B_COLOR[Enter]$NC to switch to [$BN] branch & restart script..."
-        read -r restart
-        if do_update; then
-            exec "$REPORT_SCRIPT" install "$@"
-        else
-            echo -e "$RD[!]Error: Branch update failed!$NC" >&2
-            exit 1
-        fi
     done
 }
 
