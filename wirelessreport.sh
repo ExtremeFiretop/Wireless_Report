@@ -28,7 +28,7 @@
 #        shellcheck shell=sh disable=SC2086,SC2155,SC3043         #
 #═════════════════════════════════════════════════════════════════#
 
-SCRIPT_VERSION="3.4.6"
+SCRIPT_VERSION="3.4.7"
 INSTALL_DIR="/jffs/addons/wireless_report"
 REPORT_SCRIPT="$INSTALL_DIR/wirelessreport.sh"
 CONFIG="$INSTALL_DIR/webui.conf"
@@ -217,7 +217,7 @@ menu_vars() {
     JB_1366="$NC Copyright (c) 2026 JB_1366 - All Rights Reserved"
     JB1366="$B_COLOR${UL}https://github.com/JB1366/Wireless_Report$NC"
 
-    for i in 0 1 2 3 4 5 6 7 8; do eval "N${i}=\"\$B_COLOR(${i})\$NC\""; done
+    for i in 0 1 2 3 4 5 6 7 8 9; do eval "N${i}=\"\$B_COLOR(${i})\$NC\""; done
 	for i in E S R Z; do eval "L${i}=\"\$B_COLOR(${i})\$NC\""; done
 
     ON="${GR}ON$NC"; OFF="${RD}OFF$NC"
@@ -421,6 +421,11 @@ ScriptUpdateFromAMTM() {
         return 0
     fi
     return 1
+}
+
+get_usb() {
+    mountpoint="$(awk '$1 ~ /^\/dev\/sd/ && $2 ~ /^\/tmp\/mnt\// {print $2}' /proc/mounts | sort -u)"
+    ROOT_PATH="$(echo "$mountpoint" | head -n 1)"
 }
 
 do_hash_check() {
@@ -1221,6 +1226,7 @@ set_options() {
                 dev)
                     set_github_branch ;;
                 secret)
+                    get_usb
                     go_developer ;;
                 e|E)
                     return 0 ;;
@@ -1406,10 +1412,11 @@ go_developer() {
         printm "  $N2 Inject WR Menu --> menuTree"
         printm "  $N3 Insert WR Menu <#TAG#> --> menuTree"
         printm "  $N4 View menuTree - /tmp/menuTree.js"
-        printm "  $N5 View CONGIG - webui.conf"
-        printm "  $N6 Sort CONFIG - webui.conf"
+        printm "  $N5 View CONGIG - $CONFIG"
+        printm "  $N6 Sort CONFIG - $CONFIG"
         printm "  $N7 View ALIAS'S - /jffs/configs/profile.add"
         printm "  $N8 View SYSLOG - /jffs/syslog.log"
+        printm "  $N9 View IOCMON - $ROOT_PATH/iocmon.d/state/iocmon.log"
         printm ""
         printm "  $LZ Power Exit from any Menu"
         printm ""
@@ -1459,8 +1466,9 @@ go_developer() {
                     ;;
                 4)
                     echo -e "\n$B_COLOR═══════════════════════$NC menuTree.js $B_COLOR═══════════════════════════$NC"
-                    if [ -f "$TEMP_MENU" ]; then
-                        awk -v bc="$B_COLOR" -v nc="$NC" '{printf "%s[%03d]%s  %s\n", bc, NR, nc, $0}' "$TEMP_MENU" | more
+                    LOG="$TEMP_MENU"
+                    if [ -f "$LOG" ]; then
+                        awk -v bc="$B_COLOR" -v nc="$NC" '{printf "%s[%03d]%s  %s\n", bc, NR, nc, $0}' "$LOG" | more
                     else
                         not_found
                     fi
@@ -1469,8 +1477,9 @@ go_developer() {
                     ;;
                 5)
                     echo -e "\n$B_COLOR═══════════════════════════$NC CONFIG $B_COLOR════════════════════════════$NC\n"
-                    if [ -f "$CONFIG" ]; then
-                        awk -v bc="$B_COLOR" -v nc="$NC" '{printf "%s[%02d]%s  %s\n", bc, NR, nc, $0}' "$CONFIG" | more
+                    LOG="$CONFIG"
+                    if [ -f "$LOG" ]; then
+                        awk -v bc="$B_COLOR" -v nc="$NC" '{printf "%s[%02d]%s  %s\n", bc, NR, nc, $0}' "$LOG" | more
                     else
                         not_found
                     fi
@@ -1485,8 +1494,9 @@ go_developer() {
                     ;;
                 7)
                     echo -e "\n$B_COLOR═══════════════════════$NC profile.add $B_COLOR═══════════════════════════$NC\n"
-                    if [ -f "$PROFILE_ADD" ]; then
-                        awk -v bc="$B_COLOR" -v nc="$NC" '{printf "%s[%02d]%s  %s\n", bc, NR, nc, $0}' "$PROFILE_ADD" | more
+                    LOG="$PROFILE_ADD"
+                    if [ -f "$LOG" ]; then
+                        awk -v bc="$B_COLOR" -v nc="$NC" '{printf "%s[%02d]%s  %s\n", bc, NR, nc, $0}' "$LOG" | more
                     else
                         not_found
                     fi
@@ -1495,8 +1505,20 @@ go_developer() {
                     ;;
                 8)
                     echo -e "\n$B_COLOR═══════════════════════$NC syslog.log $B_COLOR════════════════════════════$NC\n"
-                    if [ -f "/jffs/syslog.log" ]; then
-                        awk -v bc="$B_COLOR" -v nc="$NC" '{printf "%s[%03d]%s  %s\n", bc, NR, nc, $0}' "/jffs/syslog.log" | more
+                    LOG="/jffs/syslog.log"
+                    if [ -f "$LOG" ]; then
+                        awk -v bc="$B_COLOR" -v nc="$NC" '{printf "%s[%03d]%s  %s\n", bc, NR, nc, $0}' "$LOG" | more
+                    else
+                        not_found
+                    fi
+                    echo -e "\n$B_COLOR═══════════════════════════════════════════════════════════════$NC"
+                    pause
+                    ;;
+                9)
+                    echo -e "\n$B_COLOR═══════════════════════$NC iocmon.log $B_COLOR════════════════════════════$NC\n"
+                    LOG="$ROOT_PATH/iocmon.d/state/iocmon.log"
+                    if [ -f "$LOG" ]; then
+                        awk -v bc="$B_COLOR" -v nc="$NC" '{printf "%s[%03d]%s  %s\n", bc, NR, nc, $0}' "$LOG" | more
                     else
                         not_found
                     fi
