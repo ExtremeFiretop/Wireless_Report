@@ -206,7 +206,6 @@ printb() {
 menu_vars() {
     if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
     if [ "$RR" = "1" ]; then RR=""; run_report; fi
-
     trap 'printf "\033[0m"' 0; trap 'exit 130' INT TERM HUP
 
     UL='\033[4m'; YL='\033[0;33m'; NC='\033[0m'; WH='\e[1;37m'
