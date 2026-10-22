@@ -1088,6 +1088,7 @@ set_device_colors() {
             local target_prompt_color=$(get_hex_to_ansi "$target_hex")
             echo -e "\n$NC Select a new color for ${target_prompt_color}[${target_name}]:$NC"
 
+            get_hex_to_ansi
             get_hex_ansi_selection
 
             if [ "$node_choice" -eq 0 ]; then
@@ -1220,6 +1221,7 @@ set_options() {
                     set_rssi_tooltip ;;
                 7)
                     echo -e "\n$B_COLOR Select Logo/Menu Border Color:"
+                    get_hex_to_ansi
                     get_hex_ansi_selection
                     B_COLOR="$selected_ansi"
                     if [ -f "$CONFIG" ]; then sed -i '/^B_COLOR=/d' "$CONFIG"; fi
@@ -1701,7 +1703,6 @@ if [ "$1" = "service_event" ]; then runtime_syslog "$@"; exit 0; fi
 
 get_mesh_nodes
 check_github
-get_hex_to_ansi
 device_default_colors
 
 run_report() {
