@@ -521,7 +521,6 @@ get_mesh_nodes() {
 inject_menu() {
 	source /usr/sbin/helper.sh
     TAB_LABEL="Wireless Report"
-    get_modelid_fw
 
     if [ -f "$CONFIG" ]; then
         sed -i '/^INSTALLED_PAGE=/d' "$CONFIG"
@@ -561,6 +560,7 @@ inject_menu() {
 
     case "$INJECT" in
         2)
+            get_modelid_fw
             INSERT_DATA="{\
             \nmenuName: \"$TAB_LABEL\",\
             \nindex: \"menu_AiMesh\",\
