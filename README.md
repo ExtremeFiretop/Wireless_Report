@@ -83,15 +83,10 @@ $\color{green}{\text{Option (7):}}$ Set Options
  * $\color{blue}{\text{Toggle Node Hostname Display:}}$ Gives you full control over how mesh node identifiers look, allowing for an incredibly clean, unified text layout or distinct color-coded node tracking.<br>
    * $\color{green}{\text{Numbered Hostnames (Default):}}$ Hostnames remain a uniform, clean white while their tracking superscripts (sup) are color-coded to match their respective nodes.
    * $\color{green}{\text{Colored Hostnames:}}$ The entire hostname text dynamically takes on the color of its connected node. The tracking superscripts are seamlessly hidden using invisible styling, preserving your right-click table sorting perfectly without breaking the visual layout.<br>
+ * $\color{blue}{\text{Toggle RSSI Tooltips:}}$ Hover over any RSSI value to display a trend indicator with your configured history (up to 20 readings).<br>
  * $\color{blue}{\text{Change Install Menu colors:}}$ Change Logo/Menu Border Color.
 
 ![Instructions4](https://raw.githubusercontent.com/JB1366/Wireless_Report/main/images/Instructions4.png)<br>
-\
-\
-$\color{green}{\text{Option (8):}}$ Configure RSSI History
-* $\color{blue}{\text{Toggle RSSI Tooltips:}}$ Hover over any RSSI value to display a trend indicator with your configured history (up to 20 readings).<br>
-
-![Instructions14](https://raw.githubusercontent.com/JB1366/Wireless_Report/main/images/Instructions14.png)<br>
 \
 \
 $\color{blue}{\Large\text{Viwing The Report}}$<br>
