@@ -28,7 +28,7 @@
 #        shellcheck shell=sh disable=SC2086,SC2155,SC3043         #
 #═════════════════════════════════════════════════════════════════#
 
-SCRIPT_VERSION="3.4.7"
+SCRIPT_VERSION="3.4.8"
 INSTALL_DIR="/jffs/addons/wireless_report"
 REPORT_SCRIPT="$INSTALL_DIR/wirelessreport.sh"
 CONFIG="$INSTALL_DIR/webui.conf"
@@ -204,7 +204,6 @@ printb() {
 menu_vars() {
     if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
     if [ "$RR" = "1" ]; then RR=""; run_report; fi
-
     trap 'printf "\033[0m"' 0; trap 'exit 130' INT TERM HUP
 
     UL='\033[4m'; YL='\033[0;33m'; NC='\033[0m'; WH='\e[1;37m'
@@ -451,7 +450,6 @@ check_github() {
         2) GIT="ExtremeFiretop"; BRANCH_NAME="Development"; DEV="E" ;;
         *) GIT="JB1366"; BRANCH_NAME="main"; DEV="" ;;
     esac
-
     GITHUB="https://raw.githubusercontent.com/$GIT/Wireless_Report/$BRANCH_NAME/wirelessreport.sh"
 
     REMOTE_TMP="/tmp/wr_remote.tmp"; LOCAL_HASH=""; REMOTE_HASH=""
@@ -491,11 +489,6 @@ get_mesh_nodes() {
         sort -t . -k 4,4n)
 
     if [ -f "$CONFIG" ]; then
-        # Migrate legacy SSH_NODES key to AIMESH_NODES if found
-        if grep -q '^SSH_NODES=' "$CONFIG" 2>/dev/null; then
-            sed -i 's/^SSH_NODES=/AIMESH_NODES=/' "$CONFIG"
-        fi
-
         local saved_mesh_nodes=""
         saved_mesh_nodes=$(grep '^AIMESH_NODES=' "$CONFIG" 2>/dev/null | cut -d'"' -f2)
         if [ -n "$saved_mesh_nodes" ]; then
@@ -578,7 +571,6 @@ inject_menu() {
             ;;
     esac
 
-    # v10 <#AiProtection_title#>
     umount "$SYSTEM_MENU" && mount -o bind "$TEMP_MENU" "$SYSTEM_MENU"
     umount "/www/user/$am_webui_page" 2>/dev/null
 	mount -o bind "$WEB_PAGE" "/www/user/$am_webui_page"
