@@ -96,7 +96,7 @@ install_menu() {
                         7) set_options ;;
 					esac
 					break ;;
-				e|E|z|Z) goodbye ;;
+				e|E) goodbye ;;
 				*) freeze 2; continue ;;
 			esac
 		done
@@ -340,7 +340,7 @@ do_install() {
             check_version do_install
             printf "Do you want to $UP (y/n): "
             read -r update
-            case "$update" in y|Y) break ;; n|N) return ;; *) freeze 4 ;; esac
+            case "$update" in y|Y) break ;; n|N) return 0 ;; *) freeze 4 ;; esac
         done
     fi
 
@@ -586,7 +586,7 @@ do_uninstall() {
     while true; do
         printf "Are you sure? (y/n): "
         read -r confirm
-        case "$confirm" in y|Y) break ;; n|N) return ;; *) freeze ;; esac
+        case "$confirm" in y|Y) break ;; n|N) return 0 ;; *) freeze ;; esac
     done
 
     if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
@@ -645,8 +645,7 @@ set_date_time() {
                 4) NEW_UNIT="USA1" ;;
                 5) NEW_UNIT="INTL1" ;;
                 6) NEW_UNIT="ISO1" ;;
-                e|E) return ;;
-                z|Z) goodbye ;;
+                e|E) return 0 ;;
                 *) freeze 2; continue ;;
             esac
             sed -i '/REPORT_UNIT=/d' "$CONFIG"
@@ -885,9 +884,7 @@ set_device_nicknames() {
                     printf "\n$GR[+] Node order successfully updated!$NC\n"
                     ;;
                 e|E)
-                    return ;;
-                z|Z)
-                    goodbye ;;
+                     return 0 ;;
                 *)
                     freeze 2
                     continue ;;
@@ -954,7 +951,8 @@ get_hex_ansi_selection() {
             10) selected_hex="#ff70a6"; selected_ansi="$PK" ;;
             11) selected_hex="#64ffda"; selected_ansi="$MT" ;;
             12) selected_hex="#000000"; selected_ansi="$DG" ;;
-            e|E) break 2 ;;
+            e|E) return 0 ;;
+            z|Z) goodbye ;;
             *)  freeze; continue ;;
         esac
         break
@@ -1134,7 +1132,6 @@ set_theme() {
                 2) TM="DARKMODE" ;;
                 3) TM="ASUS_WEBUI" ;;
                 e|E) return 0 ;;
-                z|Z) goodbye ;;
                 *) freeze 2; continue ;;
             esac
             if grep -q "^THEME=" "$CONFIG"; then
@@ -1221,15 +1218,8 @@ set_options() {
                     echo -e "\n$B_COLOR[+] Logo/Menu Border Color changed.$NC"
                     pause
                     ;;
-                dev)
-                    set_github_branch ;;
-                secret)
-                    get_usb
-                    go_developer ;;
                 e|E)
                     return 0 ;;
-                z|Z)
-                    goodbye ;;
                 *)
                     freeze 2
                     continue ;;
@@ -1307,8 +1297,6 @@ set_runtime_tracking() {
                     ;;
                 e|E)
                     return 0 ;;
-                z|Z)
-                    goodbye ;;
                 *)
                     freeze 2
                     continue ;;
@@ -1338,8 +1326,7 @@ set_ip_padding() {
                 1) NEW_PAD="0" ;;
                 2) NEW_PAD="1" ;;
                 3) NEW_PAD="2" ;;
-                e|E) break 2 ;;
-                z|Z) goodbye ;;
+                e|E) return 0 ;;
                 *) freeze 2; continue ;;
             esac
             break
@@ -1411,8 +1398,6 @@ set_rssi_tooltip() {
                     unset CUR_RS_HIST CUR_ENTRIES CUR_DATE
                     return 0
                     ;;
-                z|Z)
-                    goodbye ;;
                 *)
                     freeze 2
                     continue ;;
@@ -1443,8 +1428,7 @@ set_github_branch() {
                 1) BRANCH="0" ;;
                 2) BRANCH="1" ;;
                 3) BRANCH="2" ;;
-                e|E) break 2 ;;
-                z|Z) goodbye ;;
+                e|E) return 0 ;;
                 *) freeze 2; continue ;;
             esac
             break
@@ -1566,8 +1550,6 @@ go_developer() {
                     ;;
                 e|E)
                     return 0 ;;
-                z|Z)
-                    goodbye ;;
                 *)
                     freeze 2
                     continue ;;
@@ -1660,7 +1642,7 @@ pause() { printf "\nPress $B_COLOR[Enter]$NC to return..."; read -r discard; }
 
 restart_httpd() { service restart_httpd >/dev/null 2>&1; killall -HUP httpd >/dev/null 2>&1; }
 
-selection() { printf "\n$NC Selection [${B_COLOR}E=Exit$NC]: "; read -r choice; }
+selection() { printf "\n$NC Selection [${B_COLOR}E=Exit$NC]: "; read -r choice; case "$choice" in z|Z) goodbye ;; dev) set_github_branch; break ;; secret) go_developer; break ;; esac; }
 
 sys_log() { logger -p user.info -t "Wireless_Report" "$1"; }
 
