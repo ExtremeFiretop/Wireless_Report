@@ -1564,13 +1564,13 @@ go_developer() {
                 8)
                     echo -e "\n$B_COLOR═══════════════════════$NC syslog.log $B_COLOR════════════════════════════$NC\n"
                     LOG="/jffs/syslog.log"
-                    if [ -f "$LOG" ]; then log2; else not_found; fi
+                    if [ -f "$LOG" ]; then log_tail; else not_found; fi
                     echo -e "\n$B_COLOR═══════════════════════════════════════════════════════════════$NC"
                     ;;
                 9)
                     echo -e "\n$B_COLOR═══════════════════════$NC iocmon.log $B_COLOR════════════════════════════$NC\n"
                     LOG="$ROOT_PATH/iocmon.d/state/iocmon.log"
-                    if [ -f "$LOG" ]; then log2; else not_found; fi
+                    if [ -f "$LOG" ]; then log_tail; else not_found; fi
                     echo -e "\n$B_COLOR═══════════════════════════════════════════════════════════════$NC"
                     ;;
                 e|E)
@@ -1662,6 +1662,8 @@ freeze() { printf "\033[%dA\033[J" "${1:-1}"; }
 goodbye() { clear; hasta_la_vista; exit 0; }
 
 log2() { awk -v bc="$B_COLOR" -v nc="$NC" '{printf "%s[%02d]%s  %s\n", bc, NR, nc, $0}' "$LOG" | more; }
+
+log_tail() { tail -n 200 "$LOG" | awk -v bc="$B_COLOR" -v nc="$NC" '{printf "%s[%02d]%s  %s\n", bc, NR, nc, $0}' | more; }
 
 pause() { printf "\nPress $B_COLOR[Enter]$NC to return..."; read -r discard; }
 
