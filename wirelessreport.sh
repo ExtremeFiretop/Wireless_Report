@@ -835,6 +835,7 @@ set_device_nicknames() {
                                 pause
                                 break 2
                                 ;;
+                            z|Z) goodbye ;;
                         esac
                         valid="true"
                         entered_count=0
