@@ -35,6 +35,9 @@ CONFIG="$INSTALL_DIR/webui.conf"
 SYSTEM_MENU="/www/require/modules/menuTree.js"
 TEMP_MENU="/tmp/menuTree.js"
 WEB_PAGE="/tmp/wireless.asp"
+SS_FILE="/jffs/scripts/services-start"
+SE_FILE="/jffs/scripts/service-event"
+PROFILE_ADD="/jffs/configs/profile.add"
 if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
 export PATH="/usr/sbin:/usr/bin:/sbin:/bin:$PATH"
 unset LD_LIBRARY_PATH
@@ -206,42 +209,11 @@ menu_vars() {
     if [ "$RR" = "1" ]; then RR=""; run_report; fi
     trap 'printf "\033[0m"' 0; trap 'exit 130' INT TERM HUP
 
-    UL='\033[4m'; YL='\033[0;33m'; NC='\033[0m'; WH='\e[1;37m'
-    BL='\033[38;5;39m'; GR='\033[0;32m'; RD='\033[0;31m'
-    COLORS="${MP}C${NB}o${LG}l${YW}o${SB}r${OR}s"; menu_buffer=""
-
-    B_COLOR=${B_COLOR:-$BL}; echo -e "$B_COLOR"
-
-    JB_1366="$NC Copyright (c) 2026 JB_1366 - All Rights Reserved"
-    JB1366="$B_COLOR${UL}https://github.com/JB1366/Wireless_Report$NC"
-
-    for i in 0 1 2 3 4 5 6 7 8 9; do eval "N${i}=\"\$B_COLOR(${i})\$NC\""; done
-	for i in E S R Z; do eval "L${i}=\"\$B_COLOR(${i})\$NC\""; done
+    menu_buffer=""; echo -e "$B_COLOR"
 
     ON="${GR}ON$NC"; OFF="${RD}OFF$NC"
     STATUS="$NC STATUS:"
     CURRENT="$NC CURRENT:$GR v$SCRIPT_VERSION$DEV$NC"
-
-    SS_FILE="/jffs/scripts/services-start"
-    SE_FILE="/jffs/scripts/service-event"
-    PROFILE_ADD="/jffs/configs/profile.add"
-
-    DATE_ISO="$GR$(date +"%Y-%m-%d %H:%M:%S")$NC"
-    DATE_INTL="$GR$(date +"%-d-%b %-H:%M:%S")$NC"
-    DATE_USA="$GR$(date +"%b-%-d %-H:%M:%S")$NC"
-    DATE_ISO1="$BL$(date +"%Y-%m-%d %I:%M:%S %p")$NC"
-    DATE_INTL1="$BL$(date +"%d-%b %I:%M:%S %p")$NC"
-    DATE_USA1="$BL$(date +"%b-%d %I:%M:%S %p")$NC"
-
-    REPORT_UNIT=${REPORT_UNIT:-USA}
-    case "$REPORT_UNIT" in
-        ISO)  DU="${GR}ISO$NC";  CT="$DATE_ISO" ;;
-        INTL) DU="${GR}INTL$NC"; CT="$DATE_INTL" ;;
-        USA)  DU="${GR}USA$NC";  CT="$DATE_USA" ;;
-        ISO1) DU="${BL}ISO$NC";  CT="$DATE_ISO1" ;;
-        INTL1)DU="${BL}INTL$NC"; CT="$DATE_INTL1" ;;
-        USA1) DU="${BL}USA$NC";  CT="$DATE_USA1" ;;
-    esac
 
     THEME=${THEME:-ORIGINAL}
     TM_STAT="$BL$THEME$NC"
@@ -290,8 +262,6 @@ menu_vars() {
 
     case "$BRANCH" in 2) BRANCH_NAME="EFT-Development" ;; esac
     BN="$GR$BRANCH_NAME$NC"
-
-    MODELID="${MODEL_PAD}${B_COLOR}Router: ${NC}${CACHED_PRODID}${B_COLOR}   FW:${NC} ${CACHED_FW}"
 }
 
 get_modelid_fw() {
@@ -321,6 +291,38 @@ get_modelid_fw() {
 
     CACHED_PRODID="$prodid"
     CACHED_FW="$fwVersion"
+}
+
+menu_time_color() {
+    WH='\033[1;37m'; YL='\033[0;33m'; RD='\033[0;31m'
+    BL='\033[38;5;39m'; GR='\033[0;32m'; NC='\033[0m'
+
+    DATE_ISO="$GR$(date +"%Y-%m-%d %H:%M:%S")$NC"
+    DATE_INTL="$GR$(date +"%-d-%b %-H:%M:%S")$NC"
+    DATE_USA="$GR$(date +"%b-%-d %-H:%M:%S")$NC"
+    DATE_ISO1="$BL$(date +"%Y-%m-%d %I:%M:%S %p")$NC"
+    DATE_INTL1="$BL$(date +"%d-%b %I:%M:%S %p")$NC"
+    DATE_USA1="$BL$(date +"%b-%d %I:%M:%S %p")$NC"
+
+    REPORT_UNIT=${REPORT_UNIT:-USA}
+    case "$REPORT_UNIT" in
+        ISO)  DU="${GR}ISO$NC";  CT="$DATE_ISO" ;;
+        INTL) DU="${GR}INTL$NC"; CT="$DATE_INTL" ;;
+        USA)  DU="${GR}USA$NC";  CT="$DATE_USA" ;;
+        ISO1) DU="${BL}ISO$NC";  CT="$DATE_ISO1" ;;
+        INTL1)DU="${BL}INTL$NC"; CT="$DATE_INTL1" ;;
+        USA1) DU="${BL}USA$NC";  CT="$DATE_USA1" ;;
+    esac
+
+    B_COLOR=${B_COLOR:-$BL}
+    for i in 0 1 2 3 4 5 6 7 8 9; do eval "N${i}=\"\$B_COLOR(${i})\$NC\""; done
+	for i in E R S Z; do eval "L${i}=\"\$B_COLOR(${i})\$NC\""; done
+
+    MODELID="${MODEL_PAD}${B_COLOR}Router: ${NC}${CACHED_PRODID}${B_COLOR}   FW:${NC} ${CACHED_FW}"
+    COLORS="${MP}C${NB}o${LG}l${YW}o${SB}r${OR}s"
+
+    JB_1366="$NC Copyright (c) 2026 JB_1366 - All Rights Reserved"
+    JB1366="$B_COLOR${UL}https://github.com/JB1366/WirelessReportSSH$NC"
 }
 
 do_install() {
@@ -651,6 +653,7 @@ set_date_time() {
             sed -i '/REPORT_UNIT=/d' "$CONFIG"
             echo "REPORT_UNIT=\"$NEW_UNIT\"" >> "$CONFIG"
             REPORT_UNIT="$NEW_UNIT"
+            menu_time_color
             break
         done
         run_report
@@ -952,7 +955,7 @@ get_hex_ansi_selection() {
             10) selected_hex="#ff70a6"; selected_ansi="$PK" ;;
             11) selected_hex="#64ffda"; selected_ansi="$MT" ;;
             12) selected_hex="#000000"; selected_ansi="$DG" ;;
-            e|E) return 0 ;;
+            e|E) break 2 ;;
             z|Z) goodbye ;;
             *)  freeze; continue ;;
         esac
@@ -1217,6 +1220,7 @@ set_options() {
                     if [ -f "$CONFIG" ]; then sed -i '/^B_COLOR=/d' "$CONFIG"; fi
                     echo "B_COLOR=\"$B_COLOR\"" >> "$CONFIG"
                     echo -e "\n$B_COLOR[+] Logo/Menu Border Color changed.$NC"
+                    menu_time_color
                     pause
                     ;;
                 e|E)
@@ -1498,14 +1502,15 @@ go_developer() {
                     break
                     ;;
                 3)
-                    echo -e "$B_COLOR\nCurrent Insert Before menuName:$NC $INSERT_BEFORE"
-                    printf "\nEnter menuName $B_COLOR<#TAG#>$NC to insert before [${B_COLOR}Enter=Keep Current$NC]: "
-                    read -r CHOICE
-                    if [ -n "$CHOICE" ]; then
-                        INSERT_BEFORE="$CHOICE"
-                        echo -e "$B_COLOR\nUpdated to:$NC $INSERT_BEFORE"
+                    echo -e "\nCurrent Insert Before menuName: $B_COLOR$INSERT_BEFORE$NC"
+                    printf "\nEnter menuName $B_COLOR<#TAG#>$NC to insert WR Menu before [${B_COLOR}E=Exit$NC]: "
+                    read -r choice
+                    case "$choice" in e|E) break ;; z|Z) goodbye ;;  esac
+                    if [ -n "$choice" ]; then
+                        INSERT_BEFORE="$choice"
+                        echo -e "\nUpdated to: $B_COLOR$INSERT_BEFORE$NC"
                     else
-                        echo -e "$B_COLOR\nKept current value:$NC $INSERT_BEFORE"
+                        echo -e "\nKept current value: $B_COLOR$INSERT_BEFORE$NC"
                     fi
                     if [ -f "$CONFIG" ]; then
                         if grep -q "^INSERT_BEFORE=" "$CONFIG"; then
@@ -6205,6 +6210,7 @@ nvram set wirelessreport_gen="$WR_GENERATION" >/dev/null 2>&1
 case "$1" in
     install)
         get_modelid_fw
+        menu_time_color
         install_menu
         ;;
     inject|inject2)
