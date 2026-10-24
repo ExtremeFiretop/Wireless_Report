@@ -63,7 +63,7 @@ show_header() {
     echo -e "       $JB_1366                                                "
     echo -e "           $JB1366                                             "
     echo -e "                                                               "
-    echo -e "$MODELID"
+    echo -e "$MODELID"                                                      #
     #═══════════════════════════════════════════════════════════════════════#
 }
 
@@ -181,22 +181,21 @@ version_compare() {
 }
 
 printm() {
-    local box_color text target esc plain len pad line i
-    box_color="$B_COLOR"
-    text="$1"
-    target="${2:-61}"
-    esc=$(printf '\033')
-    plain=$(printf "%b" "$text" | sed "s/${esc}\[[0-9;]*m//g")
-    len=${#plain}
-    pad=$((target - len))
+    local box_color="$B_COLOR"
+    local text="$1"
+    local target="${2:-61}"
+    local esc=$(printf '\033')
+    local plain=$(printf "%b" "$text" | sed "s/${esc}\[[0-9;]*m//g")
+    local len=${#plain}
+    local pad=$((target - len))
     [ "$pad" -lt 0 ] && pad=0
-    line="${box_color}║$NC${text}"
-    i=0
+    local line="${box_color}║$NC${text}"
+    local i=0
     while [ "$i" -lt "$pad" ]; do
         line="${line} "
         i=$((i + 1))
     done
-    line="${line}${box_color}║$NC\n"
+    local line="${line}${box_color}║$NC\n"
     menu_buffer="${menu_buffer}${line}"
 }
 
@@ -207,8 +206,8 @@ printb() {
 menu_vars() {
     if [ -f "$CONFIG" ]; then . "$CONFIG"; fi
     if [ "$RR" = "1" ]; then RR=""; run_report; fi
-    trap 'printf "\033[0m"' 0; trap 'exit 130' INT TERM HUP
 
+    trap 'printf "\033[0m"' 0; trap 'exit 130' INT TERM HUP
     menu_buffer=""; echo -e "$B_COLOR"
 
     ON="${GR}ON$NC"; OFF="${RD}OFF$NC"
@@ -453,7 +452,6 @@ check_github() {
         *) GIT="JB1366"; BRANCH_NAME="main"; DEV="" ;;
     esac
     GITHUB="https://raw.githubusercontent.com/$GIT/Wireless_Report/$BRANCH_NAME/wirelessreport.sh"
-
     REMOTE_TMP="/tmp/wr_remote.tmp"; LOCAL_HASH=""; REMOTE_HASH=""
     if curl -sfL --retry 3 "$GITHUB" -o "$REMOTE_TMP" 2>/dev/null && [ -s "$REMOTE_TMP" ]; then
         REMOTE_VERSION=$(grep "SCRIPT_VERSION=" "$REMOTE_TMP" | head -n 1 | cut -d'"' -f2 | tr -cd '0-9.')
