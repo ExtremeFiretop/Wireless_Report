@@ -28,7 +28,7 @@
 #        shellcheck shell=sh disable=SC2086,SC2155,SC3043         #
 #═════════════════════════════════════════════════════════════════#
 
-SCRIPT_VERSION="3.4.8"
+SCRIPT_VERSION="3.4.9"
 INSTALL_DIR="/jffs/addons/wireless_report"
 REPORT_SCRIPT="$INSTALL_DIR/wirelessreport.sh"
 CONFIG="$INSTALL_DIR/webui.conf"
@@ -183,7 +183,7 @@ version_compare() {
 printm() {
     local box_color="$B_COLOR"
     local text="$1"
-    local target="${2:-61}"
+    local target="${2:-$MB}"
     local esc=$(printf '\033')
     local plain=$(printf "%b" "$text" | sed "s/${esc}\[[0-9;]*m//g")
     local len=${#plain}
@@ -208,7 +208,7 @@ menu_vars() {
     if [ "$RR" = "1" ]; then RR=""; run_report; fi
 
     trap 'printf "\033[0m"' 0; trap 'exit 130' INT TERM HUP
-    menu_buffer=""; echo -e "$B_COLOR"
+    menu_buffer=""; MB="61"; echo -e "$B_COLOR"
 
     ON="${GR}ON$NC"; OFF="${RD}OFF$NC"
     STATUS="$NC STATUS:"
@@ -321,7 +321,7 @@ menu_time_color() {
     COLORS="${MP}C${NB}o${LG}l${YW}o${SB}r${OR}s"
 
     JB_1366="$NC Copyright (c) 2026 JB_1366 - All Rights Reserved"
-    JB1366="$B_COLOR${UL}https://github.com/JB1366/WirelessReportSSH$NC"
+    JB1366="$B_COLOR${UL}https://github.com/JB1366/Wireless_Report$NC"
 }
 
 do_install() {
@@ -348,6 +348,13 @@ do_install() {
     echo -e "\n$GR[+] Downloading latest version (${WH}v$REMOTE_VERSION$GR)$NC"
     do_update || return 1
 
+    mkdir -p "$(dirname "$PROFILE_ADD")"
+    [ ! -f "$PROFILE_ADD" ] && touch "$PROFILE_ADD"
+    if ! grep -q "alias wr=" "$PROFILE_ADD" 2>/dev/null; then
+        echo "alias wr=\"$REPORT_SCRIPT install\" # added by Wireless Report" >> "$PROFILE_ADD"
+        echo -e "\n$GR[+] Adding alias 'wr' to $PROFILE_ADD$NC"
+    fi
+
     if [ "$is_update" = "1" ]; then
         echo -e "\n$BL[✓] Wireless Report successfully installed.$NC"
 		printf "\nPress $BL[Enter]$NC to apply changes & restart script..."
@@ -359,13 +366,6 @@ do_install() {
 
     echo -e "\n$GR[+] Mounting Tab Wireless Report$NC\n"
     echo -e "$GR[+] Processing Wireless Report Files...$NC\n"
-
-    mkdir -p "$(dirname "$PROFILE_ADD")"
-    [ ! -f "$PROFILE_ADD" ] && touch "$PROFILE_ADD"
-    if ! grep -q "alias wr=" "$PROFILE_ADD" 2>/dev/null; then
-        echo "alias wr=\"$REPORT_SCRIPT install\" # added by Wireless Report" >> "$PROFILE_ADD"
-        echo -e "\n$GR[+] Adding alias 'wr' to $PROFILE_ADD$NC"
-    fi
 
     if [ ! -f "$SS_FILE" ]; then echo "#!/bin/sh" > "$SS_FILE"; fi
     sed -i "\|$REPORT_SCRIPT|d" "$SS_FILE" 2>/dev/null
@@ -921,26 +921,29 @@ get_hex_to_ansi() {
 }
 
 get_hex_ansi_selection() {
-    #══════════════════════════════════════#
-    echo -e "                              "
-    echo -e "$NB  (1) Neon-Blue (#0096ff)  "
-    echo -e "$LG  (2) Lime-Green (#30d158) "
-    echo -e "$MP  (3) Med-Purple (#bf40bf) "
-    echo -e "$YW  (4) Yellow (#ffd60a)     "
-    echo -e "$SB  (5) SkyBlue (#64d2ff)    "
-    echo -e "$OR  (6) Orange (#ff9500)     "
-    echo -e "$RD  (7) Red (#ff453a)        "
-    echo -e "$WT  (8) White (#ffffff)      "
-    echo -e "$DG  (9) Dark Gray (#555555)  "
-    echo -e "$PK (10) Light-Pink (#ff70a6) "
-    echo -e "$MT (11) Mint-Green (#64ffda) "
-    echo -e "$DG (12) Black (#000000)      "
-    echo -e "                              "
-    #══════════════════════════════════════#
+    menu_buffer=""; MB=30
+    printb "╔══════════════════════════════╗"
+    printm "      Hex Color Pallete"
+    printb "╠══════════════════════════════╣"
+    printm ""
+    printm " $NB (1)  Neon-Blue (#0096ff)"
+    printm " $LG (2)  Lime-Green (#30d158)"
+    printm " $MP (3)  Med-Purple (#bf40bf)"
+    printm " $YW (4)  Yellow (#ffd60a)"
+    printm " $SB (5)  SkyBlue (#64d2ff)"
+    printm " $OR (6)  Orange (#ff9500)"
+    printm " $RD (7)  Red (#ff453a)"
+    printm " $WT (8)  White (#ffffff)"
+    printm " $DG (9)  Dark Gray (#555555)"
+    printm " $PK (10) Light-Pink (#ff70a6)"
+    printm " $MT (11) Mint-Green (#64ffda)"
+    printm " $DG (12) Black (#000000)"
+    printm ""
+    printb "╚══════════════════════════════╝"
+    printf "%b" "$menu_buffer"
     while true; do
-        printf "$NC Choose option [${B_COLOR}E=Exit$NC] (${B_COLOR}1-12$NC): "
-        read -r color_choice
-        case "$color_choice" in
+        selection
+        case "$choice" in
             1)  selected_hex="#0096ff"; selected_ansi="$NB" ;;
             2)  selected_hex="#30d158"; selected_ansi="$LG" ;;
             3)  selected_hex="#bf40bf"; selected_ansi="$MP" ;;
@@ -954,8 +957,7 @@ get_hex_ansi_selection() {
             11) selected_hex="#64ffda"; selected_ansi="$MT" ;;
             12) selected_hex="#000000"; selected_ansi="$DG" ;;
             e|E) break 2 ;;
-            z|Z) goodbye ;;
-            *)  freeze; continue ;;
+            *) freeze 2; continue ;;
         esac
         break
     done
@@ -1094,6 +1096,8 @@ set_device_colors() {
                 done
                 working_colors="$new_string"
             fi
+            echo -e "\n$selected_ansi[+] [${target_name}] Color changed.$NC"
+            pause
             break
         done
     done
